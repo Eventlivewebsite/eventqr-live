@@ -1,4 +1,8 @@
 {
+  "name": "eventqr-live",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.17.0",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -20,7 +24,6 @@
   },
   "engines": {
     "node": ">=18"
-
   },
   "workspaces": [
     "apps/*",
