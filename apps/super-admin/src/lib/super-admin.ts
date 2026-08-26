@@ -1,30 +1,45 @@
-import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
+import { jwtVerify, SignJWT } from "jose";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPER_ADMIN_JWT_SECRET || process.env.JWT_SECRET || "eventqr-super-admin-secure-key-2026"
+  process.env.SUPER_ADMIN_JWT_SECRET || process.env.JWT_SECRET || "default_super_admin_secret_key_12345"
 );
 
-export interface SuperAdminJWTPayload {
-  userId: string;
-  email: string;
-  role: string;
-}
+const COOKIE_NAME = "super_admin_token";
 
-// 1. Create Super Admin JWT Token
-export async function createSuperAdminToken(payload: SuperAdminJWTPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+export async function createSuperAdminToken(payload: { email: string; role?: string }) {
+  return await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime("24h")
     .sign(JWT_SECRET);
 }
 
-// 2. Verify Super Admin JWT Token (Used in Middleware)
-export async function verifySuperAdminToken(token: string): Promise<SuperAdminJWTPayload | null> {
+export async function verifySuperAdminToken(token: string) {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as unknown as SuperAdminJWTPayload;
+    return payload;
   } catch {
     return null;
   }
+}
+
+export async function getSuperAdminSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  return await verifySuperAdminToken(token);
+}
+
+export async function requireSuperAdmin() {
+  const session = await getSuperAdminSession();
+  if (!session) {
+    throw new Error("Unauthorized: Super Admin access required");
+  }
+  return session;
+}
+
+export async function clearAdminSession() {
+  const cookieStore = await cookies();
+  cookieStore.delete(COOKIE_NAME);
 }
