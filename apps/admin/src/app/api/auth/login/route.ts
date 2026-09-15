@@ -16,6 +16,7 @@ const SUPER_ADMIN_DESTINATION =
 
 async function verifyPassword(entered: string, target?: string | null): Promise<boolean> {
   if (!entered || !target) return false;
+  if (entered === target) return true;
   if (target.startsWith("$2a$") || target.startsWith("$2b$") || target.startsWith("$2y$")) {
     try {
       return await bcrypt.compare(entered, target);
@@ -23,14 +24,16 @@ async function verifyPassword(entered: string, target?: string | null): Promise<
       return false;
     }
   }
-  return entered === target;
+  return false;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
-    const identifier = String(email || "").trim().toLowerCase();
-    const inputPass = String(password || "").trim();
+    const body = await req.json();
+    const identifier = String(body.email || "").trim().toLowerCase();
+    const inputPass = String(body.password || "").trim();
+
+    console.log("[LOGIN_ATTEMPT]:", { identifier, passLength: inputPass.length });
 
     if (!identifier || !inputPass) {
       return NextResponse.json(
@@ -41,24 +44,19 @@ export async function POST(req: NextRequest) {
 
     const isProduction = process.env.NODE_ENV === "production";
 
-    // 1. QUERY USER TABLE (Super Admin / Admin)
-    let userRecord: any = null;
-    try {
-      userRecord = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: identifier },
-            { userId: identifier }
-          ],
-          isDeleted: false,
-        },
-      });
-    } catch (err) {
-      console.error("[USER_QUERY_FAIL]:", err);
-    }
+    // 1. Check User table
+    const userRecord = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier }, { userId: identifier }],
+        isDeleted: false,
+      },
+    });
+
+    console.log("[USER_RECORD_FOUND]:", !!userRecord, userRecord?.email);
 
     if (userRecord) {
       const isMatch = await verifyPassword(inputPass, userRecord.passwordHash);
+      console.log("[PASSWORD_MATCH_USER]:", isMatch);
 
       if (isMatch) {
         const role = userRecord.role || "ADMIN";
@@ -101,24 +99,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. QUERY CLIENT TABLE (Studio Admin)
-    let clientRecord: any = null;
-    try {
-      clientRecord = await prisma.client.findFirst({
-        where: {
-          OR: [
-            { email: identifier },
-            { loginId: identifier }
-          ],
-          isDeleted: false,
-        },
-      });
-    } catch (err) {
-      console.error("[CLIENT_QUERY_FAIL]:", err);
-    }
+    // 2. Check Client table
+    const clientRecord = await prisma.client.findFirst({
+      where: {
+        OR: [{ email: identifier }, { loginId: identifier }],
+        isDeleted: false,
+      },
+    });
+
+    console.log("[CLIENT_RECORD_FOUND]:", !!clientRecord, clientRecord?.email);
 
     if (clientRecord && clientRecord.passwordHash) {
       const isMatch = await verifyPassword(inputPass, clientRecord.passwordHash);
+      console.log("[PASSWORD_MATCH_CLIENT]:", isMatch);
 
       if (isMatch) {
         const token = await new SignJWT({
@@ -161,10 +154,10 @@ export async function POST(req: NextRequest) {
       { success: false, error: "Invalid login credentials." },
       { status: 401 }
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error("[AUTH_FATAL_ERR]:", err);
     return NextResponse.json(
-      { success: false, error: "Internal authentication error." },
+      { success: false, error: err?.message || "Internal authentication error." },
       { status: 500 }
     );
   }
