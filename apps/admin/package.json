@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3002",
-    "build": "next build",
+    "build": "prisma generate --schema=../../prisma/schema.prisma && next build",
     "start": "next start -p 3002",
     "lint": "next lint"
   },
@@ -29,6 +29,7 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.6.0",
     "postcss": "^8.5.23",
+    "prisma": "^7.9.1",
     "tailwindcss": "^3.4.19",
     "typescript": "^5"
   }

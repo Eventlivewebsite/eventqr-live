@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +68,6 @@ export async function POST(
     const cleanId = String(id || "").trim();
     const body = await req.json();
 
-    // Package extended configurations inside customCategories JSON blob
     const dynamicConfig = {
       heroTag: body.heroTag,
       welcomeHeading: body.welcomeHeading,
