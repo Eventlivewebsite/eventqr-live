@@ -3,7 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -65,10 +67,10 @@ enum ClientPlan {
 
 model User {
   id           String    @id @default(cuid())
-  userId       String    @unique // Admin unique username
-  ownerName    String    // Owner Name
-  companyName  String?   // Studio Name
-  name         String    // Display Name
+  userId       String    @unique
+  ownerName    String
+  companyName  String?
+  name         String
   email        String    @unique
   phone        String?   @unique
   passwordHash String
@@ -80,7 +82,7 @@ model User {
   isDeleted    Boolean   @default(false)
 
   lastLogin    DateTime?
-  updatedBy    String?   // Super admin ID who modified this admin
+  updatedBy    String?
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -105,7 +107,7 @@ model Account {
   refreshToken          String?
   idToken               String?
 
-  accessTokenExpiresAt  DateTime?
+  accessTokenExpiresAt DateTime?
   refreshTokenExpiresAt DateTime?
 
   scope                 String?
