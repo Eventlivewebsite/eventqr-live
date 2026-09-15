@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     if (!identifier || !inputPass) {
       return NextResponse.json(
-        { success: false, error: "Please enter your ID and Password." },
+        { success: false, error: "Please enter your ID/Email and Password." },
         { status: 400 }
       );
     }
@@ -42,9 +42,10 @@ export async function POST(req: NextRequest) {
     const isProduction = process.env.NODE_ENV === "production";
 
     // =========================================================================
-    // 1. CHECK SUPER ADMIN / PLATFORM ADMIN (User Table)
+    // 1. CHECK SUPER ADMIN / ADMIN (User Table)
+    // Matches schema: email or userId
     // =========================================================================
-    let userRecord: any = null;
+    let userRecord = null;
     try {
       userRecord = await prisma.user.findFirst({
         where: {
@@ -61,111 +62,71 @@ export async function POST(req: NextRequest) {
     }
 
     if (userRecord) {
-      const isMatch = await checkPassword(
-        inputPass,
-        userRecord.passwordHash || userRecord.password
-      );
+      const isMatch = await checkPassword(inputPass, userRecord.passwordHash);
 
       if (isMatch) {
-        const rawRole = String(userRecord.role || "").toUpperCase();
-        const isSuperAdmin = rawRole === "SUPER_ADMIN" || rawRole === "SUPERADMIN";
+        const isSuperAdmin = userRecord.role === "SUPER_ADMIN";
+        const role = userRecord.role;
+        const redirectUrl = isSuperAdmin ? SUPER_ADMIN_DESTINATION : "/events";
 
-        if (isSuperAdmin) {
-          const token = await new SignJWT({
-            userId: userRecord.id,
+        const token = await new SignJWT({
+          userId: userRecord.id,
+          email: userRecord.email,
+          role: role,
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("7d")
+          .sign(JWT_SECRET);
+
+        const res = NextResponse.json({
+          success: true,
+          role: role,
+          redirectTo: redirectUrl,
+          user: {
+            id: userRecord.id,
+            name: userRecord.name || userRecord.ownerName || "Admin",
             email: userRecord.email,
-            role: "SUPER_ADMIN",
-          })
-            .setProtectedHeader({ alg: "HS256" })
-            .setExpirationTime("7d")
-            .sign(JWT_SECRET);
+            role: role,
+          },
+        });
 
-          const res = NextResponse.json({
-            success: true,
-            role: "SUPER_ADMIN",
-            redirectTo: SUPER_ADMIN_DESTINATION,
-            user: {
-              id: userRecord.id,
-              name: userRecord.name || "Super Admin",
-              email: userRecord.email,
-              role: "SUPER_ADMIN",
-            },
-          });
-
-          res.cookies.set("eventqr_session", token, {
-            path: "/",
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: "lax",
-          });
-          res.cookies.set("eventqr_session_role", "SUPER_ADMIN", {
-            path: "/",
-            secure: isProduction,
-            sameSite: "lax",
-          });
-          return res;
-        } else {
-          // Internal staff/general admin without super-admin access
-          const token = await new SignJWT({
-            userId: userRecord.id,
-            email: userRecord.email,
-            role: "ADMIN",
-          })
-            .setProtectedHeader({ alg: "HS256" })
-            .setExpirationTime("7d")
-            .sign(JWT_SECRET);
-
-          const res = NextResponse.json({
-            success: true,
-            role: "ADMIN",
-            redirectTo: "/events",
-            user: {
-              id: userRecord.id,
-              name: userRecord.name || "Admin",
-              email: userRecord.email,
-              role: "ADMIN",
-            },
-          });
-
-          res.cookies.set("eventqr_session", token, {
-            path: "/",
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: "lax",
-          });
-          res.cookies.set("eventqr_session_role", "ADMIN", {
-            path: "/",
-            secure: isProduction,
-            sameSite: "lax",
-          });
-          return res;
-        }
+        res.cookies.set("eventqr_session", token, {
+          path: "/",
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: "lax",
+        });
+        res.cookies.set("eventqr_session_role", role, {
+          path: "/",
+          secure: isProduction,
+          sameSite: "lax",
+        });
+        return res;
       }
     }
 
     // =========================================================================
     // 2. CHECK STUDIO CLIENT (Client Table)
+    // Matches schema: email or loginId
     // =========================================================================
-    let clientRecord: any = null;
+    let clientRecord = null;
     try {
-      clientRecord = await (prisma as any).client.findFirst({
+      clientRecord = await prisma.client.findFirst({
         where: {
           OR: [
             { email: { equals: identifier, mode: "insensitive" } },
-            { studioSlug: { equals: identifier, mode: "insensitive" } },
-            { username: { equals: identifier, mode: "insensitive" } },
+            { loginId: { equals: identifier, mode: "insensitive" } },
           ],
+          isActive: true,
+          isDeleted: false,
         },
       });
     } catch (e) {
       console.error("[AUTH_CLIENT_ERR]:", e);
     }
 
-    if (clientRecord) {
-      const isMatch = await checkPassword(
-        inputPass,
-        clientRecord.passwordHash || clientRecord.password
-      );
+    if (clientRecord && clientRecord.passwordHash) {
+      const isMatch = await checkPassword(inputPass, clientRecord.passwordHash);
 
       if (isMatch) {
         const token = await new SignJWT({
@@ -183,7 +144,7 @@ export async function POST(req: NextRequest) {
           redirectTo: "/events",
           user: {
             id: clientRecord.id,
-            name: clientRecord.name || clientRecord.studioName || "Studio Admin",
+            name: clientRecord.contactPerson || clientRecord.companyName || "Studio Admin",
             email: clientRecord.email,
             role: "STUDIO_ADMIN",
           },
