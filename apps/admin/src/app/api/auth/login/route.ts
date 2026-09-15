@@ -14,7 +14,7 @@ const SUPER_ADMIN_DESTINATION =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
   "http://localhost:3001/dashboard";
 
-async function checkPassword(entered: string, target?: string | null): Promise<boolean> {
+async function verifyPassword(entered: string, target?: string | null): Promise<boolean> {
   if (!entered || !target) return false;
   if (target.startsWith("$2a$") || target.startsWith("$2b$") || target.startsWith("$2y$")) {
     try {
@@ -41,38 +41,34 @@ export async function POST(req: NextRequest) {
 
     const isProduction = process.env.NODE_ENV === "production";
 
-    // =========================================================================
-    // 1. CHECK SUPER ADMIN / ADMIN (User Table)
-    // Matches schema: email or userId
-    // =========================================================================
-    let userRecord = null;
+    // 1. QUERY USER TABLE (Super Admin / Admin)
+    let userRecord: any = null;
     try {
       userRecord = await prisma.user.findFirst({
         where: {
           OR: [
-            { email: { equals: identifier, mode: "insensitive" } },
-            { userId: { equals: identifier, mode: "insensitive" } },
+            { email: identifier },
+            { userId: identifier }
           ],
-          isActive: true,
           isDeleted: false,
         },
       });
-    } catch (e) {
-      console.error("[AUTH_USER_ERR]:", e);
+    } catch (err) {
+      console.error("[USER_QUERY_FAIL]:", err);
     }
 
     if (userRecord) {
-      const isMatch = await checkPassword(inputPass, userRecord.passwordHash);
+      const isMatch = await verifyPassword(inputPass, userRecord.passwordHash);
 
       if (isMatch) {
-        const isSuperAdmin = userRecord.role === "SUPER_ADMIN";
-        const role = userRecord.role;
-        const redirectUrl = isSuperAdmin ? SUPER_ADMIN_DESTINATION : "/events";
+        const role = userRecord.role || "ADMIN";
+        const isSuper = role === "SUPER_ADMIN";
+        const redirectUrl = isSuper ? SUPER_ADMIN_DESTINATION : "/events";
 
         const token = await new SignJWT({
           userId: userRecord.id,
           email: userRecord.email,
-          role: role,
+          role,
         })
           .setProtectedHeader({ alg: "HS256" })
           .setExpirationTime("7d")
@@ -80,13 +76,13 @@ export async function POST(req: NextRequest) {
 
         const res = NextResponse.json({
           success: true,
-          role: role,
+          role,
           redirectTo: redirectUrl,
           user: {
             id: userRecord.id,
             name: userRecord.name || userRecord.ownerName || "Admin",
             email: userRecord.email,
-            role: role,
+            role,
           },
         });
 
@@ -105,28 +101,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // =========================================================================
-    // 2. CHECK STUDIO CLIENT (Client Table)
-    // Matches schema: email or loginId
-    // =========================================================================
-    let clientRecord = null;
+    // 2. QUERY CLIENT TABLE (Studio Admin)
+    let clientRecord: any = null;
     try {
       clientRecord = await prisma.client.findFirst({
         where: {
           OR: [
-            { email: { equals: identifier, mode: "insensitive" } },
-            { loginId: { equals: identifier, mode: "insensitive" } },
+            { email: identifier },
+            { loginId: identifier }
           ],
-          isActive: true,
           isDeleted: false,
         },
       });
-    } catch (e) {
-      console.error("[AUTH_CLIENT_ERR]:", e);
+    } catch (err) {
+      console.error("[CLIENT_QUERY_FAIL]:", err);
     }
 
     if (clientRecord && clientRecord.passwordHash) {
-      const isMatch = await checkPassword(inputPass, clientRecord.passwordHash);
+      const isMatch = await verifyPassword(inputPass, clientRecord.passwordHash);
 
       if (isMatch) {
         const token = await new SignJWT({
