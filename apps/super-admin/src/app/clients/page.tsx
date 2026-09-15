@@ -1,251 +1,433 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Users, Plus, Loader2, Building, Mail, Phone } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { 
+  Users, Plus, Search, Edit2, Trash2, ShieldCheck, 
+  X, Building, Mail, Lock, Sparkles, Loader2, Phone, 
+  MapPin, HardDrive, UserCheck
+} from "lucide-react";
 
-interface StudioClient {
+interface Client {
   id: string;
-  companyName: string;
+  companyName: string | null;
   contactPerson: string;
   email: string;
   phone: string;
+  address: string | null;
+  loginId: string | null;
   storageLimitGB: number;
-  storageUsedGB: number;
-  totalEvents: number;
-  activeEvents: number;
+  storageDays: number;
+  plan: string;
   isActive: boolean;
+  createdAt: string;
+  _count?: { events: number };
 }
 
-export default function ClientsManagementPage() {
-  const [clients, setClients] = useState<StudioClient[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+export default function ClientsPage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const [formData, setFormData] = useState({
-    companyName: "",
-    contactPerson: "",
-    email: "",
-    phone: "",
-    storageLimitGB: 50,
-  });
+  // Modal State (Create & Edit)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+
+  // Form Fields
+  const [companyName, setCompanyName] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
+  const [storageLimitGB, setStorageLimitGB] = useState("50");
+  const [loading, setLoading] = useState(false);
+
+  const fetchClients = async () => {
+    try {
+      setFetching(true);
+      const res = await fetch("/api/clients", { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.success) {
+        setClients(data.clients || []);
+      } else {
+        setClients([]);
+      }
+    } catch (err) {
+      console.error("Failed to load clients:", err);
+      setClients([]);
+    } finally {
+      setFetching(false);
+    }
+  };
 
   useEffect(() => {
-    let isCancelled = false;
+    fetchClients();
+  }, []);
 
-    async function loadData() {
-      try {
-        const res = await fetch("/api/clients", {
-          cache: "no-store",
-          headers: { "Accept": "application/json" },
-        });
+  const filteredClients = useMemo(() => {
+    if (!searchQuery.trim()) return clients;
+    const query = searchQuery.toLowerCase().trim();
+    return clients.filter(
+      (c) =>
+        c.companyName?.toLowerCase().includes(query) ||
+        c.contactPerson?.toLowerCase().includes(query) ||
+        c.email?.toLowerCase().includes(query) ||
+        c.loginId?.toLowerCase().includes(query) ||
+        c.phone?.toLowerCase().includes(query)
+    );
+  }, [clients, searchQuery]);
 
-        const text = await res.text();
-        if (!text) {
-          if (!isCancelled) setClients([]);
-          return;
-        }
+  // Open modal for creating new client
+  const handleOpenCreateModal = () => {
+    setEditingClientId(null);
+    setCompanyName("");
+    setContactPerson("");
+    setEmail("");
+    setPhone("");
+    setAddress("");
+    setLoginId("");
+    setPassword("");
+    setStorageLimitGB("50");
+    setIsModalOpen(true);
+  };
 
-        const data = JSON.parse(text);
-        if (data.success && !isCancelled) {
-          setClients(data.clients || []);
-        }
-      } catch (err) {
-        console.error("Error loading clients:", err);
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    }
+  // Open modal for editing existing client
+  const handleOpenEditModal = (client: Client) => {
+    setEditingClientId(client.id);
+    setCompanyName(client.companyName || "");
+    setContactPerson(client.contactPerson || "");
+    setEmail(client.email || "");
+    setPhone(client.phone || "");
+    setAddress(client.address || "");
+    setLoginId(client.loginId || "");
+    setPassword(""); // Leave blank for security
+    setStorageLimitGB(String(client.storageLimitGB || 50));
+    setIsModalOpen(true);
+  };
 
-    loadData();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [refreshKey]);
-
-  const handleCreate = async (e: React.FormEvent) => {
+  // Handle Form Submit (POST for create, PUT for update)
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
+    setLoading(true);
+
     try {
+      const isEditing = Boolean(editingClientId);
+      const method = isEditing ? "PUT" : "POST";
+
+      const payload: any = {
+        companyName,
+        contactPerson,
+        email,
+        phone,
+        address,
+        loginId,
+        storageLimitGB: Number(storageLimitGB),
+      };
+
+      if (isEditing) {
+        payload.id = editingClientId;
+        // Only attach password if user filled it
+        if (password.trim()) {
+          payload.password = password.trim();
+        }
+      } else {
+        payload.password = password;
+      }
+
       const res = await fetch("/api/clients", {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
+      const data = await res.json().catch(() => null);
 
-      if (res.ok && data.success) {
-        setShowModal(false);
-        setFormData({ companyName: "", contactPerson: "", email: "", phone: "", storageLimitGB: 50 });
-        setLoading(true);
-        setRefreshKey((prev) => prev + 1);
+      if (res.ok && data?.success) {
+        setIsModalOpen(false);
+        alert(isEditing ? "Studio updated successfully!" : "Studio Onboarded Successfully!");
+        fetchClients();
       } else {
-        alert(data.error || "Failed to create studio");
+        const errorMsg = data?.message || `Server status ${res.status}`;
+        alert(`Error ${isEditing ? "updating" : "onboarding"} client: ` + errorMsg);
       }
-    } catch {
-      alert("Network error while creating studio.");
+    } catch (err: any) {
+      alert("Network / API Error: " + (err?.message || "Check terminal connection"));
     } finally {
-      setSaving(false);
+      setLoading(false);
+    }
+  };
+
+  // Handle Delete Client
+  const handleDelete = async (clientId: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/clients?id=${clientId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      
+      if (res.ok && data?.success) {
+        alert("Studio deleted successfully!");
+        fetchClients();
+      } else {
+        alert(data?.message || "Failed to delete studio");
+      }
+    } catch (err) {
+      alert("Error deleting client.");
     }
   };
 
   return (
-    <div className="p-8 space-y-8 bg-[#030712] min-h-screen text-slate-100 font-sans">
+    <div className="p-8 space-y-6 bg-[#030712] min-h-screen text-white">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-8 bg-[#080c14] border border-slate-800/80 rounded-3xl shadow-2xl relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-8 bg-[#0b0f19] border border-slate-800/80 rounded-3xl shadow-2xl">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-pink-400 font-mono text-xs uppercase tracking-wider">
-            <Users className="w-4 h-4" /> Multi-Tenant Studio Fleet
-          </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Studio Clients &amp; Quota Manager</h1>
-          <p className="text-xs text-slate-400">Allocate cloud storage limits, monitor live event counts &amp; manage studios.</p>
+          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+            <Users className="w-6 h-6 text-pink-500" /> Client & Studio Management
+          </h1>
+          <p className="text-xs text-slate-400 font-medium">
+            Manage studio vendors, quota limits, credentials, and access.
+          </p>
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-pink-600/20 cursor-pointer"
+          onClick={handleOpenCreateModal}
+          className="flex items-center gap-2 px-6 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl shadow-lg shadow-pink-600/30 transition cursor-pointer text-sm"
         >
           <Plus className="w-4 h-4" />
-          <span>Onboard New Studio</span>
+          <span>Add New Client</span>
         </button>
       </div>
 
-      {/* Studios Table */}
-      <div className="p-6 bg-[#080c14] border border-slate-800/80 rounded-3xl shadow-2xl space-y-4">
-        {loading ? (
-          <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
-            <span className="text-xs">Loading studio clients...</span>
+      {/* Search */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#0b0f19] border border-slate-800 p-4 rounded-2xl shadow-xl">
+        <div className="relative w-full sm:w-96 flex items-center">
+          <Search className="w-4 h-4 text-slate-400 absolute left-4" />
+          <input
+            type="text"
+            placeholder="Search by studio, person, email, login ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500 transition"
+          />
+        </div>
+
+        <div className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          Total Studios: <span className="text-white font-bold">{filteredClients.length}</span>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="p-6 bg-[#0b0f19] border border-slate-800/80 rounded-3xl shadow-xl space-y-4">
+        {fetching ? (
+          <div className="p-12 text-center text-slate-500 flex items-center justify-center gap-2">
+            <Loader2 className="w-5 h-5 animate-spin text-pink-500" /> Loading directory...
           </div>
-        ) : clients.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 space-y-2">
-            <Building className="w-10 h-10 text-slate-700 mx-auto" />
-            <p className="text-sm font-semibold text-slate-400">No studio clients registered yet.</p>
-            <p className="text-xs text-slate-600">Click &ldquo;Onboard New Studio&rdquo; above to add your first client.</p>
-          </div>
+        ) : filteredClients.length === 0 ? (
+          <div className="p-12 text-center text-slate-500">No studios registered yet. Click &quot;Add New Client&quot; to onboard your first studio.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-900/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+              <thead className="bg-slate-900/80 text-xs uppercase text-slate-400 border-b border-slate-800">
                 <tr>
-                  <th className="px-4 py-3 font-extrabold">STUDIO / COMPANY</th>
-                  <th className="px-4 py-3 font-extrabold">CONTACT DETAILS</th>
-                  <th className="px-4 py-3 font-extrabold">STORAGE ALLOCATION</th>
-                  <th className="px-4 py-3 font-extrabold">EVENTS</th>
-                  <th className="px-4 py-3 text-right font-extrabold">STATUS</th>
+                  <th className="px-5 py-3.5">STUDIO / OWNER</th>
+                  <th className="px-5 py-3.5">CONTACT & EMAIL</th>
+                  <th className="px-5 py-3.5">LOGIN ID</th>
+                  <th className="px-5 py-3.5">EVENTS</th>
+                  <th className="px-5 py-3.5">STORAGE QUOTA</th>
+                  <th className="px-5 py-3.5 text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                {clients.map((c) => {
-                  const pct = Math.min(Math.round(((c.storageUsedGB || 0) / (c.storageLimitGB || 1)) * 100), 100);
-                  return (
-                    <tr key={c.id} className="hover:bg-slate-900/40 transition">
-                      <td className="px-4 py-4">
-                        <div className="font-bold text-white text-sm flex items-center gap-2">
-                          <Building className="w-4 h-4 text-pink-400" />
-                          {c.companyName}
-                        </div>
-                        <span className="text-[11px] text-slate-500 font-medium">Rep: {c.contactPerson}</span>
-                      </td>
-                      <td className="px-4 py-4 text-xs text-slate-400 space-y-0.5">
-                        <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-slate-500" /> {c.email}</div>
-                        {c.phone && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-slate-500" /> {c.phone}</div>}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="text-xs font-mono text-slate-300 mb-1">
-                          {c.storageUsedGB} GB / <span className="text-pink-400 font-bold">{c.storageLimitGB} GB</span> ({pct}%)
-                        </div>
-                        <div className="w-36 bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-gradient-to-r from-pink-500 to-rose-500 h-full rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-xs font-mono">
-                        <span className="text-emerald-400 font-bold">{c.activeEvents} Live</span> / {c.totalEvents} Total
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold">
-                          Active
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filteredClients.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-900/40 transition">
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-white">{c.companyName || c.contactPerson}</div>
+                      <div className="text-xs text-slate-400">{c.contactPerson}</div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="text-white font-medium">{c.email}</div>
+                      <div className="text-xs text-slate-400">{c.phone}</div>
+                    </td>
+                    <td className="px-5 py-4 text-pink-400 font-mono font-semibold">
+                      {c.loginId || "N/A"}
+                    </td>
+                    <td className="px-5 py-4 font-bold text-slate-300">
+                      {c._count?.events || 0}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="text-xs font-bold text-indigo-400 uppercase">{c.plan || "PREMIUM"}</div>
+                      <div className="text-xs text-slate-400">{c.storageLimitGB} GB ({c.storageDays || 15} Days)</div>
+                    </td>
+                    <td className="px-5 py-4 text-right space-x-2">
+                      {/* EDIT BUTTON */}
+                      <button
+                        onClick={() => handleOpenEditModal(c)}
+                        className="p-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-xl transition cursor-pointer"
+                        title="Edit Studio Details"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+
+                      {/* DELETE BUTTON */}
+                      <button
+                        onClick={() => handleDelete(c.id, c.companyName || c.contactPerson)}
+                        className="p-2 bg-red-600/20 text-red-400 hover:bg-red-600/40 rounded-xl transition cursor-pointer"
+                        title="Delete Studio"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Modal: Onboard New Studio */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#080c14] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
-            <h2 className="text-xl font-bold text-white">Onboard New Studio Partner</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-300 uppercase">Studio / Company Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.companyName}
-                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  placeholder="e.g. Royal Wedding Studios"
-                  className="w-full mt-1 bg-slate-900 border border-slate-800 focus:border-pink-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none"
-                />
+      {/* Modal (Add or Edit) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-[#0b0f19] border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-pink-600/20 text-pink-400 rounded-2xl border border-pink-500/20">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-black text-white">
+                  {editingClientId ? "Edit Studio Details" : "Onboard New Studio"}
+                </h3>
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-300 uppercase">Contact Person</label>
-                <input
-                  type="text"
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                  placeholder="Lead Photographer / Owner"
-                  className="w-full mt-1 bg-slate-900 border border-slate-800 focus:border-pink-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none"
-                />
+              <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">STUDIO / COMPANY NAME</label>
+                <div className="relative flex items-center">
+                  <Building className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                  <input
+                    type="text" required placeholder="e.g. Royal Wedding Studio" value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-300 uppercase">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="studio@eventqr.live"
-                  className="w-full mt-1 bg-slate-900 border border-slate-800 focus:border-pink-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none"
-                />
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">CONTACT PERSON</label>
+                <div className="relative flex items-center">
+                  <UserCheck className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                  <input
+                    type="text" required placeholder="e.g. Rahul Sharma" value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-300 uppercase">Storage Quota (GB)</label>
-                <input
-                  type="number"
-                  required
-                  min="5"
-                  value={formData.storageLimitGB}
-                  onChange={(e) => setFormData({ ...formData, storageLimitGB: Number(e.target.value) })}
-                  className="w-full mt-1 bg-slate-900 border border-slate-800 focus:border-pink-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none font-mono"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">EMAIL ADDRESS *</label>
+                  <div className="relative flex items-center">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                    <input
+                      type="email" required placeholder="studio@gmail.com" value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">PHONE NUMBER</label>
+                  <div className="relative flex items-center">
+                    <Phone className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                    <input
+                      type="text" placeholder="+91 9876543210" value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">STUDIO ADDRESS</label>
+                <div className="relative flex items-center">
+                  <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                  <input
+                    type="text" placeholder="e.g. Kolkata, West Bengal" value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">LOGIN ID (STUDIO USERNAME)</label>
+                  <div className="relative flex items-center">
+                    <UserCheck className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                    <input
+                      type="text" placeholder="royal_studio" value={loginId}
+                      onChange={(e) => setLoginId(e.target.value)}
+                      className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    PASSWORD {editingClientId && <span className="text-slate-500 font-normal lowercase">(leave blank to keep current)</span>}
+                  </label>
+                  <div className="relative flex items-center">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                    <input
+                      type="password" 
+                      placeholder={editingClientId ? "•••••••• (unchanged)" : "••••••••"} 
+                      value={password}
+                      required={!editingClientId}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">STORAGE LIMIT (GB)</label>
+                <div className="relative flex items-center">
+                  <HardDrive className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                  <input
+                    type="number" value={storageLimitGB}
+                    onChange={(e) => setStorageLimitGB(e.target.value)}
+                    className="w-full bg-[#030712] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
                 <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+                  type="button" onClick={() => setIsModalOpen(false)}
+                  className="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  type="submit" disabled={loading}
+                  className="w-1/2 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-pink-600/25 cursor-pointer"
                 >
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Register Studio</span>
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : editingClientId ? (
+                    "Update Studio"
+                  ) : (
+                    "Onboard Studio"
+                  )}
                 </button>
               </div>
             </form>

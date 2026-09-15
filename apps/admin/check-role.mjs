@@ -1,0 +1,1 @@
+import { prisma } from './src/lib/prisma.ts'; async function run() { const users = await prisma.user.findMany({ select: { id: true, email: true, userId: true, role: true } }); console.log('\n--- CURRENT USERS IN DB ---'); console.log(JSON.stringify(users, null, 2)); process.exit(0); } run();

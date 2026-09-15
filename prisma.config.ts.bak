@@ -1,0 +1,9 @@
+import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+export default {
+  schema: "prisma/schema.prisma",
+  datasourceUrl: process.env.DATABASE_URL,
+};

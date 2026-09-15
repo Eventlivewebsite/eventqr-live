@@ -1,12 +1,12 @@
 {
-  "name": "admin",
+  "name": "super-admin",
   "version": "0.1.0",
   "private": true,
- "scripts": {
-  "build": "prisma generate --schema=../../prisma/schema.prisma && next build",
-  "dev": "next dev",
-  "start": "next start",
-  "lint": "next lint"
+  "scripts": {
+    "build": "prisma generate --schema=../../prisma/schema.prisma && next build",
+    "dev": "next dev --port 3001",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

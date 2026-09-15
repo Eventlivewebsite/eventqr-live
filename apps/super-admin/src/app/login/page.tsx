@@ -1,116 +1,131 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShieldAlert, Lock, Mail, Loader2, ArrowRight, ShieldCheck } from "lucide-react";
+import { ShieldAlert, Camera, Lock, Mail, Loader2, ArrowRight } from "lucide-react";
 
-export default function SuperAdminLoginPage() {
-  const [email, setEmail] = useState("");
+export default function UnifiedLoginPage() {
+  const [role, setRole] = useState<"SUPER_ADMIN" | "STUDIO_CLIENT">("SUPER_ADMIN");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+    setError(null);
 
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json" 
-        },
-        body: JSON.stringify({ email, password }),
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier,
+          password,
+          portalRole: role,
+        }),
       });
 
-      const text = await res.text();
-      let data: { success?: boolean; error?: string } = {};
-      
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error("Server returned invalid response");
-      }
+      const data = await res.json().catch(() => ({ success: false }));
 
       if (res.ok && data.success) {
-        window.location.href = "/";
+        if (role === "STUDIO_CLIENT") {
+          // Studio client redirect to port 3002
+          window.location.href = data.redirectUrl || "http://localhost:3002/dashboard";
+        } else {
+          // Super admin stay on port 3001
+          window.location.href = data.redirectUrl || "/requests";
+        }
       } else {
-        setError(data.error || "Authentication failed. Please check your credentials.");
+        setError(data.error || "Authentication failed. Check your credentials.");
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setError(`Login failed: ${msg}`);
+    } catch {
+      setError("Network connection failure.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#030712] flex items-center justify-center p-4 text-slate-100 font-sans relative overflow-hidden">
-      {/* Glow Effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-pink-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-md bg-[#080c14] border border-slate-800/80 rounded-3xl p-8 shadow-2xl relative z-10 space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 bg-pink-500/10 text-pink-400 rounded-2xl border border-pink-500/20 mb-2">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-1.5">
-            EventQR{" "}
-            <span className="bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-              Live
-            </span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#030712] p-4 text-slate-100 font-sans">
+      <div className="w-full max-w-md bg-[#080c14] border border-slate-800/80 rounded-3xl p-8 shadow-2xl space-y-6">
+        
+        {/* Brand Logo Header */}
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+            EventQR <span className="text-pink-500 text-sm font-mono uppercase px-2 py-0.5 rounded-lg bg-pink-500/10 border border-pink-500/20">Gate</span>
           </h1>
-          <div className="inline-block px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-pink-500/10 text-pink-400 border border-pink-500/20 rounded-full">
-            SUPER ADMIN GATEWAY
-          </div>
-          <p className="text-xs text-slate-400">
-            Sign in to access root system control and multi-tenant quotas
-          </p>
+          <p className="text-xs text-slate-400">Select your workspace portal to continue</p>
+        </div>
+
+        {/* Portal Switch Tabs */}
+        <div className="grid grid-cols-2 p-1 bg-slate-900/90 border border-slate-800 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => { setRole("SUPER_ADMIN"); setError(null); }}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              role === "SUPER_ADMIN"
+                ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Super Admin</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setRole("STUDIO_CLIENT"); setError(null); }}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              role === "STUDIO_CLIENT"
+                ? "bg-pink-500/15 text-pink-400 border border-pink-500/30 shadow-sm"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>Studio Partner</span>
+          </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-semibold flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs font-semibold text-center">
+            {error}
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Dynamic Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              Root Email
+            <label className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+              {role === "SUPER_ADMIN" ? "Master Email" : "Studio ID or Email"}
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@eventqr.live"
-                className="w-full bg-slate-900/90 border border-slate-800 focus:border-pink-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder={role === "SUPER_ADMIN" ? "admin@eventqr.live" : "royal_studio or studio@mail.com"}
+                className="w-full bg-slate-900 border border-slate-800 focus:border-pink-500 rounded-xl pl-10 pr-4 py-2.5 text-white outline-none transition"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <label className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
               Password
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full bg-slate-900/90 border border-slate-800 focus:border-pink-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition"
+                className="w-full bg-slate-900 border border-slate-800 focus:border-pink-500 rounded-xl pl-10 pr-4 py-2.5 text-white outline-none transition"
               />
             </div>
           </div>
@@ -118,23 +133,22 @@ export default function SuperAdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-sm rounded-xl transition shadow-lg shadow-pink-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+            className={`w-full py-3 text-white font-bold rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2 shadow-lg ${
+              role === "SUPER_ADMIN"
+                ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:opacity-90 shadow-amber-500/10"
+                : "bg-gradient-to-r from-pink-600 to-rose-600 hover:opacity-90 shadow-pink-500/10"
+            }`}
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
-                <span>Enter Super Realm</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Sign In to {role === "SUPER_ADMIN" ? "Super Suite" : "Studio Portal"}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>
         </form>
-
-        <div className="pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          End-to-End Encrypted Root Authority
-        </div>
       </div>
     </div>
   );

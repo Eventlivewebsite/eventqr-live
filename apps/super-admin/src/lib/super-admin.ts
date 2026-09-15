@@ -1,45 +1,36 @@
 import { cookies } from "next/headers";
-import { jwtVerify, SignJWT } from "jose";
+import { prisma } from "@/lib/prisma";
+import jwt from "jsonwebtoken";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPER_ADMIN_JWT_SECRET || process.env.JWT_SECRET || "default_super_admin_secret_key_12345"
-);
-
-const COOKIE_NAME = "super_admin_token";
-
-export async function createSuperAdminToken(payload: { email: string; role?: string }) {
-  return await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("24h")
-    .sign(JWT_SECRET);
-}
-
-export async function verifySuperAdminToken(token: string) {
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-export async function getSuperAdminSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  return await verifySuperAdminToken(token);
-}
+const JWT_SECRET = process.env.JWT_SECRET || "eventqr-super-secure-jwt-secret-key";
 
 export async function requireSuperAdmin() {
-  const session = await getSuperAdminSession();
-  if (!session) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("super_admin_token")?.value;
+
+  if (!token) {
+    // Dev fallback: agar local me testing ke dauran token na ho toh pehla SUPER_ADMIN user utha le
+    if (process.env.NODE_ENV !== "production") {
+      const devSuperAdmin = await prisma.user.findFirst({
+        where: { role: "SUPER_ADMIN", isDeleted: false },
+      });
+      if (devSuperAdmin) return devSuperAdmin;
+    }
     throw new Error("Unauthorized: Super Admin access required");
   }
-  return session;
-}
 
-export async function clearAdminSession() {
-  const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role?: string };
+    const user = await prisma.user.findFirst({
+      where: { id: decoded.id, role: "SUPER_ADMIN", isDeleted: false },
+    });
+
+    if (!user) {
+      throw new Error("Unauthorized: Invalid Super Admin account");
+    }
+
+    return user;
+  } catch {
+    throw new Error("Unauthorized: Invalid session");
+  }
 }

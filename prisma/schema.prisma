@@ -56,54 +56,68 @@ enum MediaType {
   VIDEO
 }
 
+enum ClientPlan {
+  FREE
+  STANDARD
+  PREMIUM
+  ENTERPRISE
+}
+
 model User {
   id           String    @id @default(cuid())
-  name         String
+  userId       String    @unique // Admin unique username
+  ownerName    String    // Owner Name
+  companyName  String?   // Studio Name
+  name         String    // Display Name
   email        String    @unique
+  phone        String?   @unique
   passwordHash String
 
-  role UserRole
+  role         UserRole  @default(ADMIN)
 
-  phone  String?
-  avatar String?
+  avatar       String?
+  isActive     Boolean   @default(true)
+  isDeleted    Boolean   @default(false)
 
-  isActive  Boolean @default(true)
-  isDeleted Boolean @default(false)
+  lastLogin    DateTime?
+  updatedBy    String?   // Super admin ID who modified this admin
 
-  lastLogin DateTime?
-  updatedBy String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  events       Event[]
+  clients      Client[]
+  accounts     Account[]
+  sessions     Session[]
+  auditLogs    AuditLog[] @relation("ActorAuditLogs")
 
-  events   Event[]
-  clients  Client[]
-  accounts Account[]
-  sessions Session[]
+  @@index([email, isActive])
+  @@index([userId, isActive])
 }
 
 model Account {
-  id         String @id @default(cuid())
-  accountId  String
-  providerId String
-  userId     String
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
 
-  accessToken  String?
-  refreshToken String?
-  idToken      String?
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
 
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
 
-  scope    String?
-  password String?
+  scope                 String?
+  password              String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
+  @@index([userId])
 }
 
 model Session {
@@ -118,7 +132,9 @@ model Session {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model Verification {
@@ -127,220 +143,248 @@ model Verification {
   value      String
   expiresAt  DateTime
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([identifier, value])
 }
 
 model Client {
-  id String @id @default(cuid())
+  id                   String     @id @default(cuid())
 
-  adminId String
-  admin   User   @relation(fields: [adminId], references: [id])
+  adminId              String
+  admin                User       @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
-  companyName   String?
-  contactPerson String
+  companyName          String?
+  contactPerson        String
 
-  email   String
-  loginId String? @unique
+  email                String
+  loginId              String?    @unique
 
-  passwordHash String?
+  passwordHash         String?
 
-  viewerLoginRequired Boolean @default(false)
+  viewerLoginRequired  Boolean    @default(false)
 
-  plan  String @default("Premium")
-  phone String
+  plan                 ClientPlan @default(PREMIUM)
+  phone                String
 
-  address String?
-  city    String?
-  state   String?
-  country String?
+  address              String?
+  city                 String?
+  state                String?
+  country              String?
 
-  storageDays    Int   @default(15)
-  storageLimitGB Int   @default(50)
-  storageUsedGB  Float @default(0)
+  storageDays          Int        @default(15)
+  storageLimitGB       Int        @default(50)
+  storageUsedGB        Float      @default(0)
 
-  isActive  Boolean @default(true)
-  isDeleted Boolean @default(false)
+  isActive             Boolean    @default(true)
+  isDeleted            Boolean    @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
-  events Event[]
+  events               Event[]
+
+  @@index([adminId, isDeleted])
 }
 
 model Event {
-  id String @id @default(cuid())
+  id               String          @id @default(cuid())
 
-  adminId String
-  admin   User   @relation(fields: [adminId], references: [id])
+  adminId          String
+  admin            User            @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId         String
+  client           Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  title String
+  title            String
 
-  brideName  String?
-  groomName  String?
-  clientName String?
+  brideName        String?
+  groomName        String?
+  clientName       String?
 
-  slug String @unique
+  slug             String          @unique
 
-  type   EventType
-  status EventStatus @default(PENDING_APPROVAL)
+  type             EventType
+  status           EventStatus     @default(ACTIVE)
 
-  // Security & Viewer Access
-  accessMode AccessMode @default(PUBLIC)
-  pinCode    String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  rejectionReason  String?
 
-  // Retention & Soft Delete
-  retentionDays Int       @default(15)
-  expiryDate    DateTime?
-  isDeleted     Boolean   @default(false)
-  deletedAt     DateTime?
+  accessMode       AccessMode      @default(PUBLIC)
+  pinCode          String?
 
-  eventDate DateTime?
-  location  String?
+  retentionDays    Int             @default(15)
+  expiryDate       DateTime?
+  isDeleted        Boolean         @default(false)
+  deletedAt        DateTime?
 
-  coverImage String?
-  logo       String?
-  themeColor String? @default("#9333EA")
+  eventDate        DateTime?
+  location         String?
 
-  qrEnabled Boolean @default(true)
-  guestBook Boolean @default(true)
-  isLive    Boolean @default(false)
+  coverImage       String?
+  logo             String?
+  themeColor       String?         @default("#9333EA")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  qrEnabled        Boolean         @default(true)
+  guestBook        Boolean         @default(true)
+  isLive           Boolean         @default(true)
+  allowGuestUpload Boolean         @default(true)
 
-  albums       Album[]
-  customFields CustomField[]
-  analytics    EventAnalytics?
-  settings     EventSettings?
-  timelines    EventTimeline[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  albums           Album[]
+  customFields     CustomField[]
+  analytics        EventAnalytics?
+  settings         EventSettings?
+  timelines        EventTimeline[]
+
+  @@index([slug, status, isDeleted])
+  @@index([clientId, isDeleted])
+  @@index([adminId])
 }
 
-// Dynamic Custom Fields Engine ("Add More" Option)
 model CustomField {
-  id      String @id @default(cuid())
-  eventId String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   fieldName  String
   fieldValue String
 
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([eventId, fieldName])
+  @@index([eventId])
 }
 
-// Full Viewer UI Control Engine (Video Walkthrough Features)
 model EventSettings {
-  id      String @id @default(cuid())
-  eventId String @unique
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  eventId           String   @unique
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  // Header & Banner Controls
-  subtitle      String? @default("Forever Begins Today")
-  storyVideoUrl String?
-  highlightUrl  String?
+  subtitle          String?  @default("Forever Begins Today")
+  storyVideoUrl     String?
+  highlightUrl      String?
 
-  // UI Feature Toggles
-  showCountdown  Boolean @default(true)
-  showHighlights Boolean @default(true)
-  showTrending   Boolean @default(true)
-  showTimeline   Boolean @default(true)
-  allowDownloads Boolean @default(true)
-  allowLikes     Boolean @default(true)
-  showWatermark  Boolean @default(true)
-  watermarkText  String?
+  showCountdown     Boolean  @default(true)
+  showHighlights    Boolean  @default(true)
+  showTrending      Boolean  @default(true)
+  showTimeline      Boolean  @default(true)
+  allowDownloads    Boolean  @default(true)
+  allowLikes        Boolean  @default(true)
+  showWatermark     Boolean  @default(true)
+  watermarkText     String?
+  watermarkPosition String?  @default("BOTTOM_RIGHT")
+  watermarkOpacity  Float?   @default(0.8)
 
-  // Video Hub Controls ("A & S FILMS")
-  videoHubTitle    String? @default("A & S FILMS")
-  videoHubSubtitle String? @default("Relive Every Beautiful Moment")
+  videoHubTitle     String?  @default("A & S FILMS")
+  videoHubSubtitle  String?  @default("Relive Every Beautiful Moment")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
-// Event Agenda / Schedule List ("Wedding Reception", "Dinner", etc.)
 model EventTimeline {
-  id      String @id @default(cuid())
-  eventId String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  title     String
-  timeText  String
-  statusText String @default("UPCOMING")
-  sortOrder Int    @default(0)
+  title      String
+  timeText   String
+  statusText String   @default("UPCOMING")
+  sortOrder  Int      @default(0)
 
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([eventId, sortOrder])
 }
 
 model Album {
-  id String @id @default(cuid())
+  id          String    @id @default(cuid())
 
-  eventId String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  title String
-  slug  String
+  title       String
+  slug        String
 
-  type AlbumType @default(CUSTOM)
+  type        AlbumType @default(CUSTOM)
 
   coverImage  String?
   description String?
 
-  sortOrder Int     @default(0)
-  isHidden  Boolean @default(false)
+  sortOrder   Int       @default(0)
+  isHidden    Boolean   @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  media Media[]
+  media       Media[]
 
   @@unique([eventId, slug])
+  @@index([eventId, isHidden, sortOrder])
 }
 
 model Media {
-  id String @id @default(cuid())
+  id             String    @id @default(cuid())
 
-  albumId String
-  album   Album  @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  albumId        String
+  album          Album     @relation(fields: [albumId], references: [id], onDelete: Cascade)
 
   originalPath   String
   compressedPath String?
   thumbnailPath  String?
 
-  fileName      String
-  fileExtension String
-  mimeType      String
+  fileName       String
+  fileExtension  String
+  mimeType       String
 
-  mediaType MediaType
+  mediaType      MediaType
 
-  width  Int?
-  height Int?
+  width          Int?
+  height         Int?
 
-  duration Int?
+  duration       Int?
 
-  fileSize BigInt
+  fileSize       Int
 
-  isFavourite   Boolean @default(false)
-  isWatermarked Boolean @default(false)
-  isCompressed  Boolean @default(false)
-  isDeleted     Boolean @default(false)
+  isApproved     Boolean   @default(true)
+  isFavourite    Boolean   @default(false)
+  isWatermarked  Boolean   @default(false)
+  isCompressed   Boolean   @default(false)
+  isDeleted      Boolean   @default(false)
 
-  uploadedAt DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  uploadedAt     DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([albumId, isDeleted])
+  @@index([albumId, mediaType])
+  @@index([albumId, isApproved])
 }
 
 model EventAnalytics {
-  id      String @id @default(cuid())
-  eventId String @unique
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  eventId        String   @unique
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  totalScans     Int @default(0)
-  totalDownloads Int @default(0)
-  faceSearches   Int @default(0)
+  totalScans     Int      @default(0)
+  totalDownloads Int      @default(0)
+  faceSearches   Int      @default(0)
 
-  updatedAt DateTime @updatedAt
+  updatedAt      DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actor     User     @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: Cascade)
+  action    String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId, action])
 }

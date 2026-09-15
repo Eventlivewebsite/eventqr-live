@@ -1,37 +1,50 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifySuperAdminToken } from "./lib/super-admin";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
+);
+
+const STUDIO_LOGIN_URL =
+  process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL || "http://localhost:3002/login";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1. Bypass all static assets and public routes
+  // Assets, API routes aur internal Next.js paths ko bypass karein
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/auth") ||
-    pathname === "/login" ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/favicon.ico") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
   }
 
-  // 2. Allow internal API routes during local dev session if cookie is being verified
-  const token = req.cookies.get("super_admin_session")?.value;
+  const token = req.cookies.get("eventqr_session")?.value;
+  const roleCookie = req.cookies.get("eventqr_session_role")?.value;
 
-  if (!token) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.redirect(new URL("/login", req.url));
+  // Agar session token nahi hai ya role SUPER_ADMIN nahi hai, direct kickout
+  if (!token || roleCookie !== "SUPER_ADMIN") {
+    const loginUrl = new URL(STUDIO_LOGIN_URL);
+    loginUrl.searchParams.set("error", "unauthorized");
+    return NextResponse.redirect(loginUrl.toString());
   }
 
-  const payload = await verifySuperAdminToken(token);
-  if (!payload) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ success: false, error: "Invalid Session" }, { status: 401 });
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+
+    // Strict validation: Token ke andar payload role SUPER_ADMIN hi hona chahiye
+    if (payload.role !== "SUPER_ADMIN") {
+      const loginUrl = new URL(STUDIO_LOGIN_URL);
+      loginUrl.searchParams.set("error", "forbidden");
+      return NextResponse.redirect(loginUrl.toString());
     }
-    const response = NextResponse.redirect(new URL("/login", req.url));
-    response.cookies.set("super_admin_session", "", { expires: new Date(0), path: "/" });
-    return response;
+  } catch {
+    const loginUrl = new URL(STUDIO_LOGIN_URL);
+    loginUrl.searchParams.set("error", "invalid_session");
+    return NextResponse.redirect(loginUrl.toString());
   }
 
   return NextResponse.next();

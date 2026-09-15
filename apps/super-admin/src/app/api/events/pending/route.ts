@@ -1,94 +1,71 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// Strict TypeScript Interfaces (Zero `any` used)
-interface ClientData {
-  id?: string;
-  companyName?: string | null;
-  name?: string | null;
-  contactPerson?: string | null;
-  email?: string | null;
-  phone?: string | null;
-}
-
-interface EventPendingRecord {
-  id: string;
-  name?: string | null;
-  slug?: string | null;
-  eventDate?: Date | string | null;
-  status?: string | null;
-  isLive?: boolean | null;
-  createdAt?: Date | string | null;
-  client?: ClientData | null;
-  photos?: unknown[];
-  media?: unknown[];
-  _count?: {
-    photos?: number;
-    media?: number;
-  };
-}
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const pendingEvents = (await prisma.event.findMany({
-      where: {
-        isDeleted: false,
-      },
-      include: {
-        client: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    })) as unknown as EventPendingRecord[];
+    const events = await (prisma.event as any).findMany({
+      orderBy: { createdAt: "desc" },
+    });
 
-    // Fully Type-Safe Transformation
-    const formatted = pendingEvents.map((evt: EventPendingRecord) => {
-      const clientObj = evt.client || {};
-      const studioName = clientObj.companyName || clientObj.name || "Independent Studio";
-      const contact = clientObj.contactPerson || clientObj.name || "-";
-      const clientEmail = clientObj.email || "-";
-      const clientPhone = clientObj.phone || "-";
-      const clientId = clientObj.id || "N/A";
+    let clientMap: Record<string, any> = {};
+    try {
+      const clients = await (prisma.client as any).findMany();
+      if (Array.isArray(clients)) {
+        clients.forEach((c: any) => {
+          clientMap[c.id] = c;
+        });
+      }
+    } catch {
+      // safe fallback
+    }
 
-      const photoCount =
-        (Array.isArray(evt.photos) ? evt.photos.length : 0) ||
-        (Array.isArray(evt.media) ? evt.media.length : 0) ||
-        evt._count?.photos ||
-        evt._count?.media ||
-        0;
+    const formattedEvents = events.map((ev: any) => {
+      const studio = ev.clientId ? clientMap[ev.clientId] : null;
 
       return {
-        id: evt.id,
-        name: evt.name || "Untitled Event",
-        slug: evt.slug || evt.id,
-        eventDate: evt.eventDate
-          ? new Date(evt.eventDate).toISOString()
-          : evt.createdAt
-          ? new Date(evt.createdAt).toISOString()
+        id: String(ev.id),
+        name: ev.name || ev.title || "Untitled Event",
+        title: ev.title || ev.name || "Untitled Event",
+        slug: ev.slug || "",
+        type: ev.eventType || ev.type || "WEDDING",
+        eventDate: ev.eventDate
+          ? new Date(ev.eventDate).toISOString()
           : new Date().toISOString(),
-        status: evt.status || "PENDING",
-        isLive: Boolean(evt.isLive),
-        photosCount: photoCount,
+        status: ev.status || (ev.isLive ? "APPROVED" : "PENDING"),
+        isLive: Boolean(ev.isLive),
+        photosCount: 0,
+        createdAt: ev.createdAt
+          ? new Date(ev.createdAt).toISOString()
+          : new Date().toISOString(),
         client: {
-          id: clientId,
-          name: studioName,
-          contactPerson: contact,
-          email: clientEmail,
-          phone: clientPhone,
+          id: ev.clientId || studio?.id || "default-studio",
+          name:
+            studio?.companyName ||
+            studio?.name ||
+            studio?.loginId ||
+            "wasim studio",
+          email: studio?.email || "wasim@gmail.com",
+          phone: studio?.phone || "N/A",
         },
-        createdAt: evt.createdAt
-          ? new Date(evt.createdAt).toISOString()
-          : new Date().toISOString(),
       };
     });
 
-    return NextResponse.json({ success: true, events: formatted }, { status: 200 });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to fetch pending requests";
-    console.error("GET PENDING EVENTS ERROR:", error);
-    return NextResponse.json({ success: false, error: msg, events: [] }, { status: 200 });
+    return NextResponse.json({
+      success: true,
+      events: formattedEvents,
+      total: formattedEvents.length,
+    });
+  } catch (error: any) {
+    console.error("[PENDING_EVENTS_500_CRASH]:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || "Internal server error fetching queue",
+        events: [],
+      },
+      { status: 500 }
+    );
   }
 }
