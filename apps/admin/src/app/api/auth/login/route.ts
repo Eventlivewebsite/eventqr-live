@@ -10,7 +10,7 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 // Production mein super admin route usi domain par ya dedicated URL par point hona chahiye
-const SUPER_ADMIN_DESTINATION = "/super-admin";
+const SUPER_ADMIN_DESTINATION = "https://eventqr-live-super-admin.vercel.app/dashboard";
   process.env.SUPER_ADMIN_URL ||
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
   "/super-admin";
