@@ -6,7 +6,13 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
-      "env": ["DATABASE_URL", "JWT_SECRET", "SUPER_ADMIN_URL", "NEXT_PUBLIC_SUPER_ADMIN_URL"]
+      "env": [
+        "DATABASE_URL",
+        "DIRECT_URL",
+        "JWT_SECRET",
+        "SUPER_ADMIN_URL",
+        "NEXT_PUBLIC_SUPER_ADMIN_URL"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
