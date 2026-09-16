@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Camera,
   Lock,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 export default function UnifiedLoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -67,14 +69,26 @@ export default function UnifiedLoginPage() {
         }
 
         const role = String(data.role || "").toUpperCase();
-        const fallbackSuperUrl =
-          process.env.NEXT_PUBLIC_SUPER_ADMIN_URL || "http://localhost:3001/dashboard";
+        const configuredSuperUrl = process.env.NEXT_PUBLIC_SUPER_ADMIN_URL;
 
-        // Strict Separation:
-        if (role === "SUPER_ADMIN" || (data.redirectTo && data.redirectTo.includes("3001"))) {
-          window.location.href = data.redirectTo || fallbackSuperUrl;
+        // Dynamic routing destination
+        let targetDestination = "/events";
+
+        if (role === "SUPER_ADMIN") {
+          targetDestination =
+            data.redirectTo && !data.redirectTo.includes("localhost:3001")
+              ? data.redirectTo
+              : configuredSuperUrl || "/super-admin";
         } else {
-          window.location.href = "/events";
+          targetDestination = data.redirectTo || "/events";
+        }
+
+        // Navigate safely to cross-domain or internal routes
+        if (targetDestination.startsWith("http://") || targetDestination.startsWith("https://")) {
+          window.location.href = targetDestination;
+        } else {
+          router.push(targetDestination);
+          router.refresh();
         }
       } else {
         setError(data.error || "Authentication failed. Please verify credentials.");

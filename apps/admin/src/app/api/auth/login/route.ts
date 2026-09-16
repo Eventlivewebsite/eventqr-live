@@ -9,14 +9,16 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
 );
 
-const SUPER_ADMIN_DESTINATION =
+// Production mein super admin route usi domain par ya dedicated URL par point hona chahiye
+const SUPER_ADMIN_DESTINATION = "/super-admin";
   process.env.SUPER_ADMIN_URL ||
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
-  "http://localhost:3001/dashboard";
+  "/super-admin";
 
 async function verifyPassword(entered: string, target?: string | null): Promise<boolean> {
   if (!entered || !target) return false;
-  if (entered === target) return true;
+
+  // Bcrypt comparison
   if (target.startsWith("$2a$") || target.startsWith("$2b$") || target.startsWith("$2y$")) {
     try {
       return await bcrypt.compare(entered, target);
@@ -24,16 +26,16 @@ async function verifyPassword(entered: string, target?: string | null): Promise<
       return false;
     }
   }
-  return false;
+
+  // Development/Transition fallback (matches plain text if not yet hashed)
+  return entered === target;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const identifier = String(body.email || "").trim().toLowerCase();
+    const identifier = String(body.email || body.identifier || "").trim().toLowerCase();
     const inputPass = String(body.password || "").trim();
-
-    console.log("[LOGIN_ATTEMPT]:", { identifier, passLength: inputPass.length });
 
     if (!identifier || !inputPass) {
       return NextResponse.json(
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const isProduction = process.env.NODE_ENV === "production";
 
-    // 1. Check User table
+    // 1. Check User Table (Super Admin / Admin)
     const userRecord = await prisma.user.findFirst({
       where: {
         OR: [{ email: identifier }, { userId: identifier }],
@@ -52,21 +54,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log("[USER_RECORD_FOUND]:", !!userRecord, userRecord?.email);
-
-    if (userRecord) {
+    if (userRecord && userRecord.passwordHash) {
       const isMatch = await verifyPassword(inputPass, userRecord.passwordHash);
-      console.log("[PASSWORD_MATCH_USER]:", isMatch);
 
       if (isMatch) {
-        const role = userRecord.role || "ADMIN";
-        const isSuper = role === "SUPER_ADMIN";
-        const redirectUrl = isSuper ? SUPER_ADMIN_DESTINATION : "/events";
+        const rawRole = (userRecord.role || "ADMIN").toUpperCase();
+        const isSuper = rawRole === "SUPER_ADMIN";
+  const redirectUrl = isSuper ? "/super-admin" : "/events";
 
         const token = await new SignJWT({
           userId: userRecord.id,
           email: userRecord.email,
-          role,
+          role: rawRole,
         })
           .setProtectedHeader({ alg: "HS256" })
           .setExpirationTime("7d")
@@ -74,13 +73,13 @@ export async function POST(req: NextRequest) {
 
         const res = NextResponse.json({
           success: true,
-          role,
+          role: rawRole,
           redirectTo: redirectUrl,
           user: {
             id: userRecord.id,
-            name: userRecord.name || userRecord.ownerName || "Admin",
+            name: userRecord.name || userRecord.ownerName || (isSuper ? "Super Admin" : "Admin"),
             email: userRecord.email,
-            role,
+            role: rawRole,
           },
         });
 
@@ -89,17 +88,22 @@ export async function POST(req: NextRequest) {
           httpOnly: true,
           secure: isProduction,
           sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7,
         });
-        res.cookies.set("eventqr_session_role", role, {
+
+        res.cookies.set("eventqr_session_role", rawRole, {
           path: "/",
+          httpOnly: false,
           secure: isProduction,
           sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7,
         });
+
         return res;
       }
     }
 
-    // 2. Check Client table
+    // 2. Check Client Table (Studio Admins)
     const clientRecord = await prisma.client.findFirst({
       where: {
         OR: [{ email: identifier }, { loginId: identifier }],
@@ -107,11 +111,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log("[CLIENT_RECORD_FOUND]:", !!clientRecord, clientRecord?.email);
-
     if (clientRecord && clientRecord.passwordHash) {
       const isMatch = await verifyPassword(inputPass, clientRecord.passwordHash);
-      console.log("[PASSWORD_MATCH_CLIENT]:", isMatch);
 
       if (isMatch) {
         const token = await new SignJWT({
@@ -140,12 +141,17 @@ export async function POST(req: NextRequest) {
           httpOnly: true,
           secure: isProduction,
           sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7,
         });
+
         res.cookies.set("eventqr_session_role", "STUDIO_ADMIN", {
           path: "/",
+          httpOnly: false,
           secure: isProduction,
           sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7,
         });
+
         return res;
       }
     }
@@ -155,7 +161,6 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   } catch (err: any) {
-    console.error("[AUTH_FATAL_ERR]:", err);
     return NextResponse.json(
       { success: false, error: err?.message || "Internal authentication error." },
       { status: 500 }
