@@ -9,16 +9,11 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
 );
 
-// Production mein super admin route usi domain par ya dedicated URL par point hona chahiye
-const SUPER_ADMIN_DESTINATION = "https://eventqr-live-super-admin.vercel.app/dashboard";
-  process.env.SUPER_ADMIN_URL ||
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
-  "/super-admin";
+// Super admin ka live URL
+const SUPER_ADMIN_LIVE_URL = "https://eventqr-live-super-admin.vercel.app/dashboard";
 
 async function verifyPassword(entered: string, target?: string | null): Promise<boolean> {
   if (!entered || !target) return false;
-
-  // Bcrypt comparison
   if (target.startsWith("$2a$") || target.startsWith("$2b$") || target.startsWith("$2y$")) {
     try {
       return await bcrypt.compare(entered, target);
@@ -26,8 +21,6 @@ async function verifyPassword(entered: string, target?: string | null): Promise<
       return false;
     }
   }
-
-  // Development/Transition fallback (matches plain text if not yet hashed)
   return entered === target;
 }
 
@@ -46,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     const isProduction = process.env.NODE_ENV === "production";
 
-    // 1. Check User Table (Super Admin / Admin)
+    // 1. Super Admin / Regular User Check
     const userRecord = await prisma.user.findFirst({
       where: {
         OR: [{ email: identifier }, { userId: identifier }],
@@ -60,7 +53,6 @@ export async function POST(req: NextRequest) {
       if (isMatch) {
         const rawRole = (userRecord.role || "ADMIN").toUpperCase();
         const isSuper = rawRole === "SUPER_ADMIN";
-  const redirectUrl = isSuper ? "/super-admin" : "/events";
 
         const token = await new SignJWT({
           userId: userRecord.id,
@@ -70,6 +62,11 @@ export async function POST(req: NextRequest) {
           .setProtectedHeader({ alg: "HS256" })
           .setExpirationTime("7d")
           .sign(JWT_SECRET);
+
+        // Super Admin ko live domain par token ke sath pass karein
+        const redirectUrl = isSuper
+          ? `${SUPER_ADMIN_LIVE_URL}?token=${token}`
+          : "/events";
 
         const res = NextResponse.json({
           success: true,
@@ -103,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Check Client Table (Studio Admins)
+    // 2. Client / Studio Admin Check
     const clientRecord = await prisma.client.findFirst({
       where: {
         OR: [{ email: identifier }, { loginId: identifier }],
