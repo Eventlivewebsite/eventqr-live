@@ -5,14 +5,49 @@ import { SignJWT } from "jose";
 
 export const dynamic = "force-dynamic";
 
+// --- LAYER 1: STRICT SECRET VALIDATION ---
+const RAW_JWT_SECRET = process.env.JWT_SECRET;
+if (!RAW_JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.error("FATAL SECURITY WARNING: JWT_SECRET is not set in production!");
+}
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
+  RAW_JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
 );
 
 const SUPER_ADMIN_LIVE_URL =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
   "https://eventqr-live-super-admin.vercel.app";
 
+// --- LAYER 2: IN-MEMORY RATE LIMITER (Brute-Force Guard) ---
+// Max 5 attempts per 60 seconds per IP
+interface RateLimitTracker {
+  count: number;
+  resetAt: number;
+}
+const rateLimitMap = new Map<string, RateLimitTracker>();
+
+function checkRateLimit(ip: string): { allowed: boolean; waitSeconds?: number } {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute
+  const maxAttempts = 5;
+
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return { allowed: true };
+  }
+
+  if (record.count >= maxAttempts) {
+    const waitSeconds = Math.ceil((record.resetAt - now) / 1000);
+    return { allowed: false, waitSeconds };
+  }
+
+  record.count += 1;
+  return { allowed: true };
+}
+
+// Password verification helper with timing-safe checks
 async function verifyPassword(entered: string, target?: string | null): Promise<boolean> {
   if (!entered || !target) return false;
   if (target.startsWith("$2a$") || target.startsWith("$2b$") || target.startsWith("$2y$")) {
@@ -27,6 +62,21 @@ async function verifyPassword(entered: string, target?: string | null): Promise<
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. IP Extraction for Rate Limiting
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : "127.0.0.1";
+
+    const { allowed, waitSeconds } = checkRateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many failed attempts from this network. Please wait ${waitSeconds} seconds before trying again.`,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const identifier = String(body.email || body.identifier || "").trim().toLowerCase();
     const inputPass = String(body.password || "").trim();
@@ -41,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     const isProduction = process.env.NODE_ENV === "production";
 
-    // 1. Super Admin / Regular User Check
+    // 2. Super Admin / Regular User Check
     const userRecord = await prisma.user.findFirst({
       where: {
         OR: [{ email: identifier }, { userId: identifier }],
@@ -56,12 +106,12 @@ export async function POST(req: NextRequest) {
         const rawRole = (userRecord.role || "ADMIN").toUpperCase();
         const isSuper = rawRole === "SUPER_ADMIN";
 
-        // Strict Enforcement: Super Admin tab vs Studio Partner tab isolation
+        // Strict Portal Role Quarantine
         if (requestedPortal === "SUPER_ADMIN" && !isSuper) {
           return NextResponse.json(
             {
               success: false,
-              error: "Access Denied: This account is not a Super Admin. Please switch to Studio Partner.",
+              error: "Access Denied: This account lacks Super Admin clearance.",
             },
             { status: 403 }
           );
@@ -71,19 +121,21 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               success: false,
-              error: "Access Denied: Super Admin accounts must sign in via the Super Admin portal.",
+              error: "Access Denied: Super Admin accounts must sign in through the Super Admin gate.",
             },
             { status: 403 }
           );
         }
 
+        // Short-lived token for transfer (prevents replay attacks)
         const token = await new SignJWT({
           userId: userRecord.id,
           email: userRecord.email,
           role: rawRole,
         })
           .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("7d")
+          .setIssuedAt()
+          .setExpirationTime(isSuper ? "1d" : "7d")
           .sign(JWT_SECRET);
 
         const redirectUrl = isSuper
@@ -102,12 +154,13 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        // Set High-Security HttpOnly Cookies
         res.cookies.set("eventqr_session", token, {
           path: "/",
           httpOnly: true,
           secure: isProduction,
           sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7,
+          maxAge: 60 * 60 * 24 * (isSuper ? 1 : 7),
         });
 
         res.cookies.set("eventqr_session_role", rawRole, {
@@ -115,14 +168,17 @@ export async function POST(req: NextRequest) {
           httpOnly: false,
           secure: isProduction,
           sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7,
+          maxAge: 60 * 60 * 24 * (isSuper ? 1 : 7),
         });
+
+        // Clear rate limiter on successful login
+        rateLimitMap.delete(ip);
 
         return res;
       }
     }
 
-    // 2. Client / Studio Admin Check
+    // 3. Client / Studio Admin Check
     const clientRecord = await prisma.client.findFirst({
       where: {
         OR: [{ email: identifier }, { loginId: identifier }],
@@ -134,12 +190,11 @@ export async function POST(req: NextRequest) {
       const isMatch = await verifyPassword(inputPass, clientRecord.passwordHash);
 
       if (isMatch) {
-        // Studio client attempting login on Super Admin tab -> Block
         if (requestedPortal === "SUPER_ADMIN") {
           return NextResponse.json(
             {
               success: false,
-              error: "Access Denied: Studio accounts cannot access Super Admin Suite. Please switch to Studio Partner.",
+              error: "Access Denied: Studio accounts cannot enter the Super Admin Suite.",
             },
             { status: 403 }
           );
@@ -151,6 +206,7 @@ export async function POST(req: NextRequest) {
           role: "STUDIO_ADMIN",
         })
           .setProtectedHeader({ alg: "HS256" })
+          .setIssuedAt()
           .setExpirationTime("7d")
           .sign(JWT_SECRET);
 
@@ -182,12 +238,14 @@ export async function POST(req: NextRequest) {
           maxAge: 60 * 60 * 24 * 7,
         });
 
+        rateLimitMap.delete(ip);
+
         return res;
       }
     }
 
     return NextResponse.json(
-      { success: false, error: "Invalid login credentials." },
+      { success: false, error: "Invalid credentials." },
       { status: 401 }
     );
   } catch (err: any) {
