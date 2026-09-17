@@ -14,6 +14,8 @@ import {
   LogOut,
 } from "lucide-react";
 
+const MAIN_LOGIN_GATEWAY_URL = "https://eventqr-live-admin.vercel.app/login";
+
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -28,8 +30,18 @@ export default function Sidebar() {
   ];
 
   const handleLogout = () => {
+    // 1. Clear all session cookies
     document.cookie = "super_admin_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    window.location.href = "/login";
+    document.cookie = "token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    document.cookie = "session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+
+    // 2. Clear browser storages
+    if (typeof window !== "undefined") {
+      localStorage.clear();
+      sessionStorage.clear();
+      // 3. Direct browser redirect to central gateway
+      window.location.href = MAIN_LOGIN_GATEWAY_URL;
+    }
   };
 
   return (

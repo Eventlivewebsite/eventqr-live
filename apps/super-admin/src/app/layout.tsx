@@ -14,9 +14,10 @@ import {
   LogOut,
   Bell,
   Search,
-  Sparkles,
 } from "lucide-react";
 import "./globals.css";
+
+const MAIN_LOGIN_GATEWAY_URL = "https://eventqr-live-admin.vercel.app/login";
 
 const NAVIGATION_ITEMS = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -35,6 +36,28 @@ export default function RootLayout({
 }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login";
+
+  const handleExitSession = () => {
+    // 1. Purge all related session cookies across domain paths
+    const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+    document.cookie = `super_admin_token${expiredSuffix}`;
+    document.cookie = `super_admin_session${expiredSuffix}`;
+    document.cookie = `token${expiredSuffix}`;
+    document.cookie = `session${expiredSuffix}`;
+
+    // 2. Clear all client storage
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // Fallback for restricted storage environments
+      }
+
+      // 3. Absolute handover to central gateway
+      window.location.href = MAIN_LOGIN_GATEWAY_URL;
+    }
+  };
 
   return (
     <html lang="en">
@@ -94,7 +117,7 @@ export default function RootLayout({
                 </div>
               </div>
 
-              {/* Bottom Profile / Logout */}
+              {/* Bottom Profile / Exit Session */}
               <div className="pt-4 border-t border-slate-800/80 space-y-3">
                 <div className="flex items-center gap-3 px-2">
                   <div className="w-8 h-8 rounded-xl bg-pink-500/20 border border-pink-500/30 text-pink-400 font-bold flex items-center justify-center text-xs">
@@ -108,10 +131,7 @@ export default function RootLayout({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    document.cookie = "super_admin_token=; Max-Age=0; path=/;";
-                    window.location.href = "/login";
-                  }}
+                  onClick={handleExitSession}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
