@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Users, Plus, Search, Edit2, Trash2, ShieldCheck, 
   X, Building, Mail, Lock, Sparkles, Loader2, Phone, 
-  MapPin, HardDrive, UserCheck
+  MapPin, HardDrive, UserCheck, RefreshCw
 } from "lucide-react";
 
 interface Client {
@@ -43,14 +43,17 @@ export default function ClientsPage() {
   const [storageLimitGB, setStorageLimitGB] = useState("50");
   const [loading, setLoading] = useState(false);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       setFetching(true);
-      const res = await fetch("/api/clients", { cache: "no-store" });
+      const res = await fetch("/api/clients", { 
+        cache: "no-store",
+        headers: { "Pragma": "no-cache" }
+      });
       const data = await res.json().catch(() => null);
 
-      if (res.ok && data?.success) {
-        setClients(data.clients || []);
+      if (res.ok && data?.success && Array.isArray(data.clients)) {
+        setClients(data.clients);
       } else {
         setClients([]);
       }
@@ -60,11 +63,11 @@ export default function ClientsPage() {
     } finally {
       setFetching(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [fetchClients]);
 
   const filteredClients = useMemo(() => {
     if (!searchQuery.trim()) return clients;
@@ -102,7 +105,7 @@ export default function ClientsPage() {
     setPhone(client.phone || "");
     setAddress(client.address || "");
     setLoginId(client.loginId || "");
-    setPassword(""); // Leave blank for security
+    setPassword(""); // Leave blank for security unless updating
     setStorageLimitGB(String(client.storageLimitGB || 50));
     setIsModalOpen(true);
   };
@@ -116,24 +119,23 @@ export default function ClientsPage() {
       const isEditing = Boolean(editingClientId);
       const method = isEditing ? "PUT" : "POST";
 
-      const payload: any = {
-        companyName,
-        contactPerson,
-        email,
-        phone,
-        address,
-        loginId,
-        storageLimitGB: Number(storageLimitGB),
+      const payload: Record<string, any> = {
+        companyName: companyName.trim(),
+        contactPerson: contactPerson.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        address: address.trim(),
+        loginId: loginId.trim().toLowerCase(),
+        storageLimitGB: Number(storageLimitGB) || 50,
       };
 
       if (isEditing) {
         payload.id = editingClientId;
-        // Only attach password if user filled it
         if (password.trim()) {
           payload.password = password.trim();
         }
       } else {
-        payload.password = password;
+        payload.password = password.trim() || "studio123";
       }
 
       const res = await fetch("/api/clients", {
@@ -149,11 +151,11 @@ export default function ClientsPage() {
         alert(isEditing ? "Studio updated successfully!" : "Studio Onboarded Successfully!");
         fetchClients();
       } else {
-        const errorMsg = data?.message || `Server status ${res.status}`;
+        const errorMsg = data?.message || `Server responded with status ${res.status}`;
         alert(`Error ${isEditing ? "updating" : "onboarding"} client: ` + errorMsg);
       }
     } catch (err: any) {
-      alert("Network / API Error: " + (err?.message || "Check terminal connection"));
+      alert("Network / API Error: " + (err?.message || "Connection refused"));
     } finally {
       setLoading(false);
     }
@@ -161,7 +163,7 @@ export default function ClientsPage() {
 
   // Handle Delete Client
   const handleDelete = async (clientId: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
 
     try {
       const res = await fetch(`/api/clients?id=${clientId}`, { method: "DELETE" });
@@ -173,14 +175,14 @@ export default function ClientsPage() {
       } else {
         alert(data?.message || "Failed to delete studio");
       }
-    } catch (err) {
+    } catch {
       alert("Error deleting client.");
     }
   };
 
   return (
     <div className="p-8 space-y-6 bg-[#030712] min-h-screen text-white">
-      {/* Header */}
+      {/* Top Header Card */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-8 bg-[#0b0f19] border border-slate-800/80 rounded-3xl shadow-2xl">
         <div className="space-y-1">
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
@@ -191,16 +193,28 @@ export default function ClientsPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreateModal}
-          className="flex items-center gap-2 px-6 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl shadow-lg shadow-pink-600/30 transition cursor-pointer text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Client</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => fetchClients()}
+            disabled={fetching}
+            className="p-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-2xl border border-slate-700/60 transition cursor-pointer"
+            title="Refresh Directory"
+          >
+            <RefreshCw className={`w-4 h-4 ${fetching ? "animate-spin text-pink-500" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="flex items-center gap-2 px-6 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl shadow-lg shadow-pink-600/30 transition cursor-pointer text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Client</span>
+          </button>
+        </div>
       </div>
 
-      {/* Search */}
+      {/* Search & Filter Toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#0b0f19] border border-slate-800 p-4 rounded-2xl shadow-xl">
         <div className="relative w-full sm:w-96 flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-4" />
@@ -219,14 +233,16 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Clients Directory Table */}
       <div className="p-6 bg-[#0b0f19] border border-slate-800/80 rounded-3xl shadow-xl space-y-4">
         {fetching ? (
-          <div className="p-12 text-center text-slate-500 flex items-center justify-center gap-2">
+          <div className="p-12 text-center text-slate-500 flex items-center justify-center gap-2 font-mono text-xs">
             <Loader2 className="w-5 h-5 animate-spin text-pink-500" /> Loading directory...
           </div>
         ) : filteredClients.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">No studios registered yet. Click &quot;Add New Client&quot; to onboard your first studio.</div>
+          <div className="p-12 text-center text-slate-500 text-sm font-mono">
+            No studios registered yet. Click &quot;Add New Client&quot; to onboard your first studio.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-300">
@@ -244,12 +260,15 @@ export default function ClientsPage() {
                 {filteredClients.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-900/40 transition">
                     <td className="px-5 py-4">
-                      <div className="font-bold text-white">{c.companyName || c.contactPerson}</div>
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${c.isActive ? "bg-emerald-400" : "bg-slate-500"}`}></span>
+                        {c.companyName || c.contactPerson || "Unnamed Studio"}
+                      </div>
                       <div className="text-xs text-slate-400">{c.contactPerson}</div>
                     </td>
                     <td className="px-5 py-4">
                       <div className="text-white font-medium">{c.email}</div>
-                      <div className="text-xs text-slate-400">{c.phone}</div>
+                      <div className="text-xs text-slate-400">{c.phone || "No phone"}</div>
                     </td>
                     <td className="px-5 py-4 text-pink-400 font-mono font-semibold">
                       {c.loginId || "N/A"}
@@ -258,12 +277,13 @@ export default function ClientsPage() {
                       {c._count?.events || 0}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="text-xs font-bold text-indigo-400 uppercase">{c.plan || "PREMIUM"}</div>
-                      <div className="text-xs text-slate-400">{c.storageLimitGB} GB ({c.storageDays || 15} Days)</div>
+                      <div className="text-xs font-bold text-indigo-400 uppercase">{c.plan || "STANDARD"}</div>
+                      <div className="text-xs text-slate-400">{c.storageLimitGB || 50} GB ({c.storageDays || 15} Days)</div>
                     </td>
                     <td className="px-5 py-4 text-right space-x-2">
                       {/* EDIT BUTTON */}
                       <button
+                        type="button"
                         onClick={() => handleOpenEditModal(c)}
                         className="p-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-xl transition cursor-pointer"
                         title="Edit Studio Details"
@@ -273,6 +293,7 @@ export default function ClientsPage() {
 
                       {/* DELETE BUTTON */}
                       <button
+                        type="button"
                         onClick={() => handleDelete(c.id, c.companyName || c.contactPerson)}
                         className="p-2 bg-red-600/20 text-red-400 hover:bg-red-600/40 rounded-xl transition cursor-pointer"
                         title="Delete Studio"
@@ -288,7 +309,7 @@ export default function ClientsPage() {
         )}
       </div>
 
-      {/* Modal (Add or Edit) */}
+      {/* Modal Dialog (Create & Edit) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <div className="relative w-full max-w-lg bg-[#0b0f19] border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
@@ -301,7 +322,11 @@ export default function ClientsPage() {
                   {editingClientId ? "Edit Studio Details" : "Onboard New Studio"}
                 </h3>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-white">
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)} 
+                className="p-2 text-slate-400 hover:text-white cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -412,13 +437,15 @@ export default function ClientsPage() {
 
               <div className="pt-4 flex gap-3">
                 <button
-                  type="button" onClick={() => setIsModalOpen(false)}
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)}
                   className="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit" disabled={loading}
+                  type="submit" 
+                  disabled={loading}
                   className="w-1/2 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-pink-600/25 cursor-pointer"
                 >
                   {loading ? (
