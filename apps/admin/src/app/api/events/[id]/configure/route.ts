@@ -11,68 +11,81 @@ export async function GET(
     const { id } = await context.params;
     const cleanId = String(id || "").trim();
 
-    if (!cleanId) {
-      return NextResponse.json({ success: false, error: "Event ID is required" }, { status: 400 });
+    if (!cleanId || !/^[a-zA-Z0-9_-]+$/.test(cleanId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid Event ID format" },
+        { status: 400 }
+      );
     }
 
-    const event = await prisma.event.findUnique({
+    const event = await (prisma.event as any).findUnique({
       where: { id: cleanId },
       include: {
         settings: true,
         albums: { orderBy: { sortOrder: "asc" } },
-        timeline: { orderBy: { sortOrder: "asc" } },
+        timelines: { orderBy: { sortOrder: "asc" } },
       },
     });
 
     if (!event) {
-      return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Event not found" },
+        { status: 404 }
+      );
     }
 
-    // Dynamic config fallback extraction
-    let parsedConfig: any = {};
-    const rawCustom = (event as any).customCategories;
-    if (rawCustom) {
-      try {
-        parsedConfig = typeof rawCustom === "string" ? JSON.parse(rawCustom) : rawCustom;
-      } catch {
-        parsedConfig = {};
-      }
-    }
+    const rawAlbums: any[] = Array.isArray(event.albums) ? event.albums : [];
+    const rawTimeline: any[] = Array.isArray(event.timelines)
+      ? event.timelines
+      : Array.isArray(event.timeline)
+      ? event.timeline
+      : [];
 
-    // Map relational albums directly to categories
-    const albumCategories = event.albums?.map((a) => a.title) || [];
-    const finalCategories = albumCategories.length > 0 
-      ? albumCategories 
-      : (parsedConfig.categories || ["Ceremony", "Haldi", "Mehendi", "Reception"]);
+    const categories = rawAlbums.map((a: any) => a.title);
 
     return NextResponse.json({
       success: true,
       event: {
         id: event.id,
-        name: event.title || (event as any).name || "",
+        name: event.title,
         title: event.title,
         slug: event.slug,
-        type: event.type || (event as any).eventType || "WEDDING",
-        eventDate: (event as any).eventDate ? new Date((event as any).eventDate).toISOString().split("T")[0] : "",
-        isLive: Boolean((event as any).isLive ?? (event.status === "ACTIVE")),
+        type: event.type || "WEDDING",
+        eventDate: event.createdAt
+          ? new Date(event.createdAt).toISOString().split("T")[0]
+          : "",
+        isLive: event.status === "ACTIVE",
         status: event.status || "ACTIVE",
-        venueName: (event as any).venueName || parsedConfig.venueName || "Grand Palace",
-        heroTag: parsedConfig.heroTag || "LIVE EVENT",
-        welcomeHeading: (event as any).welcomeHeading || parsedConfig.welcomeHeading || event.title || "Celebration",
-        welcomeSubtext: event.settings?.subtitle || (event as any).welcomeSubtext || parsedConfig.welcomeSubtext || "Forever Begins Today",
-        activeCeremony: parsedConfig.activeCeremony || "Wedding Reception",
-        ceremonyStartTime: parsedConfig.ceremonyStartTime || "18:00",
-        themeColor: (event as any).themeColor || "ROSE_GOLD",
-        categories: finalCategories,
-        albums: event.albums || parsedConfig.albums || [],
-        timeline: event.timeline || parsedConfig.timeline || [],
-        menuItems: parsedConfig.menuItems || ["Premium Invitation", "Guest Book", "Food Menu"],
-        decorationZones: parsedConfig.decorationZones || [],
+        venueName: event.location || "Main Venue",
+        heroTag: "LIVE EVENT",
+        welcomeHeading: event.title,
+        welcomeSubtext: event.settings?.subtitle || "Forever Begins Today",
+        activeCeremony: "Wedding Reception",
+        ceremonyStartTime: "18:00",
+        themeColor: "#9333EA",
+        categories:
+          categories.length > 0
+            ? categories
+            : ["Ceremony", "Haldi", "Mehendi", "Reception"],
+        albums: rawAlbums.map((a: any) => ({
+          name: a.title,
+          count: 0,
+        })),
+        timeline: rawTimeline.map((t: any) => ({
+          title: t.title,
+          time: t.timeText || t.time || "TBD",
+          status: t.statusText || t.status || "UPCOMING",
+        })),
+        menuItems: ["Premium Invitation", "Guest Book", "Food Menu"],
+        decorationZones: [],
       },
     });
   } catch (error: any) {
     console.error("GET /api/events/[id]/configure error:", error);
-    return NextResponse.json({ success: false, error: error?.message || "Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error?.message || "Server Error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -83,98 +96,143 @@ export async function POST(
   try {
     const { id } = await context.params;
     const cleanId = String(id || "").trim();
-    const body = await req.json();
 
-    if (!cleanId) {
-      return NextResponse.json({ success: false, error: "Event ID is required" }, { status: 400 });
+    if (!cleanId || !/^[a-zA-Z0-9_-]+$/.test(cleanId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or tampered Event ID" },
+        { status: 400 }
+      );
     }
 
-    const dynamicConfig = {
-      heroTag: body.heroTag,
-      welcomeHeading: body.welcomeHeading,
-      welcomeSubtext: body.welcomeSubtext,
-      activeCeremony: body.activeCeremony,
-      ceremonyStartTime: body.ceremonyStartTime,
-      venueName: body.venueName,
-      categories: body.categories,
-      albums: body.albums,
-      timeline: body.timeline,
-      menuItems: body.menuItems,
-      decorationZones: body.decorationZones,
-    };
-
-    // 1. Update Core Event fields (Schema Compatible)
-    const updatePayload: any = {
-      title: body.welcomeHeading || body.title || body.name,
-    };
-
-    // Safely add optional fields if they exist in runtime DB
-    if ("name" in prisma.event.fields) updatePayload.name = body.welcomeHeading || body.name;
-    if ("welcomeHeading" in prisma.event.fields) updatePayload.welcomeHeading = body.welcomeHeading;
-    if ("welcomeSubtext" in prisma.event.fields) updatePayload.welcomeSubtext = body.welcomeSubtext;
-    if ("venueName" in prisma.event.fields) updatePayload.venueName = body.venueName;
-    if ("themeColor" in prisma.event.fields) updatePayload.themeColor = body.themeColor;
-    if ("isLive" in prisma.event.fields) updatePayload.isLive = true;
-    if ("customCategories" in prisma.event.fields) {
-      updatePayload.customCategories = JSON.stringify(dynamicConfig);
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON request body" },
+        { status: 400 }
+      );
     }
 
-    const updated = await (prisma.event as any).update({
-      where: { id: cleanId },
-      data: updatePayload,
-    });
+    const finalTitle = String(
+      body.welcomeHeading || body.title || body.name || "Event"
+    ).trim();
+    const finalSubtitle = String(
+      body.welcomeSubtext || "Forever Begins Today"
+    ).trim();
+    const finalLocation = body.venueName ? String(body.venueName).trim() : null;
 
-    // 2. Sync to EventSettings
-    await prisma.eventSettings.upsert({
-      where: { eventId: cleanId },
-      update: {
-        subtitle: body.welcomeSubtext || undefined,
-      },
-      create: {
-        eventId: cleanId,
-        subtitle: body.welcomeSubtext || "Forever Begins Today",
-      },
-    });
+    const result = await (prisma as any).$transaction(async (tx: any) => {
+      // 1. Update only schema fields in Event
+      const updatedEvent = await tx.event.update({
+        where: { id: cleanId },
+        data: {
+          title: finalTitle,
+          ...(finalLocation && "location" in tx.event.fields
+            ? { location: finalLocation }
+            : {}),
+        },
+      });
 
-    // 3. Sync Categories to Album Table (for Guest Viewer category filtering)
-    if (Array.isArray(body.categories) && body.categories.length > 0) {
-      for (let i = 0; i < body.categories.length; i++) {
-        const catTitle = String(body.categories[i]).trim();
-        if (!catTitle) continue;
-        const catSlug = catTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      // 2. Upsert Subtitle into EventSettings
+      await tx.eventSettings.upsert({
+        where: { eventId: cleanId },
+        update: {
+          subtitle: finalSubtitle,
+        },
+        create: {
+          eventId: cleanId,
+          subtitle: finalSubtitle,
+          showCountdown: true,
+          showHighlights: true,
+          showTrending: true,
+          showTimeline: true,
+          allowDownloads: true,
+          allowLikes: true,
+        },
+      });
 
-        const existing = await prisma.album.findFirst({
-          where: { eventId: cleanId, slug: catSlug },
+      // 3. Synchronize Categories & Albums into Album table
+      const rawCategories: string[] =
+        Array.isArray(body.categories) && body.categories.length > 0
+          ? body.categories
+          : Array.isArray(body.albums)
+          ? body.albums.map((a: any) => (typeof a === "string" ? a : a.name))
+          : [];
+
+      const cleanCategories = rawCategories
+        .map((c) => String(c || "").trim())
+        .filter(Boolean);
+
+      if (cleanCategories.length > 0) {
+        for (let i = 0; i < cleanCategories.length; i++) {
+          const catTitle = cleanCategories[i];
+          const catSlug = catTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+
+          const existingAlbum = await tx.album.findFirst({
+            where: { eventId: cleanId, slug: catSlug },
+          });
+
+          if (!existingAlbum) {
+            await tx.album.create({
+              data: {
+                eventId: cleanId,
+                title: catTitle,
+                slug: catSlug,
+                sortOrder: i,
+              },
+            });
+          } else {
+            await tx.album.update({
+              where: { id: existingAlbum.id },
+              data: {
+                title: catTitle,
+                sortOrder: i,
+              },
+            });
+          }
+        }
+      }
+
+      // 4. Synchronize Programs into EventTimeline table
+      if (Array.isArray(body.timeline)) {
+        await tx.eventTimeline.deleteMany({
+          where: { eventId: cleanId },
         });
 
-        if (!existing) {
-          await prisma.album.create({
+        for (let i = 0; i < body.timeline.length; i++) {
+          const item = body.timeline[i];
+          if (!item?.title) continue;
+
+          await tx.eventTimeline.create({
             data: {
               eventId: cleanId,
-              title: catTitle,
-              slug: catSlug,
+              title: String(item.title).trim(),
+              timeText: String(item.time || "TBD").trim(),
+              statusText: String(item.status || "UPCOMING").trim(),
               sortOrder: i,
             },
           });
-        } else {
-          await prisma.album.update({
-            where: { id: existing.id },
-            data: { title: catTitle, sortOrder: i },
-          });
         }
       }
-    }
+
+      return updatedEvent;
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Viewer configurations and categories successfully deployed!",
-      event: updated,
+      message: "Viewer configurations successfully deployed!",
+      event: result,
     });
   } catch (error: any) {
     console.error("POST /api/events/[id]/configure error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error?.message || "Failed to update configuration" 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || "Failed to update configuration",
+      },
+      { status: 500 }
+    );
   }
 }
