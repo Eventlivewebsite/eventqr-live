@@ -127,7 +127,7 @@ export default function ApprovalRequestsPage() {
     };
   }, [loadRequests]);
 
-  // Secure Action Handler (Accept / Reject)
+  // Secure Action Handler (Accept / Reject) with Full Admin Override
   const handleAction = async (eventId: string, action: "ACCEPT" | "REJECT") => {
     const cleanId = sanitize(eventId);
     if (!cleanId || !/^[a-zA-Z0-9_-]+$/.test(cleanId)) {
@@ -159,7 +159,7 @@ export default function ApprovalRequestsPage() {
       const data: ApiResponse = await res.json().catch(() => ({ success: false }));
 
       if (res.ok && data.success) {
-        // Persistent in-memory update
+        // Optimistic in-memory update
         setRequests((prev) =>
           prev.map((req) =>
             req.id === cleanId
@@ -254,6 +254,12 @@ export default function ApprovalRequestsPage() {
     });
   }, [requests, statusFilter, selectedStudio, searchQuery, dateFilter]);
 
+  const guestBaseUrl =
+    process.env.NEXT_PUBLIC_CLIENT_URL ||
+    (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
+      ? "https://eventqr-live-admin.vercel.app"
+      : "http://localhost:3002");
+
   return (
     <div className="p-8 space-y-6 bg-[#030712] min-h-screen text-slate-100 font-sans selection:bg-pink-500 selection:text-white">
       {/* Header Banner */}
@@ -275,7 +281,7 @@ export default function ApprovalRequestsPage() {
           onClick={() => void loadRequests()}
           className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white rounded-2xl text-xs font-bold transition cursor-pointer"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-pink-500" : ""}`} />
           <span>Refresh All</span>
         </button>
       </div>
@@ -444,7 +450,7 @@ export default function ApprovalRequestsPage() {
                   <th className="px-4 py-3 font-extrabold">EVENT DATE</th>
                   <th className="px-4 py-3 font-extrabold">CURRENT STATUS</th>
                   <th className="px-4 py-3 font-extrabold">AUDIT STAGE</th>
-                  <th className="px-4 py-3 text-center font-extrabold">ACTIONS</th>
+                  <th className="px-4 py-3 text-right font-extrabold">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -514,42 +520,44 @@ export default function ApprovalRequestsPage() {
                         )}
                       </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-center gap-2">
+                      {/* Actions: Direct Admin Control */}
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedEvent(req)}
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition cursor-pointer border border-slate-700/60"
-                            title="Inspect Event"
+                            title="Inspect Event Details"
                           >
                             <Eye className="w-3.5 h-3.5 text-sky-400" />
                             <span>View</span>
                           </button>
 
+                          {/* REJECT / REVOKE BUTTON */}
                           <button
                             type="button"
-                            disabled={actionLoading === req.id || isRejected}
+                            disabled={actionLoading === req.id}
                             onClick={() => void handleAction(req.id, "REJECT")}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border ${
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
                               isRejected
-                                ? "bg-rose-500/5 text-rose-500/40 border-rose-500/10 cursor-not-allowed"
-                                : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/20 cursor-pointer"
+                                ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                                : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/20"
                             }`}
-                            title="Reject Request"
+                            title={isApproved ? "Revoke Approval & Take Offline" : "Reject Request"}
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>Reject</span>
+                            <span>{isApproved ? "Revoke" : "Reject"}</span>
                           </button>
 
+                          {/* APPROVE / PUBLISH BUTTON */}
                           <button
                             type="button"
-                            disabled={actionLoading === req.id || isApproved}
+                            disabled={actionLoading === req.id}
                             onClick={() => void handleAction(req.id, "ACCEPT")}
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer shadow-sm ${
                               isApproved
-                                ? "bg-emerald-500/10 text-emerald-500/40 border-emerald-500/20 cursor-not-allowed"
-                                : "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30 cursor-pointer shadow-sm"
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
+                                : "bg-emerald-500 hover:bg-emerald-600 text-black border-emerald-400"
                             }`}
                             title="Approve & Publish Live"
                           >
@@ -558,7 +566,7 @@ export default function ApprovalRequestsPage() {
                             ) : (
                               <Check className="w-3.5 h-3.5" />
                             )}
-                            <span>{isApproved ? "Approved" : "Accept"}</span>
+                            <span>{isApproved ? "Approved (Live)" : "Accept"}</span>
                           </button>
                         </div>
                       </td>
@@ -698,7 +706,7 @@ export default function ApprovalRequestsPage() {
                     Guest link is active and accessible.
                   </span>
                   <a
-                    href={`http://localhost:3002/e/${selectedEvent.slug}`}
+                    href={`${guestBaseUrl}/e/${selectedEvent.slug}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-4"
@@ -723,15 +731,15 @@ export default function ApprovalRequestsPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={selectedEvent.status === "REJECTED"}
+                  disabled={Boolean(actionLoading)}
                   onClick={() => void handleAction(selectedEvent.id, "REJECT")}
                   className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50 transition"
                 >
-                  Reject
+                  Reject & Take Offline
                 </button>
                 <button
                   type="button"
-                  disabled={selectedEvent.status === "APPROVED" || selectedEvent.isLive}
+                  disabled={Boolean(actionLoading)}
                   onClick={() => void handleAction(selectedEvent.id, "ACCEPT")}
                   className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-bold rounded-xl cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition"
                 >
