@@ -66,13 +66,12 @@ export default function ApprovalRequestsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("");
 
-  // Input Sanitizer
   const sanitize = (str: string | undefined | null): string => {
     if (!str) return "";
     return String(str).trim();
   };
 
-  // Secure Requests Fetcher
+  // Fetch Requests
   const loadRequests = useCallback(async () => {
     setLoading(true);
     setErrorBanner(null);
@@ -127,11 +126,11 @@ export default function ApprovalRequestsPage() {
     };
   }, [loadRequests]);
 
-  // Secure Action Handler (Accept / Reject) with Full Admin Override
+  // Action Handler (ACCEPT or REJECT)
   const handleAction = async (eventId: string, action: "ACCEPT" | "REJECT") => {
     const cleanId = sanitize(eventId);
     if (!cleanId || !/^[a-zA-Z0-9_-]+$/.test(cleanId)) {
-      alert("Invalid or tampered Event ID format.");
+      alert("Invalid Event ID format.");
       return;
     }
 
@@ -159,7 +158,7 @@ export default function ApprovalRequestsPage() {
       const data: ApiResponse = await res.json().catch(() => ({ success: false }));
 
       if (res.ok && data.success) {
-        // Optimistic in-memory update
+        // Update state in UI immediately
         setRequests((prev) =>
           prev.map((req) =>
             req.id === cleanId
@@ -184,7 +183,6 @@ export default function ApprovalRequestsPage() {
     }
   };
 
-  // Studio dropdown aggregate list
   const uniqueStudios = useMemo(() => {
     const map = new Map<string, { id: string; name: string; count: number }>();
     requests.forEach((r) => {
@@ -198,7 +196,6 @@ export default function ApprovalRequestsPage() {
     return Array.from(map.values());
   }, [requests]);
 
-  // Aggregate stats counters
   const stats = useMemo(() => {
     return {
       all: requests.length,
@@ -210,25 +207,21 @@ export default function ApprovalRequestsPage() {
     };
   }, [requests]);
 
-  // Multi-Criteria Filtering Logic
   const filteredRequests = useMemo(() => {
     return requests.filter((req) => {
       const isApproved = req.status === "APPROVED" || req.isLive;
       const isRejected = req.status === "REJECTED";
       const isPending = !isApproved && !isRejected;
 
-      // Status Filter
       if (statusFilter === "PENDING" && !isPending) return false;
       if (statusFilter === "APPROVED" && !isApproved) return false;
       if (statusFilter === "REJECTED" && !isRejected) return false;
 
-      // Studio Filter
       if (selectedStudio !== "ALL") {
         const currentStudioId = sanitize(req.client?.id) || "unassigned";
         if (currentStudioId !== selectedStudio) return false;
       }
 
-      // Search Query Filter
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         const evName = (req.name || req.title || "").toLowerCase();
@@ -244,7 +237,6 @@ export default function ApprovalRequestsPage() {
         }
       }
 
-      // Date Filter
       if (dateFilter) {
         const evDate = req.eventDate ? req.eventDate.split("T")[0] : "";
         if (evDate !== dateFilter) return false;
@@ -294,7 +286,7 @@ export default function ApprovalRequestsPage() {
         </div>
       )}
 
-      {/* Metric Cards & Filter Navigation */}
+      {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <button
           type="button"
@@ -366,10 +358,9 @@ export default function ApprovalRequestsPage() {
         </button>
       </div>
 
-      {/* Advanced Query Filter Toolbar */}
+      {/* Query Filters */}
       <div className="p-4 bg-[#080c14] border border-slate-800/80 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Keyword Search */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
             <input
@@ -381,7 +372,6 @@ export default function ApprovalRequestsPage() {
             />
           </div>
 
-          {/* Studio Selector */}
           <div className="flex items-center gap-2">
             <Building className="w-3.5 h-3.5 text-slate-400" />
             <select
@@ -398,7 +388,6 @@ export default function ApprovalRequestsPage() {
             </select>
           </div>
 
-          {/* Event Date Picker */}
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <input
@@ -425,7 +414,7 @@ export default function ApprovalRequestsPage() {
         </div>
       </div>
 
-      {/* Main Verification Table */}
+      {/* Main Table */}
       <div className="p-6 bg-[#080c14] border border-slate-800/80 rounded-3xl shadow-2xl space-y-4">
         {loading ? (
           <div className="p-16 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
@@ -460,7 +449,6 @@ export default function ApprovalRequestsPage() {
 
                   return (
                     <tr key={req.id} className="hover:bg-slate-900/40 transition">
-                      {/* Name & Slug */}
                       <td className="px-4 py-4">
                         <div className="font-bold text-white text-sm flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-pink-400 shrink-0" />
@@ -471,7 +459,6 @@ export default function ApprovalRequestsPage() {
                         </div>
                       </td>
 
-                      {/* Studio Partner */}
                       <td className="px-4 py-4">
                         <div className="font-semibold text-slate-200 text-xs flex items-center gap-1.5">
                           <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -482,7 +469,6 @@ export default function ApprovalRequestsPage() {
                         </span>
                       </td>
 
-                      {/* Event Date */}
                       <td className="px-4 py-4 text-xs text-slate-300">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-500" />
@@ -492,7 +478,6 @@ export default function ApprovalRequestsPage() {
                         </div>
                       </td>
 
-                      {/* Current Status Badge */}
                       <td className="px-4 py-4">
                         {isApproved ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -509,7 +494,6 @@ export default function ApprovalRequestsPage() {
                         )}
                       </td>
 
-                      {/* Audit Stage */}
                       <td className="px-4 py-4 text-xs font-mono">
                         {isApproved ? (
                           <span className="text-emerald-400/80">Active on Guest Screens</span>
@@ -520,7 +504,7 @@ export default function ApprovalRequestsPage() {
                         )}
                       </td>
 
-                      {/* Actions: Direct Admin Control */}
+                      {/* Actions: Approve button disables after approval, Reject stays active */}
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -533,40 +517,40 @@ export default function ApprovalRequestsPage() {
                             <span>View</span>
                           </button>
 
-                          {/* REJECT / REVOKE BUTTON */}
+                          {/* REJECT BUTTON (Disabled only if already rejected) */}
                           <button
                             type="button"
-                            disabled={actionLoading === req.id}
+                            disabled={actionLoading === req.id || isRejected}
                             onClick={() => void handleAction(req.id, "REJECT")}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border ${
                               isRejected
-                                ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
-                                : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/20"
+                                ? "bg-rose-500/5 text-rose-500/30 border-rose-500/10 cursor-not-allowed opacity-50"
+                                : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/20 cursor-pointer"
                             }`}
-                            title={isApproved ? "Revoke Approval & Take Offline" : "Reject Request"}
+                            title={isRejected ? "Already Rejected" : "Reject Request"}
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>{isApproved ? "Revoke" : "Reject"}</span>
+                            <span>Reject</span>
                           </button>
 
-                          {/* APPROVE / PUBLISH BUTTON */}
+                          {/* APPROVE BUTTON (Disabled if already approved/live) */}
                           <button
                             type="button"
-                            disabled={actionLoading === req.id}
+                            disabled={actionLoading === req.id || isApproved}
                             onClick={() => void handleAction(req.id, "ACCEPT")}
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer shadow-sm ${
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
                               isApproved
-                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
-                                : "bg-emerald-500 hover:bg-emerald-600 text-black border-emerald-400"
+                                ? "bg-emerald-500/10 text-emerald-500/40 border-emerald-500/20 cursor-not-allowed opacity-60"
+                                : "bg-emerald-500 hover:bg-emerald-600 text-black border-emerald-400 cursor-pointer shadow-sm"
                             }`}
-                            title="Approve & Publish Live"
+                            title={isApproved ? "Already Approved & Live" : "Approve & Publish Live"}
                           >
                             {actionLoading === req.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <Check className="w-3.5 h-3.5" />
                             )}
-                            <span>{isApproved ? "Approved (Live)" : "Accept"}</span>
+                            <span>{isApproved ? "Approved" : "Accept"}</span>
                           </button>
                         </div>
                       </td>
@@ -579,12 +563,10 @@ export default function ApprovalRequestsPage() {
         )}
       </div>
 
-      {/* COMPREHENSIVE EVENT AUDIT & INSPECTION MODAL */}
+      {/* AUDIT MODAL */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-xl bg-[#080c14] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-150">
-            
-            {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-pink-400">
@@ -615,10 +597,7 @@ export default function ApprovalRequestsPage() {
               </button>
             </div>
 
-            {/* Modal Content Sections */}
             <div className="space-y-4 text-xs">
-              
-              {/* Event Specification Box */}
               <div className="p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1">
@@ -677,7 +656,6 @@ export default function ApprovalRequestsPage() {
                 </div>
               </div>
 
-              {/* Studio Partner Origin Details */}
               <div className="p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl space-y-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">
                   Studio Partner Origin
@@ -699,7 +677,6 @@ export default function ApprovalRequestsPage() {
                 </div>
               </div>
 
-              {/* Live Preview Direct Link (if Approved) */}
               {(selectedEvent.status === "APPROVED" || selectedEvent.isLive) && (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
                   <span className="text-xs text-emerald-400 font-semibold">
@@ -718,7 +695,6 @@ export default function ApprovalRequestsPage() {
               )}
             </div>
 
-            {/* Modal Bottom Actions */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-800">
               <button
                 type="button"
@@ -731,23 +707,22 @@ export default function ApprovalRequestsPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={Boolean(actionLoading)}
+                  disabled={Boolean(actionLoading) || selectedEvent.status === "REJECTED"}
                   onClick={() => void handleAction(selectedEvent.id, "REJECT")}
-                  className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50 transition"
+                  className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold rounded-xl cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
-                  Reject & Take Offline
+                  Reject
                 </button>
                 <button
                   type="button"
-                  disabled={Boolean(actionLoading)}
+                  disabled={Boolean(actionLoading) || selectedEvent.status === "APPROVED" || selectedEvent.isLive}
                   onClick={() => void handleAction(selectedEvent.id, "ACCEPT")}
-                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-bold rounded-xl cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition"
+                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-bold rounded-xl cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
-                  Approve &amp; Publish Live
+                  {selectedEvent.status === "APPROVED" || selectedEvent.isLive ? "Approved" : "Approve & Publish Live"}
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}

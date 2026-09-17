@@ -22,6 +22,7 @@ interface ClientData {
   companyName?: string;
   contactPerson?: string;
   email: string;
+  phone?: string;
   loginId?: string;
   storageLimitGB?: number;
   allocatedStorageGb?: number;
@@ -79,7 +80,6 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  // Aggregations from real data
   const totalStorageGB = clients.reduce(
     (acc, curr) => acc + (curr.storageLimitGB || curr.allocatedStorageGb || 50),
     0
@@ -185,7 +185,7 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {/* Active Clients Table with Actions (Edit, Delete, Open) */}
+      {/* Active Clients Table */}
       <div className="p-6 bg-[#080c14] border border-slate-800/80 rounded-3xl shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
           <div>
@@ -244,11 +244,11 @@ export default function SuperAdminDashboard() {
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {/* Edit Client */}
+                          {/* Edit Client -> Direct to Clients Directory */}
                           <Link
-                            href={`/clients/${client.id}`}
+                            href="/clients"
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer border border-slate-700"
-                            title="Edit Client"
+                            title="Edit Client via Directory"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </Link>
