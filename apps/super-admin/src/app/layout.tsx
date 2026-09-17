@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import {
   LogOut,
   Bell,
   Search,
+  Loader2,
 } from "lucide-react";
 import "./globals.css";
 
@@ -36,25 +37,74 @@ export default function RootLayout({
 }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login";
+  
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
+  const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
-  const handleExitSession = () => {
-    // 1. Purge all related session cookies across domain paths
+  // Client-Side Route Guard: Blocks direct access without valid session/token
+  useEffect(() => {
+    if (isAuthPage) {
+      setCheckingAuth(false);
+      setIsAuthorized(true);
+      return;
+    }
+
+    const checkAuthentication = () => {
+      // 1. Agar URL mein token aaya hai toh allow karo
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasUrlToken = urlParams.has("token");
+
+      // 2. Cookies check karein
+      const allCookies = document.cookie;
+      const hasSessionCookie =
+        allCookies.includes("eventqr_session=") ||
+        allCookies.includes("eventqr_session_role=SUPER_ADMIN") ||
+        allCookies.includes("super_admin_session=");
+
+      if (hasUrlToken || hasSessionCookie) {
+        setIsAuthorized(true);
+        setCheckingAuth(false);
+      } else {
+        // Direct visit bina cookie/token ke -> Kick to unified login gate
+        setIsAuthorized(false);
+        window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=unauthorized`);
+      }
+    };
+
+    checkAuthentication();
+  }, [pathname, isAuthPage]);
+
+  const handleExitSession = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
+    try {
+      // Server-side httpOnly cookies delete karein
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Continue cleanup
+    }
+
+    // Client-side cookies purge
     const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+    document.cookie = `eventqr_session${expiredSuffix}`;
+    document.cookie = `eventqr_session_role${expiredSuffix}`;
     document.cookie = `super_admin_token${expiredSuffix}`;
     document.cookie = `super_admin_session${expiredSuffix}`;
     document.cookie = `token${expiredSuffix}`;
     document.cookie = `session${expiredSuffix}`;
 
-    // 2. Clear all client storage
     if (typeof window !== "undefined") {
       try {
         localStorage.clear();
         sessionStorage.clear();
       } catch {
-        // Fallback for restricted storage environments
+        // Fallback
       }
 
-      // 3. Absolute handover to central gateway
       window.location.href = MAIN_LOGIN_GATEWAY_URL;
     }
   };
@@ -62,9 +112,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-[#030712] text-slate-100 antialiased min-h-screen font-sans selection:bg-pink-500 selection:text-white">
-        {isAuthPage ? (
+        {checkingAuth && !isAuthPage ? (
+          // Jab tak authentication verify nahi hoti, dashboard render nahi hoga
+          <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
+            <span className="text-xs font-mono text-slate-400">Verifying Super Admin Authorization...</span>
+          </div>
+        ) : isAuthPage ? (
           <main className="min-h-screen">{children}</main>
-        ) : (
+        ) : isAuthorized ? (
           <div className="flex min-h-screen w-full">
             {/* Left Sidebar */}
             <aside className="w-64 border-r border-slate-800/80 bg-[#080c14] flex flex-col justify-between p-5 shrink-0 sticky top-0 h-screen">
@@ -132,17 +188,21 @@ export default function RootLayout({
                 <button
                   type="button"
                   onClick={handleExitSession}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                  disabled={isLoggingOut}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition cursor-pointer disabled:opacity-50"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Exit Session</span>
+                  {isLoggingOut ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <LogOut className="w-4 h-4" />
+                  )}
+                  <span>{isLoggingOut ? "Ending Session..." : "Exit Session"}</span>
                 </button>
               </div>
             </aside>
 
             {/* Main Area with Top Header */}
             <div className="flex-1 flex flex-col min-w-0">
-              {/* Top Navigation Header */}
               <header className="h-16 border-b border-slate-800/80 bg-[#080c14]/80 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-40">
                 <div className="flex items-center gap-3">
                   <h2 className="text-sm font-bold text-white capitalize">
@@ -181,13 +241,12 @@ export default function RootLayout({
                 </div>
               </header>
 
-              {/* Dynamic Page Content */}
               <main className="flex-1 p-8 bg-[#030712] overflow-y-auto">
                 {children}
               </main>
             </div>
           </div>
-        )}
+        ) : null}
       </body>
     </html>
   );
