@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,12 +12,14 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Loader2,
 } from "lucide-react";
 
 const MAIN_LOGIN_GATEWAY_URL = "https://eventqr-live-admin.vercel.app/login";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -29,17 +31,38 @@ export default function Sidebar() {
     { label: "Settings", href: "/settings", icon: Settings },
   ];
 
-  const handleLogout = () => {
-    // 1. Clear all session cookies
-    document.cookie = "super_admin_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    document.cookie = "token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    document.cookie = "session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
 
-    // 2. Clear browser storages
+    try {
+      // 1. Server-side httpOnly cookies ko purge karein
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Network failure hone par bhi client cleanup continue hoga
+    }
+
+    // 2. Client-accessible cookies expire karein
+    const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+    document.cookie = `eventqr_session${expiredSuffix}`;
+    document.cookie = `eventqr_session_role${expiredSuffix}`;
+    document.cookie = `super_admin_session${expiredSuffix}`;
+    document.cookie = `super_admin_token${expiredSuffix}`;
+    document.cookie = `token${expiredSuffix}`;
+    document.cookie = `session${expiredSuffix}`;
+
+    // 3. Local aur Session storage wipe karein
     if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
-      // 3. Direct browser redirect to central gateway
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // Safe fallback
+      }
+
+      // 4. Central login gateway par absolute redirect
       window.location.href = MAIN_LOGIN_GATEWAY_URL;
     }
   };
@@ -107,10 +130,15 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold transition cursor-pointer"
+          disabled={isLoggingOut}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
         >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Exit Session</span>
+          {isLoggingOut ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <LogOut className="w-3.5 h-3.5" />
+          )}
+          <span>{isLoggingOut ? "Ending Session..." : "Exit Session"}</span>
         </button>
       </div>
     </aside>

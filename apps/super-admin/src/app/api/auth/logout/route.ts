@@ -1,24 +1,23 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 export async function POST() {
-  const response = NextResponse.json({
-    success: true,
-    message: "Logged out successfully",
-  });
+  const response = NextResponse.json({ success: true });
 
-  // Cookies clear karna
-  response.cookies.set("eventqr_session", "", {
+  const expiredOpts = {
     path: "/",
+    expires: new Date(0),
     maxAge: 0,
     httpOnly: true,
-  });
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+  };
 
-  response.cookies.set("eventqr_session_role", "", {
-    path: "/",
-    maxAge: 0,
-  });
+  // Saari cookies ko server side se clean karein
+  response.cookies.set("eventqr_session", "", expiredOpts);
+  response.cookies.set("eventqr_session_role", "", { ...expiredOpts, httpOnly: false });
+  response.cookies.set("super_admin_session", "", expiredOpts);
+  response.cookies.set("super_admin_token", "", expiredOpts);
+  response.cookies.set("token", "", expiredOpts);
 
   return response;
 }

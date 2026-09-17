@@ -9,7 +9,6 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
 );
 
-// Super admin destination pointed directly to root URL
 const SUPER_ADMIN_LIVE_URL =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
   "https://eventqr-live-super-admin.vercel.app";
@@ -31,6 +30,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const identifier = String(body.email || body.identifier || "").trim().toLowerCase();
     const inputPass = String(body.password || "").trim();
+    const requestedPortal = String(body.portalRole || "").trim().toUpperCase();
 
     if (!identifier || !inputPass) {
       return NextResponse.json(
@@ -56,6 +56,27 @@ export async function POST(req: NextRequest) {
         const rawRole = (userRecord.role || "ADMIN").toUpperCase();
         const isSuper = rawRole === "SUPER_ADMIN";
 
+        // Strict Enforcement: Super Admin tab vs Studio Partner tab isolation
+        if (requestedPortal === "SUPER_ADMIN" && !isSuper) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Access Denied: This account is not a Super Admin. Please switch to Studio Partner.",
+            },
+            { status: 403 }
+          );
+        }
+
+        if (requestedPortal === "STUDIO_CLIENT" && isSuper) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Access Denied: Super Admin accounts must sign in via the Super Admin portal.",
+            },
+            { status: 403 }
+          );
+        }
+
         const token = await new SignJWT({
           userId: userRecord.id,
           email: userRecord.email,
@@ -65,7 +86,6 @@ export async function POST(req: NextRequest) {
           .setExpirationTime("7d")
           .sign(JWT_SECRET);
 
-        // Super Admin ko live domain ke root par token ke sath pass karein
         const redirectUrl = isSuper
           ? `${SUPER_ADMIN_LIVE_URL}/?token=${token}`
           : "/events";
@@ -114,6 +134,17 @@ export async function POST(req: NextRequest) {
       const isMatch = await verifyPassword(inputPass, clientRecord.passwordHash);
 
       if (isMatch) {
+        // Studio client attempting login on Super Admin tab -> Block
+        if (requestedPortal === "SUPER_ADMIN") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Access Denied: Studio accounts cannot access Super Admin Suite. Please switch to Studio Partner.",
+            },
+            { status: 403 }
+          );
+        }
+
         const token = await new SignJWT({
           userId: clientRecord.id,
           email: clientRecord.email,
