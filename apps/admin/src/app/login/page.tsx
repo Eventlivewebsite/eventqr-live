@@ -15,6 +15,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+const LIVE_SUPER_ADMIN_URL = "https://eventqr-live-super-admin.vercel.app";
+
 export default function UnifiedLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -69,21 +71,21 @@ export default function UnifiedLoginPage() {
         }
 
         const role = String(data.role || "").toUpperCase();
-        const configuredSuperUrl = process.env.NEXT_PUBLIC_SUPER_ADMIN_URL;
 
-        // Dynamic routing destination
-        let targetDestination = "/events";
-
+        // 1. Super Admin: Always handover to the dedicated super admin console
         if (role === "SUPER_ADMIN") {
-          targetDestination =
-            data.redirectTo && !data.redirectTo.includes("localhost:3001")
-              ? data.redirectTo
-              : configuredSuperUrl || "/super-admin";
-        } else {
-          targetDestination = data.redirectTo || "/events";
+          let destination = data.redirectTo;
+          
+          if (!destination || destination === "/super-admin" || destination.includes("localhost:3001")) {
+            destination = LIVE_SUPER_ADMIN_URL;
+          }
+
+          window.location.href = destination;
+          return;
         }
 
-        // Navigate safely to cross-domain or internal routes
+        // 2. Studio Admin / Client: Internal routing
+        const targetDestination = data.redirectTo || "/events";
         if (targetDestination.startsWith("http://") || targetDestination.startsWith("https://")) {
           window.location.href = targetDestination;
         } else {
