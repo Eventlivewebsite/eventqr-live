@@ -9,8 +9,10 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
 );
 
-// Super admin ka live URL
-const SUPER_ADMIN_LIVE_URL = "https://eventqr-live-super-admin.vercel.app/dashboard";
+// Super admin destination pointed directly to root URL
+const SUPER_ADMIN_LIVE_URL =
+  process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
+  "https://eventqr-live-super-admin.vercel.app";
 
 async function verifyPassword(entered: string, target?: string | null): Promise<boolean> {
   if (!entered || !target) return false;
@@ -63,9 +65,9 @@ export async function POST(req: NextRequest) {
           .setExpirationTime("7d")
           .sign(JWT_SECRET);
 
-        // Super Admin ko live domain par token ke sath pass karein
+        // Super Admin ko live domain ke root par token ke sath pass karein
         const redirectUrl = isSuper
-          ? `${SUPER_ADMIN_LIVE_URL}?token=${token}`
+          ? `${SUPER_ADMIN_LIVE_URL}/?token=${token}`
           : "/events";
 
         const res = NextResponse.json({
