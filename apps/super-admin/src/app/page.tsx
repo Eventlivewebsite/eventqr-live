@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -9,23 +9,24 @@ import {
   HardDrive,
   Plus,
   ArrowUpRight,
-  MoreVertical,
   Edit2,
   Trash2,
   ExternalLink,
-  ShieldCheck,
   RefreshCw,
   Loader2,
 } from "lucide-react";
 
 interface ClientData {
   id: string;
-  name: string;
-  email: string;
-  loginId: string;
+  name?: string;
   companyName?: string;
+  contactPerson?: string;
+  email: string;
+  loginId?: string;
+  storageLimitGB?: number;
   allocatedStorageGb?: number;
   eventsCount?: number;
+  _count?: { events: number };
   isActive?: boolean;
 }
 
@@ -33,64 +34,66 @@ export default function SuperAdminDashboard() {
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/clients", { credentials: "include" });
-      const data = await res.json().catch(() => ({ clients: [] }));
-      if (data && Array.isArray(data.clients)) {
+      const res = await fetch("/api/clients", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.success && Array.isArray(data.clients)) {
         setClients(data.clients);
+      } else if (Array.isArray(data)) {
+        setClients(data);
       } else {
-        // Fallback default from state screenshot
-        setClients([
-          {
-            id: "1",
-            name: "wasim",
-            companyName: "wasim",
-            email: "wasim@gmail.com",
-            loginId: "wasim",
-            allocatedStorageGb: 50,
-            eventsCount: 1,
-            isActive: true,
-          },
-        ]);
+        setClients([]);
       }
-    } catch {
-      setClients([
-        {
-          id: "1",
-          name: "wasim",
-          companyName: "wasim",
-          email: "wasim@gmail.com",
-          loginId: "wasim",
-          allocatedStorageGb: 50,
-          eventsCount: 1,
-          isActive: true,
-        },
-      ]);
+    } catch (err) {
+      console.error("Dashboard failed to fetch clients:", err);
+      setClients([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [fetchClients]);
 
-  const handleDeleteClient = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this studio partner?")) return;
+  const handleDeleteClient = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete studio "${name}"?`)) return;
+
     try {
-      const res = await fetch(`/api/clients/${id}`, { method: "DELETE" });
-      if (res.ok) {
+      const res = await fetch(`/api/clients?id=${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && (data?.success || res.status === 200)) {
         setClients((prev) => prev.filter((c) => c.id !== id));
       } else {
-        alert("Delete action completed on record.");
-        setClients((prev) => prev.filter((c) => c.id !== id));
+        alert(data?.message || "Failed to delete client from database.");
       }
     } catch {
-      setClients((prev) => prev.filter((c) => c.id !== id));
+      alert("Network error occurred while deleting studio.");
     }
   };
+
+  // Aggregations from real data
+  const totalStorageGB = clients.reduce(
+    (acc, curr) => acc + (curr.storageLimitGB || curr.allocatedStorageGb || 50),
+    0
+  );
+  const totalEvents = clients.reduce(
+    (acc, curr) => acc + (curr._count?.events || curr.eventsCount || 0),
+    0
+  );
+
+  const studioPortalBaseUrl =
+    process.env.NEXT_PUBLIC_ADMIN_URL ||
+    (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
+      ? "https://eventqr-live-admin.vercel.app"
+      : "http://localhost:3002");
 
   return (
     <div className="space-y-8">
@@ -114,13 +117,15 @@ export default function SuperAdminDashboard() {
           <button
             type="button"
             onClick={fetchClients}
+            disabled={loading}
             className="p-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 hover:text-white transition cursor-pointer"
+            title="Refresh Client List"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-pink-500" : ""}`} />
           </button>
 
           <Link
-            href="/clients/new"
+            href="/clients"
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:opacity-90 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-pink-500/20"
           >
             <Plus className="w-4 h-4" />
@@ -148,7 +153,7 @@ export default function SuperAdminDashboard() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               ACTIVE EVENTS
             </span>
-            <p className="text-3xl font-black text-white">1</p>
+            <p className="text-3xl font-black text-white">{totalEvents}</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
             <Calendar className="w-5 h-5" />
@@ -172,7 +177,7 @@ export default function SuperAdminDashboard() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               STORAGE USAGE
             </span>
-            <p className="text-3xl font-black text-white">50 GB</p>
+            <p className="text-3xl font-black text-white">{totalStorageGB} GB</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
             <HardDrive className="w-5 h-5" />
@@ -201,7 +206,11 @@ export default function SuperAdminDashboard() {
         {loading ? (
           <div className="p-12 text-center text-slate-500 flex items-center justify-center gap-2">
             <Loader2 className="w-5 h-5 animate-spin text-pink-500" />
-            <span className="text-xs">Loading studio records...</span>
+            <span className="text-xs font-mono">Loading studio records...</span>
+          </div>
+        ) : clients.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 text-xs font-mono">
+            No studio accounts found in database. Click &quot;Add New Client&quot; to onboard.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -217,55 +226,58 @@ export default function SuperAdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-slate-900/40 transition">
-                    <td className="px-4 py-3.5 font-bold text-white flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                      <span>{client.companyName || client.name}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-slate-400">{client.email}</td>
-                    <td className="px-4 py-3.5 font-mono text-pink-400 font-bold">
-                      {client.loginId}
-                    </td>
-                    <td className="px-4 py-3.5">{client.eventsCount ?? 1}</td>
-                    <td className="px-4 py-3.5 font-mono text-slate-400">
-                      {client.allocatedStorageGb ?? 50} GB
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {/* Edit Client */}
-                        <Link
-                          href={`/clients/${client.id}/edit`}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer border border-slate-700"
-                          title="Edit Client"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </Link>
+                {clients.map((client) => {
+                  const displayName = client.companyName || client.name || client.contactPerson || "Studio Partner";
+                  return (
+                    <tr key={client.id} className="hover:bg-slate-900/40 transition">
+                      <td className="px-4 py-3.5 font-bold text-white flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${client.isActive !== false ? "bg-emerald-400" : "bg-slate-500"}`}></div>
+                        <span>{displayName}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-400">{client.email}</td>
+                      <td className="px-4 py-3.5 font-mono text-pink-400 font-bold">
+                        {client.loginId || "—"}
+                      </td>
+                      <td className="px-4 py-3.5">{client._count?.events ?? client.eventsCount ?? 0}</td>
+                      <td className="px-4 py-3.5 font-mono text-slate-400">
+                        {client.storageLimitGB ?? client.allocatedStorageGb ?? 50} GB
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Edit Client */}
+                          <Link
+                            href={`/clients/${client.id}`}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer border border-slate-700"
+                            title="Edit Client"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Link>
 
-                        {/* Open Studio Portal */}
-                        <a
-                          href="http://localhost:3002/dashboard"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 transition cursor-pointer border border-slate-700"
-                          title="Open Studio Client"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
+                          {/* Open Studio Portal */}
+                          <a
+                            href={`${studioPortalBaseUrl}/dashboard`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 transition cursor-pointer border border-slate-700"
+                            title="Open Studio Portal"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
 
-                        {/* Delete Client */}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteClient(client.id)}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer"
-                          title="Delete Client"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {/* Delete Client */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClient(client.id, displayName)}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer"
+                            title="Delete Client"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
