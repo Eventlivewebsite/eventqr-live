@@ -24,9 +24,6 @@ import {
   Unlock,
   ShieldCheck,
   HardDrive,
-  Sliders,
-  MessageSquare,
-  FileText,
   Printer,
   Award,
   AlertTriangle,
@@ -249,7 +246,7 @@ export default function MasterEventSetupPage() {
                   : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
               }`}
             >
-              {accessMode === "PRIVATE" ? "🔒 Private (PIN)" : "🌐 Public QR"}
+              {accessMode === "PRIVATE" ? "Private (PIN)" : "Public QR"}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 font-mono">
@@ -404,7 +401,6 @@ export default function MasterEventSetupPage() {
             </p>
           </div>
 
-          {/* Access Mode Selector */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
               onClick={() => setAccessMode("PUBLIC")}
@@ -420,7 +416,7 @@ export default function MasterEventSetupPage() {
               <div className="space-y-1">
                 <h3 className="text-xs font-black uppercase text-white">Public QR Scan Access</h3>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Anyone scanning the event QR code can view the live feed, photos, videos, and ceremony details directly without logging in.
+                  Anyone scanning the event QR code can view the live feed, photos, videos, and ceremony details directly.
                 </p>
               </div>
             </div>
@@ -439,32 +435,27 @@ export default function MasterEventSetupPage() {
               <div className="space-y-1">
                 <h3 className="text-xs font-black uppercase text-white">Private (PIN Required)</h3>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Guests scan the QR code and must enter an Event ID & 4-digit PIN code to unlock and view the event album.
+                  Guests scan the QR code and must enter a 4-digit PIN code to unlock and view the event album.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* PIN Input if Private */}
           {accessMode === "PRIVATE" && (
-            <div className="p-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl space-y-2 animate-in fade-in">
+            <div className="p-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl space-y-2">
               <label className="text-[11px] font-bold text-amber-400 uppercase">
                 Guest Access PIN Code / Password
               </label>
               <input
                 type="text"
-                placeholder="e.g. 2026 or AS@77"
+                placeholder="e.g. 2026"
                 value={pinCode}
                 onChange={(e) => setPinCode(e.target.value)}
                 className="w-full max-w-sm bg-[#030712] border border-amber-500/40 rounded-xl px-4 py-2.5 text-sm text-white font-mono outline-none focus:border-amber-400"
               />
-              <p className="text-[10px] text-slate-500">
-                This password will be displayed on the Invitation Card and QR Stand for verified guests.
-              </p>
             </div>
           )}
 
-          {/* Toggle Switches */}
           <div className="pt-4 border-t border-slate-800 space-y-4">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
               Viewer Feature Permissions
@@ -474,9 +465,7 @@ export default function MasterEventSetupPage() {
               <label className="flex items-center justify-between p-4 bg-[#030712] border border-slate-800 rounded-2xl cursor-pointer">
                 <div>
                   <span className="font-bold text-xs text-white block">Viewer Photo/Video Downloads</span>
-                  <span className="text-[10px] text-slate-500">
-                    Allow guests to download original high-resolution media.
-                  </span>
+                  <span className="text-[10px] text-slate-500">Allow guests to download high-resolution media.</span>
                 </div>
                 <input
                   type="checkbox"
@@ -489,9 +478,7 @@ export default function MasterEventSetupPage() {
               <label className="flex items-center justify-between p-4 bg-[#030712] border border-slate-800 rounded-2xl cursor-pointer">
                 <div>
                   <span className="font-bold text-xs text-white block">Guest Comments & Wishes</span>
-                  <span className="text-[10px] text-slate-500">
-                    Enable public guest book remarks, likes, and blessings.
-                  </span>
+                  <span className="text-[10px] text-slate-500">Enable public guest book remarks and likes.</span>
                 </div>
                 <input
                   type="checkbox"
@@ -505,27 +492,22 @@ export default function MasterEventSetupPage() {
         </div>
       )}
 
-      {/* TAB 3: STORAGE RETENTION & AUTO COMPRESSION */}
+      {/* TAB 3: STORAGE */}
       {activeTab === "STORAGE" && (
         <div className="p-6 md:p-8 bg-[#080c14] border border-slate-800 rounded-3xl space-y-6">
           <div className="border-b border-slate-800 pb-3">
             <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-sky-400" /> Cloud Storage Retention & Lifecycle Management
+              <HardDrive className="w-4 h-4 text-sky-400" /> Cloud Storage Retention & Lifecycle
             </h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Configure data lifespan, auto-compression engines, and 2-step soft deletion safety.
+              Configure data lifespan, auto-compression, and 2-step soft deletion safety.
             </p>
           </div>
 
-          {/* Auto Compress Engine Switch */}
           <div className="p-5 bg-[#030712] border border-slate-800 rounded-2xl flex items-center justify-between">
             <div className="space-y-1">
-              <h3 className="text-xs font-bold text-white uppercase">
-                ⚡ Real-time Smart Media Compression (WebP / AVIF)
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                Automatically compresses 20MB+ heavy camera photos into sub-500KB ultra-fast viewing assets without losing quality.
-              </p>
+              <h3 className="text-xs font-bold text-white uppercase">Smart Real-time Auto-Compression (WebP / AVIF)</h3>
+              <p className="text-[11px] text-slate-400">Automatically compresses heavy camera photos into sub-500KB viewing assets.</p>
             </div>
             <input
               type="checkbox"
@@ -535,7 +517,6 @@ export default function MasterEventSetupPage() {
             />
           </div>
 
-          {/* Retention Duration Selector */}
           <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -559,44 +540,36 @@ export default function MasterEventSetupPage() {
                       : "bg-[#030712] text-slate-400 border-slate-800 hover:border-slate-700"
                   }`}
                 >
-                  {d} Days {d === 15 ? "(Default)" : ""}
+                  {d} Days
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 2-Step Deletion Lifecycle */}
           <div className="p-5 bg-rose-500/5 border border-rose-500/20 rounded-2xl space-y-3">
             <h3 className="text-xs font-bold text-rose-400 uppercase flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" /> 2-Step Safe Deletion Architecture
             </h3>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              When an event reaches its {retentionDays}-day retention limit or is manually deleted by the Studio Admin, it enters a <strong>30-Day Temporary Recycle Bin (Soft Delete)</strong>. Media and reports can be restored anytime before permanent purging.
+              Events enter a 30-day temporary Recycle Bin (Soft Delete) before permanent purging.
             </p>
-
-            <div className="flex items-center gap-3 pt-2">
-              {!isSoftDeleted ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to move this event to temporary recycle bin?")) {
-                      setIsSoftDeleted(true);
-                    }
-                  }}
-                  className="px-4 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Move to 30-Day Recycle Bin (Soft Delete)
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsSoftDeleted(false)}
-                  className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" /> Restore from Recycle Bin
-                </button>
-              )}
-            </div>
+            {!isSoftDeleted ? (
+              <button
+                type="button"
+                onClick={() => setIsSoftDeleted(true)}
+                className="px-4 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Move to 30-Day Recycle Bin
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSoftDeleted(false)}
+                className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Restore from Recycle Bin
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -609,9 +582,7 @@ export default function MasterEventSetupPage() {
               <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <Film className="w-4 h-4 text-pink-400" /> Decoration Zones & Video Hub
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Guests tap these cards to view exclusive decoration reels and photos.
-              </p>
+              <p className="text-[11px] text-slate-400">Guests tap these cards to view exclusive decoration reels.</p>
             </div>
             <span className="text-xs font-mono font-bold text-pink-400">{decorationZones.length} Zones</span>
           </div>
@@ -634,20 +605,14 @@ export default function MasterEventSetupPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
             {decorationZones.map((zone, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3.5 bg-[#030712] border border-slate-800 rounded-xl"
-              >
+              <div key={idx} className="flex items-center justify-between p-3.5 bg-[#030712] border border-slate-800 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold text-xs">
-                    🌸
-                  </div>
+                  <div className="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold text-xs">🌸</div>
                   <div>
                     <span className="font-bold text-white text-xs block">{zone}</span>
                     <span className="text-[10px] text-slate-500">Photos & Videos</span>
                   </div>
                 </div>
-
                 <button
                   type="button"
                   onClick={() => setDecorationZones(decorationZones.filter((_, i) => i !== idx))}
@@ -659,7 +624,6 @@ export default function MasterEventSetupPage() {
             ))}
           </div>
 
-          {/* Dynamic Photo/Video Categories Chips */}
           <div className="pt-6 border-t border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-2">
@@ -671,7 +635,7 @@ export default function MasterEventSetupPage() {
             <form onSubmit={handleAddCategory} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Add filter chip (e.g. Ring Ceremony, Party)..."
+                placeholder="Add filter chip..."
                 value={newCatInput}
                 onChange={(e) => setNewCatInput(e.target.value)}
                 className="flex-1 bg-[#030712] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-sky-500"
@@ -686,18 +650,9 @@ export default function MasterEventSetupPage() {
 
             <div className="flex flex-wrap gap-2">
               {categories.map((c, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200"
-                >
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
                   <span className="font-semibold">{c}</span>
-                  <button
-                    type="button"
-                    onClick={() => setCategories(categories.filter((_, idx) => idx !== i))}
-                    className="text-slate-500 hover:text-rose-400 transition cursor-pointer"
-                  >
-                    ✕
-                  </button>
+                  <button type="button" onClick={() => setCategories(categories.filter((_, idx) => idx !== i))} className="text-slate-500 hover:text-rose-400 transition cursor-pointer">✕</button>
                 </div>
               ))}
             </div>
@@ -713,7 +668,7 @@ export default function MasterEventSetupPage() {
               <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-400" /> Live Ceremony Flow & Timeline
               </h2>
-              <p className="text-[11px] text-slate-400">Click the badge to toggle LIVE / UPCOMING / COMPLETED.</p>
+              <p className="text-[11px] text-slate-400">Click badge to toggle LIVE / UPCOMING / COMPLETED.</p>
             </div>
             <span className="text-xs font-mono font-bold text-amber-400">{timeline.length} Slots</span>
           </div>
@@ -734,10 +689,7 @@ export default function MasterEventSetupPage() {
                 onChange={(e) => setNewProgTime(e.target.value)}
                 className="w-full bg-[#030712] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-amber-500"
               />
-              <button
-                type="submit"
-                className="flex items-center justify-center px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl text-xs font-bold transition cursor-pointer shrink-0"
-              >
+              <button type="submit" className="flex items-center justify-center px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl text-xs font-bold transition cursor-pointer shrink-0">
                 <Plus className="w-3.5 h-3.5" /> Add
               </button>
             </div>
@@ -745,17 +697,11 @@ export default function MasterEventSetupPage() {
 
           <div className="space-y-2 pt-2">
             {timeline.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-3.5 bg-[#030712] border border-slate-800 rounded-xl"
-              >
+              <div key={i} className="flex items-center justify-between p-3.5 bg-[#030712] border border-slate-800 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-[11px] text-slate-400 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
-                    {item.time}
-                  </span>
+                  <span className="font-mono text-[11px] text-slate-400 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">{item.time}</span>
                   <span className="font-bold text-white text-xs">{item.title}</span>
                 </div>
-
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -763,27 +709,18 @@ export default function MasterEventSetupPage() {
                       setTimeline(
                         timeline.map((it, idx) => {
                           if (idx !== i) return it;
-                          const next =
-                            it.status === "UPCOMING" ? "LIVE" : it.status === "LIVE" ? "COMPLETED" : "UPCOMING";
+                          const next = it.status === "UPCOMING" ? "LIVE" : it.status === "LIVE" ? "COMPLETED" : "UPCOMING";
                           return { ...it, status: next };
                         })
                       );
                     }}
                     className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border cursor-pointer transition ${
-                      item.status === "LIVE"
-                        ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse"
-                        : item.status === "COMPLETED"
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                      item.status === "LIVE" ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse" : item.status === "COMPLETED" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30"
                     }`}
                   >
                     {item.status}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setTimeline(timeline.filter((_, idx) => idx !== i))}
-                    className="p-1 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-                  >
+                  <button type="button" onClick={() => setTimeline(timeline.filter((_, idx) => idx !== i))} className="p-1 text-slate-500 hover:text-rose-400 transition cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -805,12 +742,7 @@ export default function MasterEventSetupPage() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setFamilyMembers([
-                  ...familyMembers,
-                  { id: String(Date.now()), name: "Relative Name", role: "Role / Relation", bio: "Blessings forever." },
-                ]);
-              }}
+              onClick={() => setFamilyMembers([...familyMembers, { id: String(Date.now()), name: "Relative Name", role: "Role", bio: "Blessings." }])}
               className="flex items-center gap-1 px-4 py-2 bg-pink-500/20 hover:bg-pink-500/30 text-pink-400 border border-pink-500/40 rounded-xl text-xs font-bold transition cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" /> Add Member
@@ -821,36 +753,21 @@ export default function MasterEventSetupPage() {
             {familyMembers.map((member, idx) => (
               <div key={member.id || idx} className="p-4 bg-[#030712] border border-slate-800 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
-                    Profile #{idx + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setFamilyMembers(familyMembers.filter((_, i) => i !== idx))}
-                    className="text-slate-500 hover:text-rose-400 transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">Profile #{idx + 1}</span>
+                  <button type="button" onClick={() => setFamilyMembers(familyMembers.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-rose-400 transition cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
-
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="text"
                     value={member.name}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFamilyMembers(familyMembers.map((m, i) => (i === idx ? { ...m, name: val } : m)));
-                    }}
+                    onChange={(e) => setFamilyMembers(familyMembers.map((m, i) => i === idx ? { ...m, name: e.target.value } : m))}
                     placeholder="Full Name"
                     className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-pink-500"
                   />
                   <input
                     type="text"
                     value={member.role}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFamilyMembers(familyMembers.map((m, i) => (i === idx ? { ...m, role: val } : m)));
-                    }}
+                    onChange={(e) => setFamilyMembers(familyMembers.map((m, i) => i === idx ? { ...m, role: e.target.value } : m))}
                     placeholder="Relation / Role"
                     className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-pink-500"
                   />
@@ -873,12 +790,7 @@ export default function MasterEventSetupPage() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setFoodItems([
-                  ...foodItems,
-                  { id: String(Date.now()), category: "Special", name: "Dish Title", isVeg: true, isPopular: false },
-                ]);
-              }}
+              onClick={() => setFoodItems([...foodItems, { id: String(Date.now()), category: "Special", name: "Dish Title", isVeg: true, isPopular: false }])}
               className="flex items-center gap-1 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-bold transition cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" /> Add Dish
@@ -892,47 +804,20 @@ export default function MasterEventSetupPage() {
                   <input
                     type="text"
                     value={dish.name}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFoodItems(foodItems.map((f, i) => (i === idx ? { ...f, name: val } : f)));
-                    }}
+                    onChange={(e) => setFoodItems(foodItems.map((f, i) => i === idx ? { ...f, name: e.target.value } : f))}
                     className="bg-transparent font-bold text-xs text-white outline-none border-b border-dashed border-slate-700 w-2/3"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setFoodItems(foodItems.filter((_, i) => i !== idx))}
-                    className="text-slate-500 hover:text-rose-400 transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <button type="button" onClick={() => setFoodItems(foodItems.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-rose-400 transition cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
-
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setFoodItems(foodItems.map((f, i) => (i === idx ? { ...f, isVeg: !f.isVeg } : f)));
-                    }}
+                    onClick={() => setFoodItems(foodItems.map((f, i) => i === idx ? { ...f, isVeg: !f.isVeg } : f))}
                     className={`px-2.5 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                      dish.isVeg
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                      dish.isVeg ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-rose-500/20 text-rose-400 border-rose-500/30"
                     }`}
                   >
                     {dish.isVeg ? "🌱 Veg" : "🍗 Non-Veg"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFoodItems(foodItems.map((f, i) => (i === idx ? { ...f, isPopular: !f.isPopular } : f)));
-                    }}
-                    className={`px-2.5 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                      dish.isPopular
-                        ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                        : "bg-slate-800 text-slate-500 border-slate-700"
-                    }`}
-                  >
-                    ⭐ Popular
                   </button>
                 </div>
               </div>
@@ -941,7 +826,7 @@ export default function MasterEventSetupPage() {
         </div>
       )}
 
-      {/* TAB 8: LUXURY MEMORY BOOK & EVENT REPORT */}
+      {/* TAB 8: REPORT */}
       {activeTab === "REPORT" && (
         <div className="p-6 md:p-8 bg-[#080c14] border border-slate-800 rounded-3xl space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -949,9 +834,7 @@ export default function MasterEventSetupPage() {
               <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <Award className="w-4 h-4 text-amber-400" /> Executive Memory Folio & Post-Event Report
               </h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Generate a museum-grade, luxury PDF / Print memory summary for the hosts to cherish forever.
-              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Museum-grade luxury printable memory summary.</p>
             </div>
             <button
               type="button"
@@ -962,131 +845,40 @@ export default function MasterEventSetupPage() {
             </button>
           </div>
 
-          {/* Luxury Folio Card Preview */}
-          <div className="p-8 bg-gradient-to-b from-[#0e121d] to-[#05070e] border border-amber-500/30 rounded-3xl space-y-8 max-w-4xl mx-auto shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
-            {/* Header Monogram */}
+          <div className="p-8 bg-gradient-to-b from-[#0e121d] to-[#05070e] border border-amber-500/30 rounded-3xl space-y-8 max-w-4xl mx-auto shadow-2xl">
             <div className="text-center space-y-2 border-b border-amber-500/20 pb-6">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400">
-                Official Event Archive & Memory Folio
-              </span>
-              <h1 className="text-3xl font-black text-white tracking-wide">{title}</h1>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400">Official Event Archive</span>
+              <h1 className="text-3xl font-black text-white">{title}</h1>
               <p className="text-xs text-amber-200/80 font-serif italic">“{subtitle}”</p>
-              <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2 font-mono">
-                <span>📍 {venueName}</span>
-                <span>•</span>
-                <span>📅 {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
-              </div>
             </div>
-
-            {/* Executive Highlights Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-1">
-                <span className="text-2xl font-black text-white">415</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Photos Captured</span>
-              </div>
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-1">
-                <span className="text-2xl font-black text-white">32</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Reels & Videos</span>
-              </div>
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-1">
-                <span className="text-2xl font-black text-amber-400">248</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Guest Blessings</span>
-              </div>
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-1">
-                <span className="text-2xl font-black text-emerald-400">1,200+</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Live QR Scans</span>
-              </div>
-            </div>
-
-            {/* Ceremony Program Flow Summary */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase text-amber-400 tracking-wider">
-                Event Milestones Achieved
-              </h3>
-              <div className="space-y-2">
-                {timeline.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-xs"
-                  >
-                    <span className="font-bold text-slate-200">{item.title}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-slate-400">{item.time}</span>
-                      <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                        COMPLETED
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Lifetime QR Seal */}
-            <div className="pt-6 border-t border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="space-y-1 text-center sm:text-left">
-                <span className="text-[10px] font-black uppercase text-slate-500 block">Permanent Vault URL</span>
-                <p className="text-xs font-mono text-amber-300">{liveViewerUrl}</p>
-                <p className="text-[10px] text-slate-500">
-                  Secured with Auto-Compression & Cloud Preservation
-                </p>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrCodeUrl} alt="Vault QR" className="w-20 h-20" />
-              </div>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center"><span className="text-2xl font-black text-white">415</span><span className="text-[10px] font-bold text-slate-400 uppercase block">Photos</span></div>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center"><span className="text-2xl font-black text-white">32</span><span className="text-[10px] font-bold text-slate-400 uppercase block">Reels</span></div>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center"><span className="text-2xl font-black text-amber-400">248</span><span className="text-[10px] font-bold text-slate-400 uppercase block">Blessings</span></div>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl text-center"><span className="text-2xl font-black text-emerald-400">1,200+</span><span className="text-[10px] font-bold text-slate-400 uppercase block">Scans</span></div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 9: LIVE QR STUDIO */}
+      {/* TAB 9: QR */}
       {activeTab === "QR" && (
         <div className="p-6 md:p-8 bg-[#080c14] border border-slate-800 rounded-3xl space-y-6 text-center">
           <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center justify-center gap-2">
             <QrCode className="w-4 h-4 text-emerald-400" /> Guest Entry QR Code Studio
           </h2>
-          <p className="text-[11px] text-slate-400">
-            Scanning this QR opens the live mobile viewer app for all guests.
-          </p>
-
           <div className="bg-white p-6 rounded-2xl mx-auto w-fit shadow-2xl border border-slate-200">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qrCodeUrl} alt={`QR for ${title}`} className="w-56 h-56 mx-auto" />
-            <p className="text-slate-900 font-black text-xs mt-3 tracking-wider uppercase">
-              {title}
-            </p>
-            <p className="text-[10px] text-slate-500 font-mono">
-              {liveViewerUrl.replace(/^https?:\/\//, "")}
-            </p>
-            {accessMode === "PRIVATE" && (
-              <p className="text-[11px] font-bold text-rose-600 font-mono mt-1">
-                PIN: {pinCode || "REQUIRED"}
-              </p>
-            )}
+            <p className="text-slate-900 font-black text-xs mt-3 tracking-wider uppercase">{title}</p>
+            <p className="text-[10px] text-slate-500 font-mono">{liveViewerUrl.replace(/^https?:\/\//, "")}</p>
           </div>
-
-          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2 max-w-md mx-auto">
-            <a
-              href={liveViewerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center gap-2 flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition border border-slate-700 cursor-pointer"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-              <span>Preview Mobile View</span>
+          <div className="flex justify-center gap-3 max-w-md mx-auto">
+            <a href={liveViewerUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 flex-1 py-3 bg-slate-800 text-slate-200 rounded-xl text-xs font-bold transition border border-slate-700">
+              <ExternalLink className="w-3.5 h-3.5 text-sky-400" /> Preview View
             </a>
-
-            <a
-              href={qrCodeUrl}
-              download={`${eventSlug}-qr.png`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center gap-2 flex-1 py-3 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-xl text-xs font-bold transition border border-emerald-500/30 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download Print QR</span>
+            <a href={qrCodeUrl} download={`${eventSlug}-qr.png`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 flex-1 py-3 bg-emerald-500/15 text-emerald-400 rounded-xl text-xs font-bold transition border border-emerald-500/30">
+              <Download className="w-3.5 h-3.5" /> Download QR
             </a>
           </div>
         </div>
