@@ -103,10 +103,10 @@ export async function GET(
         venueName: event.location || preset.venue,
         activeCeremony: preset.activeCeremony,
         ceremonyStartTime: preset.ceremonyTime,
-        accessMode: event.accessMode || "PUBLIC",
-        pinCode: event.pinCode || "",
-        retentionDays: event.retentionDays || 15,
-        autoCompress: event.settings?.autoCompress ?? true,
+        accessMode: "PUBLIC",
+        pinCode: "",
+        retentionDays: 15,
+        autoCompress: true,
         allowDownloads: event.settings?.allowDownloads ?? true,
         allowComments: event.settings?.allowLikes ?? true,
         categories: dbAlbums.length > 0 ? dbAlbums.map((a: any) => a.title) : preset.categories,
@@ -144,19 +144,10 @@ export async function POST(
     const finalSubtitle = String(body.welcomeSubtext || "Forever Begins Today").trim();
 
     await prisma.$transaction(async (tx: any) => {
+      // 1. Update Core Event Title & Location
       const eventUpdateData: Record<string, any> = { title: finalTitle };
-
-      if (body.venueName && "location" in tx.event.fields) {
+      if (body.venueName) {
         eventUpdateData.location = String(body.venueName).trim();
-      }
-      if ("accessMode" in tx.event.fields && body.accessMode) {
-        eventUpdateData.accessMode = body.accessMode;
-      }
-      if ("pinCode" in tx.event.fields) {
-        eventUpdateData.pinCode = body.pinCode ? String(body.pinCode).trim() : null;
-      }
-      if ("retentionDays" in tx.event.fields && body.retentionDays) {
-        eventUpdateData.retentionDays = Number(body.retentionDays);
       }
 
       await tx.event.update({
@@ -164,7 +155,8 @@ export async function POST(
         data: eventUpdateData,
       });
 
-      const settingsData: Record<string, any> = {
+      // 2. Update Settings (Downloads & Comments)
+      const settingsData = {
         subtitle: finalSubtitle,
         allowDownloads: Boolean(body.allowDownloads ?? true),
         allowLikes: Boolean(body.allowComments ?? true),
@@ -176,6 +168,7 @@ export async function POST(
         create: { eventId: cleanId, ...settingsData },
       });
 
+      // 3. Sync Categories to Albums
       const categories: string[] = Array.isArray(body.categories) ? body.categories : [];
       for (let i = 0; i < categories.length; i++) {
         const cat = String(categories[i]).trim();
@@ -190,6 +183,7 @@ export async function POST(
         }
       }
 
+      // 4. Sync Timeline
       if (Array.isArray(body.timeline)) {
         await tx.eventTimeline.deleteMany({ where: { eventId: cleanId } });
         for (let i = 0; i < body.timeline.length; i++) {
