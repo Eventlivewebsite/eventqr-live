@@ -23,14 +23,6 @@ const PRESETS: Record<string, any> = {
       { title: "Wedding Reception", time: "06:00 PM", status: "LIVE" },
       { title: "Dinner", time: "08:00 PM", status: "UPCOMING" },
     ],
-    familyMembers: [
-      { id: "fam-1", name: "Mr. Rajesh Sharma", role: "Bride's Father", side: "BRIDE", bio: "Family is where love begins." },
-      { id: "fam-2", name: "Mrs. Sunita Sharma", role: "Bride's Mother", side: "BRIDE", bio: "Blessings and smiles forever." },
-    ],
-    foodItems: [
-      { id: "f-1", category: "Welcome Drinks", name: "Fresh Lime Mojito", desc: "Refreshing mint & lime", isVeg: true, isPopular: true },
-      { id: "f-2", category: "Starters", name: "Paneer Tikka Royale", desc: "Clay oven roasted", isVeg: true, isPopular: true },
-    ],
   },
   BIRTHDAY: {
     badge: "BIRTHDAY BASH LIVE",
@@ -48,8 +40,6 @@ const PRESETS: Record<string, any> = {
     timeline: [
       { title: "Cake Cutting", time: "06:30 PM", status: "LIVE" },
     ],
-    familyMembers: [],
-    foodItems: [],
   },
   CORPORATE: {
     badge: "GLOBAL SUMMIT 2026",
@@ -62,8 +52,6 @@ const PRESETS: Record<string, any> = {
     albums: [{ name: "Keynote Stage", count: 80 }],
     decorationZones: ["Main Stage", "VIP Registration", "Dining Hall"],
     timeline: [{ title: "Keynote Address", time: "10:30 AM", status: "LIVE" }],
-    familyMembers: [],
-    foodItems: [],
   },
 };
 
@@ -115,17 +103,12 @@ export async function GET(
         venueName: event.location || preset.venue,
         activeCeremony: preset.activeCeremony,
         ceremonyStartTime: preset.ceremonyTime,
-
-        // Security & Privacy Controls
         accessMode: event.accessMode || "PUBLIC",
         pinCode: event.pinCode || "",
-
-        // Storage & Retention Lifecycle
         retentionDays: event.retentionDays || 15,
         autoCompress: event.settings?.autoCompress ?? true,
         allowDownloads: event.settings?.allowDownloads ?? true,
         allowComments: event.settings?.allowLikes ?? true,
-
         categories: dbAlbums.length > 0 ? dbAlbums.map((a: any) => a.title) : preset.categories,
         albums: dbAlbums.length > 0 ? dbAlbums.map((a: any) => ({ name: a.title, count: 0 })) : preset.albums,
         decorationZones: preset.decorationZones,
@@ -136,8 +119,6 @@ export async function GET(
               status: t.statusText || t.status || "UPCOMING",
             }))
           : preset.timeline,
-        familyMembers: preset.familyMembers,
-        foodItems: preset.foodItems,
       },
     });
   } catch (error: any) {
@@ -163,10 +144,7 @@ export async function POST(
     const finalSubtitle = String(body.welcomeSubtext || "Forever Begins Today").trim();
 
     await prisma.$transaction(async (tx: any) => {
-      // 1. Core Event Updates (Access Mode, PIN, Retention, Location)
-      const eventUpdateData: Record<string, any> = {
-        title: finalTitle,
-      };
+      const eventUpdateData: Record<string, any> = { title: finalTitle };
 
       if (body.venueName && "location" in tx.event.fields) {
         eventUpdateData.location = String(body.venueName).trim();
@@ -186,7 +164,6 @@ export async function POST(
         data: eventUpdateData,
       });
 
-      // 2. Event Settings (Toggles: Downloads, Comments, Compression)
       const settingsData: Record<string, any> = {
         subtitle: finalSubtitle,
         allowDownloads: Boolean(body.allowDownloads ?? true),
@@ -196,13 +173,9 @@ export async function POST(
       await tx.eventSettings.upsert({
         where: { eventId: cleanId },
         update: settingsData,
-        create: {
-          eventId: cleanId,
-          ...settingsData,
-        },
+        create: { eventId: cleanId, ...settingsData },
       });
 
-      // 3. Sync Categories to Albums
       const categories: string[] = Array.isArray(body.categories) ? body.categories : [];
       for (let i = 0; i < categories.length; i++) {
         const cat = String(categories[i]).trim();
@@ -217,7 +190,6 @@ export async function POST(
         }
       }
 
-      // 4. Sync Timeline
       if (Array.isArray(body.timeline)) {
         await tx.eventTimeline.deleteMany({ where: { eventId: cleanId } });
         for (let i = 0; i < body.timeline.length; i++) {
