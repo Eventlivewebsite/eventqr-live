@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
         title: cleanTitle,
         slug: cleanSlug,
         type: type as any,
-        status: "PENDING" as any, // Synced with Super Admin pending requests API
+        status: "PENDING_APPROVAL" as any,
         accessMode: (pinCode ? "PIN" : "PUBLIC") as any,
         pinCode: pinCode ? String(pinCode).trim() : null,
         retentionDays: Number(retentionDays) || client.storageDays || 15,

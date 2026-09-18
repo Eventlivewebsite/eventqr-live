@@ -24,6 +24,12 @@ export async function GET(req: NextRequest) {
     const formattedEvents = events.map((ev: any) => {
       const studio = ev.clientId ? clientMap[ev.clientId] : null;
 
+      // Normalize status mapping for super-admin queue
+      let currentStatus = ev.status || "PENDING_APPROVAL";
+      if (ev.isLive) {
+        currentStatus = "APPROVED";
+      }
+
       return {
         id: String(ev.id),
         name: ev.name || ev.title || "Untitled Event",
@@ -33,8 +39,8 @@ export async function GET(req: NextRequest) {
         eventDate: ev.eventDate
           ? new Date(ev.eventDate).toISOString()
           : new Date().toISOString(),
-        status: ev.status || (ev.isLive ? "APPROVED" : "PENDING"),
-        isLive: Boolean(ev.isLive),
+        status: currentStatus,
+        isLive: Boolean(ev.isLive || currentStatus === "APPROVED"),
         photosCount: 0,
         createdAt: ev.createdAt
           ? new Date(ev.createdAt).toISOString()
