@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// 2. POST: Create Event (100% Schema-Matched)
+// 2. POST: Create Event (100% Schema-Matched & Synced with Super Admin Queue)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       .replace(/^-+|-+$/g, "");
     const cleanSlug = `${rawSlug}-${Date.now().toString().slice(-4)}`;
 
-    // EXACT SCHEMA MATCHING PAYLOAD
+    // EXACT SCHEMA MATCHING PAYLOAD (Status set to PENDING for Super Admin Queue)
     const newEvent = await prisma.event.create({
       data: {
         adminId: client.adminId,
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
         title: cleanTitle,
         slug: cleanSlug,
         type: type as any,
-        status: "PENDING_APPROVAL" as any,
+        status: "PENDING" as any, // Synced with Super Admin pending requests API
         accessMode: (pinCode ? "PIN" : "PUBLIC") as any,
         pinCode: pinCode ? String(pinCode).trim() : null,
         retentionDays: Number(retentionDays) || client.storageDays || 15,
