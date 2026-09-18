@@ -24,10 +24,22 @@ export async function GET(req: NextRequest) {
     const formattedEvents = events.map((ev: any) => {
       const studio = ev.clientId ? clientMap[ev.clientId] : null;
 
-      // Normalize status mapping for super-admin queue
-      let currentStatus = ev.status || "PENDING_APPROVAL";
-      if (ev.isLive) {
-        currentStatus = "APPROVED";
+      const rawStatus = String(ev.status || "").trim().toUpperCase();
+      
+      // Strict normalization
+      let finalStatus = "PENDING";
+      let isLiveBool = false;
+
+      if (rawStatus === "APPROVED") {
+        finalStatus = "APPROVED";
+        isLiveBool = true;
+      } else if (rawStatus === "REJECTED") {
+        finalStatus = "REJECTED";
+        isLiveBool = false;
+      } else {
+        // PENDING_APPROVAL, PENDING ya koi bhi unapproved event
+        finalStatus = "PENDING";
+        isLiveBool = false;
       }
 
       return {
@@ -39,8 +51,8 @@ export async function GET(req: NextRequest) {
         eventDate: ev.eventDate
           ? new Date(ev.eventDate).toISOString()
           : new Date().toISOString(),
-        status: currentStatus,
-        isLive: Boolean(ev.isLive || currentStatus === "APPROVED"),
+        status: finalStatus,
+        isLive: isLiveBool,
         photosCount: 0,
         createdAt: ev.createdAt
           ? new Date(ev.createdAt).toISOString()
@@ -51,7 +63,7 @@ export async function GET(req: NextRequest) {
             studio?.companyName ||
             studio?.name ||
             studio?.loginId ||
-            "wasim studio",
+            "Wasim Studio",
           email: studio?.email || "wasim@gmail.com",
           phone: studio?.phone || "N/A",
         },

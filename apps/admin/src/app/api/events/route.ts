@@ -147,7 +147,6 @@ export async function POST(req: NextRequest) {
         location: location ? String(location).trim() : null,
       },
     });
-
     return NextResponse.json(
       {
         success: true,
