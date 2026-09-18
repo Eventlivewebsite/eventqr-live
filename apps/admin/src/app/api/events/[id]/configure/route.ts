@@ -64,7 +64,7 @@ export async function GET(
     const cleanId = String(id || "").trim();
 
     if (!cleanId) {
-      return NextResponse.json({ success: false, error: "Event ID required" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Event ID required" }, status(400));
     }
 
     const event: any = await prisma.event.findUnique({
@@ -72,22 +72,22 @@ export async function GET(
       include: {
         settings: true,
         albums: { orderBy: { sortOrder: "asc" } },
-        timeline: { orderBy: { sortOrder: "asc" } },
+        timelines: { orderBy: { sortOrder: "asc" } },
       },
     });
 
     if (!event) {
-      return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Event not found" }, status(404));
     }
 
     const evType = String(event.type || "WEDDING").toUpperCase();
     const preset = PRESETS[evType] || PRESETS.WEDDING;
 
     const dbAlbums: any[] = Array.isArray(event.albums) ? event.albums : [];
-    const dbTimeline: any[] = Array.isArray(event.timeline)
-      ? event.timeline
-      : Array.isArray(event.timelines)
+    const dbTimeline: any[] = Array.isArray(event.timelines)
       ? event.timelines
+      : Array.isArray(event.timeline)
+      ? event.timeline
       : [];
 
     return NextResponse.json({
@@ -123,7 +123,7 @@ export async function GET(
     });
   } catch (error: any) {
     console.error("GET /configure error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, status(500));
   }
 }
 
@@ -137,14 +137,13 @@ export async function POST(
     const body = await req.json().catch(() => null);
 
     if (!cleanId || !body) {
-      return NextResponse.json({ success: false, error: "Invalid payload" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Invalid payload" }, status(400));
     }
 
     const finalTitle = String(body.welcomeHeading || body.title || "Celebration").trim();
     const finalSubtitle = String(body.welcomeSubtext || "Forever Begins Today").trim();
 
     await prisma.$transaction(async (tx: any) => {
-      // 1. Update Core Event Title & Location
       const eventUpdateData: Record<string, any> = { title: finalTitle };
       if (body.venueName) {
         eventUpdateData.location = String(body.venueName).trim();
@@ -155,7 +154,6 @@ export async function POST(
         data: eventUpdateData,
       });
 
-      // 2. Update Settings (Downloads & Comments)
       const settingsData = {
         subtitle: finalSubtitle,
         allowDownloads: Boolean(body.allowDownloads ?? true),
@@ -168,7 +166,6 @@ export async function POST(
         create: { eventId: cleanId, ...settingsData },
       });
 
-      // 3. Sync Categories to Albums
       const categories: string[] = Array.isArray(body.categories) ? body.categories : [];
       for (let i = 0; i < categories.length; i++) {
         const cat = String(categories[i]).trim();
@@ -183,7 +180,6 @@ export async function POST(
         }
       }
 
-      // 4. Sync Timeline
       if (Array.isArray(body.timeline)) {
         await tx.eventTimeline.deleteMany({ where: { eventId: cleanId } });
         for (let i = 0; i < body.timeline.length; i++) {
@@ -205,6 +201,10 @@ export async function POST(
     return NextResponse.json({ success: true, message: "Viewer configurations successfully deployed!" });
   } catch (error: any) {
     console.error("POST /configure error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, status(500));
   }
+}
+
+function status(code: number) {
+  return { status: code };
 }
