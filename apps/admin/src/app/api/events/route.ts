@@ -130,23 +130,28 @@ export async function POST(req: NextRequest) {
     const cleanSlug = `${rawSlug}-${Date.now().toString().slice(-4)}`;
 
     // EXACT SCHEMA MATCHING PAYLOAD (Status set to PENDING for Super Admin Queue)
-    const newEvent = await prisma.event.create({
-      data: {
-        adminId: client.adminId,
-        clientId: client.id,
-        title: cleanTitle,
-        slug: cleanSlug,
-        type: type as any,
-        status: "PENDING_APPROVAL" as any,
-        accessMode: (pinCode ? "PIN" : "PUBLIC") as any,
-        pinCode: pinCode ? String(pinCode).trim() : null,
-        retentionDays: Number(retentionDays) || client.storageDays || 15,
-        eventDate: eventDate ? new Date(eventDate) : new Date(),
-        brideName: brideName ? String(brideName).trim() : null,
-        groomName: groomName ? String(groomName).trim() : null,
-        location: location ? String(location).trim() : null,
-      },
-    });
+   // Inside POST handler:
+const scheduledDate = eventDate ? new Date(eventDate) : new Date();
+const chosenRetention = Number(retentionDays) && Number(retentionDays) >= 15 ? Number(retentionDays) : 15;
+
+const newEvent = await prisma.event.create({
+  data: {
+    adminId: client.adminId,
+    clientId: client.id,
+    title: cleanTitle,
+    slug: cleanSlug,
+    type: type as any,
+    status: "PENDING_APPROVAL" as any,
+    isLive: false, // strictly false until approved and date reached
+    accessMode: (pinCode ? "PIN" : "PUBLIC") as any,
+    pinCode: pinCode ? String(pinCode).trim() : null,
+    retentionDays: chosenRetention,
+    eventDate: scheduledDate,
+    brideName: brideName ? String(brideName).trim() : null,
+    groomName: groomName ? String(groomName).trim() : null,
+    location: location ? String(location).trim() : null,
+  },
+});
     return NextResponse.json(
       {
         success: true,

@@ -90,6 +90,14 @@ export async function GET(
       ? event.timeline
       : [];
 
+    // Parse custom settings JSON if available
+    let customSettings: any = {};
+    try {
+      if (event.settings?.customSettings) {
+        customSettings = JSON.parse(event.settings.customSettings);
+      }
+    } catch {}
+
     return NextResponse.json({
       success: true,
       event: {
@@ -97,21 +105,22 @@ export async function GET(
         slug: event.slug || "event-" + event.id.slice(-6),
         type: event.type || "WEDDING",
         status: event.status || "APPROVED",
-        heroTag: preset.badge,
+        heroTag: customSettings.heroTag || preset.badge,
         welcomeHeading: event.title || preset.defaultHeading,
         welcomeSubtext: event.settings?.subtitle || preset.defaultSubtext,
         venueName: event.location || preset.venue,
+        eventDate: event.eventDate ? event.eventDate.toISOString() : null,
         activeCeremony: preset.activeCeremony,
         ceremonyStartTime: preset.ceremonyTime,
-        accessMode: "PUBLIC",
-        pinCode: "",
-        retentionDays: 15,
+        accessMode: event.accessMode || "PUBLIC",
+        pinCode: event.pinCode || "",
+        retentionDays: event.retentionDays || 15,
         autoCompress: true,
         allowDownloads: event.settings?.allowDownloads ?? true,
         allowComments: event.settings?.allowLikes ?? true,
         categories: dbAlbums.length > 0 ? dbAlbums.map((a: any) => a.title) : preset.categories,
         albums: dbAlbums.length > 0 ? dbAlbums.map((a: any) => ({ name: a.title, count: 0 })) : preset.albums,
-        decorationZones: preset.decorationZones,
+        decorationZones: customSettings.decorationZones || preset.decorationZones,
         timeline: dbTimeline.length > 0
           ? dbTimeline.map((t: any) => ({
               title: t.title,
@@ -119,6 +128,8 @@ export async function GET(
               status: t.statusText || t.status || "UPCOMING",
             }))
           : preset.timeline,
+        familyMembers: customSettings.familyMembers || [],
+        foodItems: customSettings.foodItems || [],
       },
     });
   } catch (error: any) {
@@ -144,9 +155,22 @@ export async function POST(
     const finalSubtitle = String(body.welcomeSubtext || "Forever Begins Today").trim();
 
     await prisma.$transaction(async (tx: any) => {
+      // Update Core Event Data
       const eventUpdateData: Record<string, any> = { title: finalTitle };
       if (body.venueName) {
         eventUpdateData.location = String(body.venueName).trim();
+      }
+      if (body.eventDate) {
+        eventUpdateData.eventDate = new Date(body.eventDate);
+      }
+      if (body.retentionDays) {
+        eventUpdateData.retentionDays = Number(body.retentionDays) || 15;
+      }
+      if (body.accessMode) {
+        eventUpdateData.accessMode = body.accessMode;
+      }
+      if (body.pinCode !== undefined) {
+        eventUpdateData.pinCode = body.pinCode ? String(body.pinCode).trim() : null;
       }
 
       await tx.event.update({
@@ -154,10 +178,19 @@ export async function POST(
         data: eventUpdateData,
       });
 
+      // Bundle Extended Config into Settings JSON
+      const serializedCustomSettings = JSON.stringify({
+        familyMembers: Array.isArray(body.familyMembers) ? body.familyMembers : [],
+        foodItems: Array.isArray(body.foodItems) ? body.foodItems : [],
+        decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones : [],
+        heroTag: body.heroTag || "LIVE EVENT",
+      });
+
       const settingsData = {
         subtitle: finalSubtitle,
         allowDownloads: Boolean(body.allowDownloads ?? true),
         allowLikes: Boolean(body.allowComments ?? true),
+        customSettings: serializedCustomSettings,
       };
 
       await tx.eventSettings.upsert({
@@ -166,6 +199,7 @@ export async function POST(
         create: { eventId: cleanId, ...settingsData },
       });
 
+      // Sync Albums / Categories
       const categories: string[] = Array.isArray(body.categories) ? body.categories : [];
       for (let i = 0; i < categories.length; i++) {
         const cat = String(categories[i]).trim();
@@ -180,6 +214,7 @@ export async function POST(
         }
       }
 
+      // Sync Timeline
       if (Array.isArray(body.timeline)) {
         await tx.eventTimeline.deleteMany({ where: { eventId: cleanId } });
         for (let i = 0; i < body.timeline.length; i++) {
