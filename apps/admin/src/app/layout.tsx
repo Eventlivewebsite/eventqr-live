@@ -13,20 +13,24 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const token =
-    cookieStore.get("client_token")?.value ||
-    cookieStore.get("admin_token")?.value ||
-    cookieStore.get("eventqr_session")?.value;
+  let hasSession = false;
 
-  const hasInitialSession = Boolean(token && token.trim().length > 10);
+  try {
+    const cookieStore = await cookies();
+    const token =
+      cookieStore.get("client_token")?.value ||
+      cookieStore.get("admin_token")?.value ||
+      cookieStore.get("eventqr_session")?.value;
+
+    hasSession = Boolean(token && token.trim().length > 10);
+  } catch {
+    hasSession = false;
+  }
 
   return (
     <html lang="en">
       <body className="bg-[#030712] text-slate-100 min-h-screen">
-        <AuthEnforcer hasSession={hasInitialSession}>
-          {children}
-        </AuthEnforcer>
+        <AuthEnforcer hasSession={hasSession}>{children}</AuthEnforcer>
       </body>
     </html>
   );
