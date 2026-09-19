@@ -1,35 +1,32 @@
-"use client";
+﻿import "./globals.css";
+import React from "react";
+import { cookies } from "next/headers";
+import { AuthEnforcer } from "./AuthEnforcer";
 
-// @ts-ignore
-import "./globals.css";
-import { usePathname } from "next/navigation";
-import Sidebar from "@/components/layout/Sidebar";
+export const metadata = {
+  title: "EventQR Live - Studio Admin",
+  description: "Enterprise Studio Event Control Center",
+};
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isLoginPage = pathname === "/login" || pathname?.startsWith("/login");
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get("client_token")?.value ||
+    cookieStore.get("admin_token")?.value ||
+    cookieStore.get("eventqr_session")?.value;
 
-  if (isLoginPage) {
-    return (
-      <html lang="en">
-        <body className="antialiased min-h-screen bg-[#030712] text-slate-100">
-          {children}
-        </body>
-      </html>
-    );
-  }
+  const hasInitialSession = Boolean(token && token.trim().length > 10);
 
   return (
     <html lang="en">
-      <body className="antialiased min-h-screen bg-[#030712] text-slate-100 flex">
-        <Sidebar />
-        <main className="flex-1 min-h-screen overflow-y-auto bg-[#030712]">
+      <body className="bg-[#030712] text-slate-100 min-h-screen">
+        <AuthEnforcer hasSession={hasInitialSession}>
           {children}
-        </main>
+        </AuthEnforcer>
       </body>
     </html>
   );
