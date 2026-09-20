@@ -22,14 +22,16 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className="bg-[#030712] text-slate-100 min-h-screen">
-        <ClientGuard hasSession={hasValidSession}>{children}</ClientGuard>
+      <body className="bg-[#030712] text-slate-100 min-h-screen antialiased">
+        <ClientAuthGuard hasSession={hasValidSession}>
+          {children}
+        </ClientAuthGuard>
       </body>
     </html>
   );
 }
 
-function ClientGuard({
+function ClientAuthGuard({
   children,
   hasSession,
 }: {
