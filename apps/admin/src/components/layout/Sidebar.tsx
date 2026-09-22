@@ -27,11 +27,38 @@ export default function StudioSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to log out of Studio Portal?")) {
-      localStorage.removeItem("studio_client_session");
-      router.push("/login");
+  const handleLogout = async () => {
+    if (!confirm("Are you sure you want to log out of Studio Portal?")) {
+      return;
     }
+
+    try {
+      // 1. Server-side session & HttpOnly cookies destroy karein
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout network dispatch failed:", error);
+    }
+
+    // 2. Dusre sabhi open tabs ko BroadcastChannel ke through LOGOUT signal bhejein
+    try {
+      const authChannel = new BroadcastChannel("auth_sync_channel");
+      authChannel.postMessage("LOGOUT");
+      authChannel.close();
+    } catch {
+      // BroadcastChannel unavailable fallback
+    }
+
+    // 3. Legacy / Fallback tab sync & client cache clear
+    localStorage.setItem("eventqr_logout_event", Date.now().toString());
+    localStorage.removeItem("studio_client_session");
+    sessionStorage.clear();
+
+    // 4. Hard redirect to login screen
+    router.push("/login");
+    router.refresh();
   };
 
   return (
@@ -51,7 +78,11 @@ export default function StudioSidebar() {
 
         <nav className="space-y-1.5">
           {navigation.map((item) => {
-            const isActive = pathname === item.href;
+            // Root "/" exact match, baaki sabhi routes ke liye nested path match
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
 
             return (
@@ -89,6 +120,7 @@ export default function StudioSidebar() {
         {/* Logout Button */}
         <button
           onClick={handleLogout}
+          type="button"
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900/60 hover:bg-red-600/20 text-slate-400 hover:text-red-400 border border-slate-800/80 rounded-2xl text-xs font-semibold transition cursor-pointer"
         >
           <LogOut className="w-3.5 h-3.5" />

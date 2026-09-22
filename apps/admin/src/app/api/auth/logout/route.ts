@@ -1,28 +1,34 @@
 ﻿import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 export async function POST() {
   const response = NextResponse.json({
     success: true,
-    message: "Logged out successfully",
+    message: "Security session invalidated successfully",
   });
 
-  const cookieNames = [
-    "client_token",
-    "admin_token",
+  const cookiesToPurge = [
     "eventqr_session",
     "eventqr_session_role",
-    "token",
+    "admin_token",
+    "client_token",
+    "super_admin_session",
+    "super_admin_token",
   ];
 
-  for (const name of cookieNames) {
-    response.cookies.set(name, "", {
+  cookiesToPurge.forEach((cookieName) => {
+    response.cookies.set(cookieName, "", {
       path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       expires: new Date(0),
       maxAge: 0,
     });
-  }
+  });
 
   return response;
+}
+
+export async function GET() {
+  return POST();
 }

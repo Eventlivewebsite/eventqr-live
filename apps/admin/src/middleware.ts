@@ -10,7 +10,7 @@ const JWT_SECRET = new TextEncoder().encode(
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  // 1. Static chunks, assets, and APIs bypass
+  // 1. Static asset and internal endpoint bypass
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -22,12 +22,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Token Extraction
   const tokenFromQuery = searchParams.get("token");
   const sessionCookie = req.cookies.get("eventqr_session")?.value;
   const token = tokenFromQuery || sessionCookie;
 
-  // Helper: Redirect to login and clear bad cookies
   const redirectToLogin = (reason?: string) => {
     const loginUrl = new URL("/login", req.url);
     if (reason) loginUrl.searchParams.set("error", reason);
@@ -36,6 +34,7 @@ export async function middleware(req: NextRequest) {
     }
 
     const res = NextResponse.redirect(loginUrl);
+    // Eradicate untrusted or invalid cookies
     res.cookies.delete("eventqr_session");
     res.cookies.delete("eventqr_session_role");
     res.cookies.delete("admin_token");
@@ -43,43 +42,38 @@ export async function middleware(req: NextRequest) {
     return res;
   };
 
-  // 3. Login Page Handling
+  // 2. Login Page Gate (Redirect authenticated users inward)
   if (pathname === "/login") {
     if (token) {
       try {
         const { payload } = await jwtVerify(token, JWT_SECRET);
         const role = String(payload.role || "").toUpperCase();
         if (role === "ADMIN" || role === "STUDIO_ADMIN" || role === "SUPER_ADMIN") {
-          return NextResponse.redirect(new URL("/dashboard", req.url));
+          return NextResponse.redirect(new URL("/events", req.url));
         }
       } catch {
-        // Token invalid hai, login page khulne do
+        // Expired/corrupt token, allow login view
       }
     }
     return NextResponse.next();
   }
 
-  // 4. Direct visit without any token -> Reject instantly
+  // 3. Direct unauthenticated visit rejection
   if (!token) {
     return redirectToLogin("unauthorized");
   }
 
   try {
-    // 5. Cryptographic Signature & Expiry Verification
+    // 4. Cryptographic signature and expiration verification
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const userRole = String(payload.role || "").toUpperCase();
 
-    // 6. Role Authorization Gate
-    const isAuthorized =
-      userRole === "ADMIN" ||
-      userRole === "STUDIO_ADMIN" ||
-      userRole === "SUPER_ADMIN";
-
-    if (!isAuthorized) {
+    // 5. Strict Role Gate
+    if (userRole !== "ADMIN" && userRole !== "STUDIO_ADMIN" && userRole !== "SUPER_ADMIN") {
       return redirectToLogin("forbidden");
     }
 
-    // 7. Token Handshake from Query (agar URL me ?token=... aaya ho)
+    // 6. Token Handshake from transfer query
     if (tokenFromQuery) {
       const isProduction = process.env.NODE_ENV === "production";
       const cleanUrl = req.nextUrl.clone();
@@ -104,7 +98,7 @@ export async function middleware(req: NextRequest) {
       return response;
     }
 
-    // 8. Prevent browser/proxy caching of protected dashboards
+    // 7. Prevent browser back/forward caching of protected content
     const response = NextResponse.next();
     response.headers.set(
       "Cache-Control",
