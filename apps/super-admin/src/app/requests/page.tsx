@@ -22,6 +22,7 @@ import {
   Tag,
   Globe,
   Radio,
+  HardDrive,
 } from "lucide-react";
 
 interface StudioClientInfo {
@@ -39,6 +40,8 @@ interface EventRequest {
   slug: string;
   type?: string;
   eventDate: string;
+  retentionDays?: number;
+  storageExpiryDate?: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED" | string;
   isLive: boolean;
   photosCount?: number;
@@ -102,8 +105,10 @@ export default function ApprovalRequestsPage() {
         events: [],
       }));
 
-      if (data.success && Array.isArray(data.events)) {
-        setRequests(data.events);
+      // Support both `events` and `requests` mapping safely
+      const items = data.events || (data as any).requests || [];
+      if (data.success && Array.isArray(items)) {
+        setRequests(items);
       } else {
         setRequests([]);
       }
@@ -147,7 +152,7 @@ export default function ApprovalRequestsPage() {
           Accept: "application/json",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: action.toLowerCase() === "accept" ? "approve" : "reject" }),
       });
 
       if (res.status === 401) {
@@ -200,7 +205,7 @@ export default function ApprovalRequestsPage() {
     return {
       all: requests.length,
       pending: requests.filter(
-        (r) => r.status === "PENDING" || (!r.isLive && r.status !== "REJECTED")
+        (r) => r.status === "PENDING" || (!r.isLive && r.status !== "REJECTED" && r.status !== "APPROVED")
       ).length,
       approved: requests.filter((r) => r.status === "APPROVED" || r.isLive).length,
       rejected: requests.filter((r) => r.status === "REJECTED").length,
@@ -436,7 +441,7 @@ export default function ApprovalRequestsPage() {
                 <tr>
                   <th className="px-4 py-3 font-extrabold">EVENT NAME &amp; SLUG</th>
                   <th className="px-4 py-3 font-extrabold">STUDIO ADMIN</th>
-                  <th className="px-4 py-3 font-extrabold">EVENT DATE</th>
+                  <th className="px-4 py-3 font-extrabold">LIVE DATE &amp; STORAGE</th>
                   <th className="px-4 py-3 font-extrabold">CURRENT STATUS</th>
                   <th className="px-4 py-3 font-extrabold">AUDIT STAGE</th>
                   <th className="px-4 py-3 text-right font-extrabold">ACTIONS</th>
@@ -476,6 +481,10 @@ export default function ApprovalRequestsPage() {
                             {req.eventDate ? new Date(req.eventDate).toLocaleDateString() : "N/A"}
                           </span>
                         </div>
+                        <div className="text-[11px] text-pink-400 font-mono mt-1 flex items-center gap-1">
+                          <HardDrive className="w-3 h-3" />
+                          <span>{req.retentionDays || 15} Days Storage</span>
+                        </div>
                       </td>
 
                       <td className="px-4 py-4">
@@ -504,7 +513,7 @@ export default function ApprovalRequestsPage() {
                         )}
                       </td>
 
-                      {/* Actions: Approve button disables after approval, Reject stays active */}
+                      {/* Actions */}
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -517,7 +526,6 @@ export default function ApprovalRequestsPage() {
                             <span>View</span>
                           </button>
 
-                          {/* REJECT BUTTON (Disabled only if already rejected) */}
                           <button
                             type="button"
                             disabled={actionLoading === req.id || isRejected}
@@ -533,7 +541,6 @@ export default function ApprovalRequestsPage() {
                             <span>Reject</span>
                           </button>
 
-                          {/* APPROVE BUTTON (Disabled if already approved/live) */}
                           <button
                             type="button"
                             disabled={actionLoading === req.id || isApproved}
@@ -563,7 +570,7 @@ export default function ApprovalRequestsPage() {
         )}
       </div>
 
-      {/* AUDIT MODAL */}
+      {/* AUDIT MODAL (WITH STORAGE DETAILS DISPLAY) */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-xl bg-[#080c14] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-150">
@@ -601,7 +608,7 @@ export default function ApprovalRequestsPage() {
               <div className="p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1">
-                    <Tag className="w-3 h-3" /> Event Specification
+                    <Tag className="w-3 h-3" /> Event Specification &amp; Storage
                   </span>
                   <span className="text-[10px] font-mono text-slate-500">
                     ID: {selectedEvent.id}
@@ -610,7 +617,7 @@ export default function ApprovalRequestsPage() {
 
                 <div className="grid grid-cols-2 gap-3 text-slate-300">
                   <div>
-                    <span className="text-slate-500 text-[11px] block">Scheduled Event Date</span>
+                    <span className="text-slate-500 text-[11px] block">Scheduled Live Date</span>
                     <span className="font-semibold text-white">
                       {selectedEvent.eventDate
                         ? new Date(selectedEvent.eventDate).toLocaleDateString()
@@ -619,10 +626,19 @@ export default function ApprovalRequestsPage() {
                   </div>
 
                   <div>
-                    <span className="text-slate-500 text-[11px] block">Submitted On</span>
+                    <span className="text-slate-500 text-[11px] block">Storage Duration</span>
+                    <span className="font-bold text-pink-400 bg-pink-500/10 px-2 py-0.5 rounded inline-block mt-0.5">
+                      {selectedEvent.retentionDays || 15} Days Total
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-500 text-[11px] block">Storage Expiry Date</span>
                     <span className="font-semibold text-white">
-                      {selectedEvent.createdAt
-                        ? new Date(selectedEvent.createdAt).toLocaleDateString()
+                      {selectedEvent.storageExpiryDate
+                        ? new Date(selectedEvent.storageExpiryDate).toLocaleDateString()
+                        : selectedEvent.eventDate
+                        ? new Date(new Date(selectedEvent.eventDate).getTime() + (selectedEvent.retentionDays || 15) * 86400000).toLocaleDateString()
                         : "N/A"}
                     </span>
                   </div>
@@ -644,13 +660,6 @@ export default function ApprovalRequestsPage() {
                         : selectedEvent.status === "REJECTED"
                         ? "REJECTED"
                         : "PENDING VERIFICATION"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500 text-[11px] block">Upload Count</span>
-                    <span className="font-semibold text-white">
-                      {selectedEvent.photosCount ?? 0} Media items
                     </span>
                   </div>
                 </div>

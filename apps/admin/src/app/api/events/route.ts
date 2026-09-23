@@ -1,53 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 
-const JWT_SECRET = process.env.JWT_SECRET || "eventqr-super-secure-jwt-secret-key";
+export const dynamic = "force-dynamic";
 
-// Helper: Secure Session extraction & client resolution
-async function resolveSecureClient(req: NextRequest, bodyClientId?: string) {
+// Cryptographic Secret Engine
+const RAW_JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = new TextEncoder().encode(
+  RAW_JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
+);
+
+// Helper: Secure Session Extraction (No Blind Fallbacks / Anti-Impersonation)
+async function resolveAuthenticatedClient(req: NextRequest) {
   const token =
+    req.cookies.get("eventqr_session")?.value ||
     req.cookies.get("client_token")?.value ||
     req.headers.get("authorization")?.replace("Bearer ", "");
 
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-      if (decoded?.id) {
-        const client = await prisma.client.findFirst({
-          where: { id: decoded.id, isDeleted: false, isActive: true },
-        });
-        if (client) return client;
-      }
-    } catch {}
-  }
+  if (!token) return null;
 
-  const cleanClientId = typeof bodyClientId === "string" ? bodyClientId.trim() : "";
-  if (cleanClientId && cleanClientId !== "client_default" && cleanClientId.length > 5) {
-    const client = await prisma.client.findFirst({
-      where: { id: cleanClientId, isDeleted: false, isActive: true },
-    });
-    if (client) return client;
-  }
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const userId = String(payload.userId || payload.id || "");
+    const role = String(payload.role || "").toUpperCase();
 
-  // Fallback to active studio
-  return await prisma.client.findFirst({
-    where: { isDeleted: false, isActive: true },
-  });
+    if (!userId) return null;
+
+    // 1. Agar Studio Client hai toh client table se fetch karein
+    if (role === "STUDIO_ADMIN" || role === "CLIENT") {
+      return await prisma.client.findFirst({
+        where: { id: userId, isDeleted: false, isActive: true },
+      });
+    }
+
+    // 2. Agar regular Admin ya Super Admin hai
+    if (role === "ADMIN" || role === "SUPER_ADMIN") {
+      const user = await prisma.user.findFirst({
+        where: { id: userId, isDeleted: false },
+      });
+
+      if (!user) return null;
+
+      // Studio Admin associate client search
+      return await prisma.client.findFirst({
+        where: { adminId: user.id, isDeleted: false, isActive: true },
+      });
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
-// 1. GET Events for Studio
+// -------------------------------------------------------------
+// 1. GET: Fetch Events for the Authenticated Studio
+// -------------------------------------------------------------
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const queryClientId = searchParams.get("clientId") || undefined;
-
-    const client = await resolveSecureClient(req, queryClientId);
+    const client = await resolveAuthenticatedClient(req);
 
     if (!client) {
       return NextResponse.json(
-        { success: false, error: "Studio client not found or inactive." },
-        { status: 404 }
+        { success: false, error: "Access Denied: Unauthenticated studio session." },
+        { status: 401 }
       );
     }
 
@@ -55,6 +71,12 @@ export async function GET(req: NextRequest) {
       where: {
         clientId: client.id,
         isDeleted: false,
+      },
+      include: {
+        _count: {
+          select: { albums: true },
+        },
+        settings: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -67,27 +89,48 @@ export async function GET(req: NextRequest) {
       status: ev.status,
       eventDate: ev.eventDate ? new Date(ev.eventDate).toISOString() : new Date().toISOString(),
       accessMode: ev.accessMode,
+      retentionDays: ev.retentionDays || 15,
+      isLive: Boolean(ev.isLive),
+      _count: ev._count,
     }));
 
     return NextResponse.json({ success: true, events: formattedEvents });
   } catch (err: any) {
-    console.error("[STUDIO_API_GET_EVENTS_ERR]:", err);
+    console.error("[SECURE_API_GET_EVENTS_ERR]:", err);
     return NextResponse.json(
-      { success: false, error: err?.message || "Failed to load events" },
+      { success: false, error: "Internal processing error while fetching events." },
       { status: 500 }
     );
   }
 }
 
-// 2. POST: Create Event (100% Schema-Matched & Synced with Super Admin Queue)
+// -------------------------------------------------------------
+// 2. POST: Create Event Request (Strict Validation & Anti-Tamper)
+// -------------------------------------------------------------
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
+    const client = await resolveAuthenticatedClient(req);
+
+    if (!client) {
+      return NextResponse.json(
+        { success: false, error: "Access Denied: Authorized studio account required." },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { success: false, error: "Invalid request payload." },
+        { status: 400 }
+      );
+    }
+
     const {
-      clientId: incomingClientId,
       title,
       type = "WEDDING",
       eventDate,
+      expiryDate,
       slug,
       pinCode,
       retentionDays = 15,
@@ -96,74 +139,116 @@ export async function POST(req: NextRequest) {
       location,
     } = body;
 
-    const cleanTitle = typeof title === "string" ? title.trim() : "";
+    // Strict Input Validation & Boundaries
+    const cleanTitle = typeof title === "string" ? title.trim().slice(0, 150) : "";
     if (!cleanTitle || cleanTitle.length < 2) {
       return NextResponse.json(
-        { success: false, error: "Event title must be at least 2 characters." },
+        { success: false, error: "Event title must be between 2 and 150 characters." },
         { status: 400 }
       );
     }
 
-    const client = await resolveSecureClient(req, incomingClientId);
-
-    if (!client) {
+    if (!eventDate) {
       return NextResponse.json(
-        { success: false, error: "No studio client available to associate this event." },
-        { status: 404 }
+        { success: false, error: "Event start date is required." },
+        { status: 400 }
       );
     }
 
-    // Storage limit check
+    const scheduledDate = new Date(eventDate);
+    if (isNaN(scheduledDate.getTime())) {
+      return NextResponse.json(
+        { success: false, error: "Invalid event date format." },
+        { status: 400 }
+      );
+    }
+
+    // Storage Capacity Enforcement
     if (client.storageUsedGB >= client.storageLimitGB) {
       return NextResponse.json(
-        { success: false, error: "Storage limit reached. Contact Super Admin." },
+        { success: false, error: "Storage quota reached. Please contact Super Admin to upgrade storage." },
         { status: 403 }
       );
     }
 
-    // Slug generation
-    const rawSlug = (slug || cleanTitle)
+    // Storage Retention Days & Expiry Calculation
+    let chosenRetention = Number(retentionDays);
+    if (isNaN(chosenRetention) || chosenRetention < 1) {
+      chosenRetention = 15;
+    }
+
+    let calculatedExpiryDate: Date;
+    if (expiryDate) {
+      calculatedExpiryDate = new Date(expiryDate);
+      if (isNaN(calculatedExpiryDate.getTime()) || calculatedExpiryDate < scheduledDate) {
+        calculatedExpiryDate = new Date(scheduledDate);
+        calculatedExpiryDate.setDate(scheduledDate.getDate() + chosenRetention);
+      }
+    } else {
+      calculatedExpiryDate = new Date(scheduledDate);
+      calculatedExpiryDate.setDate(scheduledDate.getDate() + chosenRetention);
+    }
+
+    // Safe Slug Generation with Collision Resistance
+    const baseSlug = (slug || cleanTitle)
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const cleanSlug = `${rawSlug}-${Date.now().toString().slice(-4)}`;
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 50);
+    const uniqueSlug = `${baseSlug || "event"}-${Math.random().toString(36).substring(2, 6)}${Date.now().toString().slice(-4)}`;
 
-    // EXACT SCHEMA MATCHING PAYLOAD (Status set to PENDING for Super Admin Queue)
-   // Inside POST handler:
-const scheduledDate = eventDate ? new Date(eventDate) : new Date();
-const chosenRetention = Number(retentionDays) && Number(retentionDays) >= 15 ? Number(retentionDays) : 15;
+    // Database Write (Atomic Event Creation with Settings Bundled)
+    const newEvent = await prisma.event.create({
+      data: {
+        adminId: client.adminId,
+        clientId: client.id,
+        title: cleanTitle,
+        slug: uniqueSlug,
+        type: type as any,
+        status: "PENDING_APPROVAL" as any,
+        isLive: false, // Strictly false until approved by Super Admin
+        accessMode: pinCode ? ("PIN" as any) : ("PUBLIC" as any),
+        pinCode: pinCode ? String(pinCode).trim().slice(0, 10) : null,
+        retentionDays: chosenRetention,
+        eventDate: scheduledDate,
+        brideName: brideName ? String(brideName).trim().slice(0, 100) : null,
+        groomName: groomName ? String(groomName).trim().slice(0, 100) : null,
+        location: location ? String(location).trim().slice(0, 200) : null,
+        settings: {
+          create: {
+            subtitle: "Forever Begins Today",
+            allowDownloads: true,
+            allowLikes: true,
+            customSettings: JSON.stringify({
+              storageExpiryDate: calculatedExpiryDate.toISOString(),
+              retentionDays: chosenRetention,
+              liveFromDate: scheduledDate.toISOString(),
+            }),
+          },
+        },
+      },
+    });
 
-const newEvent = await prisma.event.create({
-  data: {
-    adminId: client.adminId,
-    clientId: client.id,
-    title: cleanTitle,
-    slug: cleanSlug,
-    type: type as any,
-    status: "PENDING_APPROVAL" as any,
-    isLive: false, // strictly false until approved and date reached
-    accessMode: (pinCode ? "PIN" : "PUBLIC") as any,
-    pinCode: pinCode ? String(pinCode).trim() : null,
-    retentionDays: chosenRetention,
-    eventDate: scheduledDate,
-    brideName: brideName ? String(brideName).trim() : null,
-    groomName: groomName ? String(groomName).trim() : null,
-    location: location ? String(location).trim() : null,
-  },
-});
     return NextResponse.json(
       {
         success: true,
-        message: "Event request submitted successfully!",
-        event: newEvent,
+        message: "Event request submitted successfully! Super Admin approval is pending.",
+        event: {
+          id: newEvent.id,
+          title: newEvent.title,
+          slug: newEvent.slug,
+          eventDate: newEvent.eventDate,
+          retentionDays: newEvent.retentionDays,
+          status: newEvent.status,
+        },
       },
       { status: 201 }
     );
   } catch (err: any) {
-    console.error("[STUDIO_API_POST_EVENT_ERR]:", err);
+    console.error("[SECURE_API_POST_EVENT_ERR]:", err);
     return NextResponse.json(
-      { success: false, error: err?.message || "Failed to submit event request." },
+      { success: false, error: "Internal error processing event request." },
       { status: 500 }
     );
   }

@@ -35,11 +35,17 @@ export async function middleware(req: NextRequest) {
 
     const response = NextResponse.redirect(loginUrl.toString());
 
-    // Kill any existing invalid cookies immediately
-    response.cookies.delete("eventqr_session");
-    response.cookies.delete("eventqr_session_role");
-    response.cookies.delete("super_admin_session");
-    response.cookies.delete("super_admin_token");
+    // Kill any existing invalid cookies immediately with zero maxAge
+    response.cookies.set("eventqr_session", "", { path: "/", maxAge: 0, expires: new Date(0) });
+    response.cookies.set("eventqr_session_role", "", { path: "/", maxAge: 0, expires: new Date(0) });
+    response.cookies.set("super_admin_session", "", { path: "/", maxAge: 0, expires: new Date(0) });
+    response.cookies.set("super_admin_token", "", { path: "/", maxAge: 0, expires: new Date(0) });
+    
+    // Enforce no-cache headers on redirection response
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+
     return response;
   };
 
@@ -82,11 +88,17 @@ export async function middleware(req: NextRequest) {
         maxAge: 60 * 60 * 24 * 7,
       });
 
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       return response;
     }
 
-    // 5. Valid session cookie present -> Grant entry
-    return NextResponse.next();
+    // 5. Valid session cookie present -> Grant entry with strict anti-cache headers
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+
+    return response;
   } catch {
     return redirectToLogin("invalid_session");
   }

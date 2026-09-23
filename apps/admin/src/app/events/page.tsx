@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { 
   Calendar, Plus, Clock, CheckCircle2, XCircle, 
   Sparkles, ExternalLink, SlidersHorizontal, Loader2, 
-  ArrowRight, Lock, Image as ImageIcon, RefreshCw
+  ArrowRight, Lock, Image as ImageIcon, RefreshCw, HardDrive
 } from "lucide-react";
 import Link from "next/link";
 
@@ -16,6 +16,7 @@ interface EventItem {
   status: string;
   eventDate: string;
   isLive: boolean;
+  retentionDays?: number;
   allowGuestUpload: boolean;
   _count?: { albums: number };
 }
@@ -31,6 +32,8 @@ export default function MyEventsPage() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("WEDDING");
   const [eventDate, setEventDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [retentionDays, setRetentionDays] = useState<number>(15);
 
   useEffect(() => {
     setMounted(true);
@@ -54,8 +57,9 @@ export default function MyEventsPage() {
     try {
       setLoading(true);
       const cid = getClientId();
-      const res = await fetch(`/api/events${cid ? `?clientId=${cid}` : ""}`, {
+      const res = await fetch(`/api/events${cid ? `?clientId=${encodeURIComponent(cid)}` : ""}`, {
         cache: "no-store",
+        credentials: "include",
       });
       const data = await res.json().catch(() => ({ success: false, events: [] }));
       if (data.success) {
@@ -74,22 +78,65 @@ export default function MyEventsPage() {
     }
   }, [mounted, fetchEvents]);
 
+  // Live Date Change -> Auto calculate 15 Days Default Expiry
+  const handleEventDateChange = (selectedDate: string) => {
+    setEventDate(selectedDate);
+    if (selectedDate) {
+      const start = new Date(selectedDate);
+      if (!isNaN(start.getTime())) {
+        const defaultExp = new Date(start);
+        defaultExp.setDate(start.getDate() + 15);
+        const formattedExp = defaultExp.toISOString().split("T")[0];
+        setExpiryDate(formattedExp);
+        setRetentionDays(15);
+      }
+    } else {
+      setExpiryDate("");
+      setRetentionDays(15);
+    }
+  };
+
+  // Expiry Date Picker Change -> Recalculate Storage Days dynamically
+  const handleExpiryDateChange = (selectedExp: string) => {
+    setExpiryDate(selectedExp);
+    if (eventDate && selectedExp) {
+      const start = new Date(eventDate);
+      const end = new Date(selectedExp);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setRetentionDays(diffDays > 0 ? diffDays : 1);
+      }
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim() || !eventDate || !expiryDate) {
+      alert("Please fill all required event and storage date parameters.");
+      return;
+    }
+
     setCreating(true);
 
     try {
       const cid = getClientId();
 
+      // Sanitized Payload with Safe Strict Types
+      const payload = {
+        clientId: cid,
+        title: title.trim().slice(0, 150),
+        type,
+        eventDate,
+        expiryDate,
+        retentionDays: Math.max(1, retentionDays),
+      };
+
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: cid,
-          title: title.trim(),
-          type,
-          eventDate,
-        }),
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({ success: false }));
@@ -97,14 +144,16 @@ export default function MyEventsPage() {
         setShowModal(false);
         setTitle("");
         setEventDate("");
+        setExpiryDate("");
+        setRetentionDays(15);
         await fetchEvents();
         alert("✅ Event request submitted! Super Admin will review & approve it.");
       } else {
-        alert(data.error || data.message || "Failed to submit event");
+        alert(data.error || data.message || "Failed to submit event request");
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Network error";
-      alert("Error creating event: " + msg);
+      alert("Security warning: Error creating event: " + msg);
     } finally {
       setCreating(false);
     }
@@ -208,7 +257,7 @@ export default function MyEventsPage() {
 
                   <div className="text-xs text-slate-400 flex items-center justify-between pt-2 border-t border-slate-800/60">
                     <span suppressHydrationWarning>
-                      Date: {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : "N/A"}
+                      Live: {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : "N/A"}
                     </span>
                     <span className="font-semibold text-slate-300 flex items-center gap-1">
                       <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
@@ -221,7 +270,7 @@ export default function MyEventsPage() {
                 <div className="space-y-2 pt-2 border-t border-slate-800/60">
                   {isApproved ? (
                     <>
-                      {/* MAIN ACTION BUTTON: COMPLETE MASTER EVENT SETUP */}
+                      {/* MAIN ACTION BUTTON */}
                       <Link
                         href={`/events/${ev.id}/setup`}
                         className="w-full py-3 px-4 bg-gradient-to-r from-pink-600 via-rose-600 to-pink-500 hover:opacity-95 text-white text-xs font-black rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-pink-500/25 group cursor-pointer"
@@ -231,7 +280,7 @@ export default function MyEventsPage() {
                         <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                       </Link>
 
-                      {/* VIEWER DISPLAY SCREEN PREVIEW */}
+                      {/* VIEWER PREVIEW */}
                       <a
                         href={`http://localhost:3000/e/${ev.slug}`}
                         target="_blank"
@@ -258,7 +307,7 @@ export default function MyEventsPage() {
       {/* Modal - Create Event Request */}
       {showModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#080c14] border border-slate-800 w-full max-w-md rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="bg-[#080c14] border border-slate-800 w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95">
             <div>
               <h3 className="text-xl font-black text-white">Create New Event</h3>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -267,6 +316,7 @@ export default function MyEventsPage() {
             </div>
 
             <form onSubmit={handleCreate} className="space-y-4">
+              {/* Event Title */}
               <div>
                 <label className="text-[11px] font-bold text-slate-300 uppercase">
                   Event Title
@@ -274,6 +324,7 @@ export default function MyEventsPage() {
                 <input
                   type="text"
                   required
+                  maxLength={150}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Rahul &amp; Priya Wedding"
@@ -281,6 +332,7 @@ export default function MyEventsPage() {
                 />
               </div>
 
+              {/* Event Type */}
               <div>
                 <label className="text-[11px] font-bold text-slate-300 uppercase">
                   Event Type
@@ -298,17 +350,50 @@ export default function MyEventsPage() {
                 </select>
               </div>
 
+              {/* Event Live Date (Live Start Gate) */}
               <div>
-                <label className="text-[11px] font-bold text-slate-300 uppercase">
-                  Event Date
+                <label className="text-[11px] font-bold text-slate-300 uppercase flex items-center justify-between">
+                  <span>Event Live Date</span>
+                  <span className="text-[10px] text-emerald-400 font-semibold lowercase">Live starts from this date</span>
                 </label>
                 <input
                   type="date"
                   required
                   value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
+                  onChange={(e) => handleEventDateChange(e.target.value)}
                   className="w-full mt-1.5 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-pink-500 outline-none cursor-pointer transition"
                 />
+              </div>
+
+              {/* Storage & QR Access Expiry Card with Realtime Day Calculation */}
+              <div className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase flex items-center gap-1.5">
+                    <HardDrive className="w-3.5 h-3.5 text-pink-500" />
+                    <span>Storage &amp; QR Expiry Date</span>
+                  </label>
+                  
+                  {/* Dynamic Day Badge Counter */}
+                  <span className="text-xs font-black text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded-lg border border-pink-500/20">
+                    {retentionDays} {retentionDays === 1 ? "Day" : "Days"} Active
+                  </span>
+                </div>
+
+                <div>
+                  <input
+                    type="date"
+                    required
+                    min={eventDate || undefined}
+                    value={expiryDate}
+                    onChange={(e) => handleExpiryDateChange(e.target.value)}
+                    className="w-full bg-[#080c14] border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-pink-500 outline-none cursor-pointer transition"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                  <span>Default duration: 15 Days</span>
+                  <span className="text-slate-400 font-medium">QR locks automatically post-expiry</span>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800/80">

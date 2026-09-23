@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -19,7 +19,34 @@ const MAIN_LOGIN_GATEWAY_URL = "https://eventqr-live-admin.vercel.app/login";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Cross-Tab Logout Listener (Background me dusre tabs ko monitor karne ke liye)
+  useEffect(() => {
+    let authChannel: BroadcastChannel | null = null;
+    try {
+      authChannel = new BroadcastChannel("auth_sync_channel");
+      authChannel.onmessage = (event) => {
+        if (event.data === "LOGOUT") {
+          window.location.replace(MAIN_LOGIN_GATEWAY_URL);
+        }
+      };
+    } catch {}
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === "eventqr_logout_event") {
+        window.location.replace(MAIN_LOGIN_GATEWAY_URL);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageEvent);
+
+    return () => {
+      if (authChannel) authChannel.close();
+      window.removeEventListener("storage", handleStorageEvent);
+    };
+  }, []);
 
   const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -36,15 +63,28 @@ export default function Sidebar() {
     setIsLoggingOut(true);
 
     try {
-      // 1. Server-side httpOnly cookies ko purge karein
+      // 1. Server-side httpOnly cookies destroy karein
       await fetch("/api/auth/logout", {
         method: "POST",
+        credentials: "include",
       });
     } catch {
-      // Network failure hone par bhi client cleanup continue hoga
+      // Network failure hone par bhi client cleanup continue rahega
     }
 
-    // 2. Client-accessible cookies expire karein
+    // 2. Broadcast Channel ke zariye baaki open tabs ko terminate signal bhejein
+    try {
+      const authChannel = new BroadcastChannel("auth_sync_channel");
+      authChannel.postMessage("LOGOUT");
+      authChannel.close();
+    } catch {}
+
+    // 3. Fallback Storage Event trigger karein
+    try {
+      localStorage.setItem("eventqr_logout_event", Date.now().toString());
+    } catch {}
+
+    // 4. Client-accessible cookies expire karein
     const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
     document.cookie = `eventqr_session${expiredSuffix}`;
     document.cookie = `eventqr_session_role${expiredSuffix}`;
@@ -53,22 +93,20 @@ export default function Sidebar() {
     document.cookie = `token${expiredSuffix}`;
     document.cookie = `session${expiredSuffix}`;
 
-    // 3. Local aur Session storage wipe karein
+    // 5. Local aur Session storage wipe karein
     if (typeof window !== "undefined") {
       try {
         localStorage.clear();
         sessionStorage.clear();
-      } catch {
-        // Safe fallback
-      }
+      } catch {}
 
-      // 4. Central login gateway par absolute redirect
-      window.location.href = MAIN_LOGIN_GATEWAY_URL;
+      // 6. Hard redirect to central login gateway (replaces history stack)
+      window.location.replace(MAIN_LOGIN_GATEWAY_URL);
     }
   };
 
   return (
-    <aside className="w-64 bg-[#080c14] border-r border-slate-800/80 min-h-screen p-5 flex flex-col justify-between shrink-0 font-sans">
+    <aside className="w-64 bg-[#080c14] border-r border-slate-800/80 min-h-screen p-5 flex flex-col justify-between shrink-0 font-sans select-none">
       <div className="space-y-6">
         {/* Brand */}
         <div className="px-2">
