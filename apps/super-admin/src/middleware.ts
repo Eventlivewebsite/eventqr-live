@@ -13,7 +13,6 @@ const STUDIO_LOGIN_URL =
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  // 1. Only bypass Next.js internal files, static chunks, and standard icons
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -24,9 +23,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Extract Token
+  // Super Admin ke liye dedicated session cookie check karein taaki studio admin se clash na ho
   const tokenFromQuery = searchParams.get("token");
-  const tokenFromCookie = req.cookies.get("eventqr_session")?.value;
+  const tokenFromCookie = 
+    req.cookies.get("super_admin_session")?.value || 
+    req.cookies.get("super_admin_token")?.value ||
+    req.cookies.get("eventqr_session")?.value;
+
   const token = tokenFromQuery || tokenFromCookie;
 
   const redirectToLogin = (reason: string) => {
@@ -34,37 +37,24 @@ export async function middleware(req: NextRequest) {
     loginUrl.searchParams.set("error", reason);
 
     const response = NextResponse.redirect(loginUrl.toString());
-
-    // Kill any existing invalid cookies immediately with zero maxAge
-    response.cookies.set("eventqr_session", "", { path: "/", maxAge: 0, expires: new Date(0) });
-    response.cookies.set("eventqr_session_role", "", { path: "/", maxAge: 0, expires: new Date(0) });
-    response.cookies.set("super_admin_session", "", { path: "/", maxAge: 0, expires: new Date(0) });
-    response.cookies.set("super_admin_token", "", { path: "/", maxAge: 0, expires: new Date(0) });
-    
-    // Enforce no-cache headers on redirection response
-    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-
+    response.cookies.set("super_admin_session", "", { path: "/", maxAge: 0 });
+    response.cookies.set("super_admin_token", "", { path: "/", maxAge: 0 });
     return response;
   };
 
-  // Direct visit without any token -> Reject instantly
   if (!token) {
     return redirectToLogin("unauthorized");
   }
 
   try {
-    // 3. Strict Cryptographic Verification
     const { payload } = await jwtVerify(token, JWT_SECRET);
-
-    // Verify Role
     const userRole = String(payload.role || "").toUpperCase();
+
+    // STRICT CHECK: Sirf SUPER_ADMIN hi enter kar sakega
     if (userRole !== "SUPER_ADMIN") {
-      return redirectToLogin("forbidden");
+      return redirectToLogin("forbidden_not_superadmin");
     }
 
-    // 4. Token Handshake from URL Query -> Set secure cookie & clean URL
     if (tokenFromQuery) {
       const isProduction = process.env.NODE_ENV === "production";
       const cleanUrl = req.nextUrl.clone();
@@ -72,43 +62,26 @@ export async function middleware(req: NextRequest) {
 
       const response = NextResponse.redirect(cleanUrl);
       
-      response.cookies.set("eventqr_session", tokenFromQuery, {
+      // Super Admin ke liye alag isolated cookie set karein
+      response.cookies.set("super_admin_session", tokenFromQuery, {
         path: "/",
         httpOnly: true,
         secure: isProduction,
         sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24, // 24 Hours
       });
 
-      response.cookies.set("eventqr_session_role", "SUPER_ADMIN", {
-        path: "/",
-        httpOnly: false,
-        secure: isProduction,
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-      });
-
-      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       return response;
     }
 
-    // 5. Valid session cookie present -> Grant entry with strict anti-cache headers
     const response = NextResponse.next();
-    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return response;
   } catch {
-    return redirectToLogin("invalid_session");
+    return redirectToLogin("invalid_token");
   }
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match ALL routes including root `/` except internal static assets
-     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
