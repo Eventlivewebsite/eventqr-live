@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -15,11 +15,12 @@ import {
   Loader2,
 } from "lucide-react";
 
-const MAIN_LOGIN_GATEWAY_URL = "https://eventqr-live-admin.vercel.app/login";
+const MAIN_LOGIN_GATEWAY_URL =
+  process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL ||
+  "https://eventqr-live-admin.vercel.app/login";
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Cross-Tab Logout Listener (Background me dusre tabs ko monitor karne ke liye)
@@ -29,14 +30,14 @@ export default function Sidebar() {
       authChannel = new BroadcastChannel("auth_sync_channel");
       authChannel.onmessage = (event) => {
         if (event.data === "LOGOUT") {
-          window.location.replace(MAIN_LOGIN_GATEWAY_URL);
+          window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=session_terminated`);
         }
       };
     } catch {}
 
     const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === "eventqr_logout_event") {
-        window.location.replace(MAIN_LOGIN_GATEWAY_URL);
+        window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=session_terminated`);
       }
     };
 
@@ -63,13 +64,13 @@ export default function Sidebar() {
     setIsLoggingOut(true);
 
     try {
-      // 1. Server-side httpOnly cookies destroy karein
+      // 1. Server-side cookies destroy karein
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });
     } catch {
-      // Network failure hone par bhi client cleanup continue rahega
+      // Safe fallback: network issue hone par bhi cleanup continue hoga
     }
 
     // 2. Broadcast Channel ke zariye baaki open tabs ko terminate signal bhejein
@@ -86,12 +87,14 @@ export default function Sidebar() {
 
     // 4. Client-accessible cookies expire karein
     const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
-    document.cookie = `eventqr_session${expiredSuffix}`;
-    document.cookie = `eventqr_session_role${expiredSuffix}`;
     document.cookie = `super_admin_session${expiredSuffix}`;
     document.cookie = `super_admin_token${expiredSuffix}`;
+    document.cookie = `eventqr_session${expiredSuffix}`;
+    document.cookie = `eventqr_session_role${expiredSuffix}`;
     document.cookie = `token${expiredSuffix}`;
     document.cookie = `session${expiredSuffix}`;
+    document.cookie = `admin_token${expiredSuffix}`;
+    document.cookie = `client_token${expiredSuffix}`;
 
     // 5. Local aur Session storage wipe karein
     if (typeof window !== "undefined") {
@@ -101,7 +104,7 @@ export default function Sidebar() {
       } catch {}
 
       // 6. Hard redirect to central login gateway (replaces history stack)
-      window.location.replace(MAIN_LOGIN_GATEWAY_URL);
+      window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=logged_out`);
     }
   };
 

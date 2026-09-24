@@ -18,67 +18,76 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml"
+    pathname === "/sitemap.xml" ||
+    /\.(.*)$/.test(pathname)
   ) {
     return NextResponse.next();
   }
 
-  // Super Admin ke liye dedicated session cookie check karein taaki studio admin se clash na ho
   const tokenFromQuery = searchParams.get("token");
-  const tokenFromCookie = 
-    req.cookies.get("super_admin_session")?.value || 
-    req.cookies.get("super_admin_token")?.value ||
+  const tokenFromCookie =
+    req.cookies.get("super_admin_session")?.value ||
     req.cookies.get("eventqr_session")?.value;
 
   const token = tokenFromQuery || tokenFromCookie;
 
-  const redirectToLogin = (reason: string) => {
+  const forceLogin = (reason: string) => {
     const loginUrl = new URL(STUDIO_LOGIN_URL);
     loginUrl.searchParams.set("error", reason);
 
-    const response = NextResponse.redirect(loginUrl.toString());
-    response.cookies.set("super_admin_session", "", { path: "/", maxAge: 0 });
-    response.cookies.set("super_admin_token", "", { path: "/", maxAge: 0 });
-    return response;
+    const res = NextResponse.redirect(loginUrl.toString());
+    const delList = ["super_admin_session", "super_admin_token", "eventqr_session", "eventqr_session_role"];
+    delList.forEach((c) => res.cookies.set(c, "", { path: "/", maxAge: 0 }));
+
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return res;
   };
 
   if (!token) {
-    return redirectToLogin("unauthorized");
+    return forceLogin("unauthorized");
   }
 
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const userRole = String(payload.role || "").toUpperCase();
 
-    // STRICT CHECK: Sirf SUPER_ADMIN hi enter kar sakega
+    // SUPER_ADMIN clearance required
     if (userRole !== "SUPER_ADMIN") {
-      return redirectToLogin("forbidden_not_superadmin");
+      return forceLogin("forbidden");
     }
 
+    // Token query handshake
     if (tokenFromQuery) {
       const isProduction = process.env.NODE_ENV === "production";
       const cleanUrl = req.nextUrl.clone();
       cleanUrl.searchParams.delete("token");
 
-      const response = NextResponse.redirect(cleanUrl);
-      
-      // Super Admin ke liye alag isolated cookie set karein
-      response.cookies.set("super_admin_session", tokenFromQuery, {
+      const res = NextResponse.redirect(cleanUrl);
+      res.cookies.set("super_admin_session", tokenFromQuery, {
         path: "/",
         httpOnly: true,
         secure: isProduction,
         sameSite: "lax",
-        maxAge: 60 * 60 * 24, // 24 Hours
+        maxAge: 60 * 60 * 24, // 24 hours
       });
 
-      return response;
+      res.cookies.set("eventqr_session", tokenFromQuery, {
+        path: "/",
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24,
+      });
+
+      res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      return res;
     }
 
     const response = NextResponse.next();
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return response;
   } catch {
-    return redirectToLogin("invalid_token");
+    return forceLogin("invalid_session");
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import "./globals.css";
 
-const MAIN_LOGIN_GATEWAY_URL = "https://eventqr-live-admin.vercel.app/login";
+const MAIN_LOGIN_GATEWAY_URL =
+  process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL ||
+  "https://eventqr-live-admin.vercel.app/login";
 
 const NAVIGATION_ITEMS = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -37,12 +39,37 @@ export default function RootLayout({
 }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login";
-  
+
   const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
-  // Client-Side Route Guard: Blocks direct access without valid session/token
+  const purgeClientState = useCallback(() => {
+    const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+    document.cookie = `super_admin_session${expiredSuffix}`;
+    document.cookie = `super_admin_token${expiredSuffix}`;
+    document.cookie = `eventqr_session${expiredSuffix}`;
+    document.cookie = `eventqr_session_role${expiredSuffix}`;
+    document.cookie = `token${expiredSuffix}`;
+    document.cookie = `session${expiredSuffix}`;
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {}
+  }, []);
+
+  const kickToLogin = useCallback(
+    (reason: string) => {
+      setIsAuthorized(false);
+      setCheckingAuth(false);
+      purgeClientState();
+      window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=${encodeURIComponent(reason)}`);
+    },
+    [purgeClientState]
+  );
+
+  // 1. Strict Authorization Gate
   useEffect(() => {
     if (isAuthPage) {
       setCheckingAuth(false);
@@ -50,73 +77,89 @@ export default function RootLayout({
       return;
     }
 
-    const checkAuthentication = () => {
-      // 1. Agar URL mein token aaya hai toh allow karo
+    const checkSuperAdminAuth = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const hasUrlToken = urlParams.has("token");
 
-      // 2. Cookies check karein
-      const allCookies = document.cookie;
-      const hasSessionCookie =
-        allCookies.includes("eventqr_session=") ||
-        allCookies.includes("eventqr_session_role=SUPER_ADMIN") ||
-        allCookies.includes("super_admin_session=");
+      // Strict check: Studio Admin cookie ko Super Admin nahi manna
+      const allCookies = typeof document !== "undefined" ? document.cookie : "";
+      const hasSuperAdminCookie =
+        allCookies.includes("super_admin_session=") ||
+        allCookies.includes("eventqr_session_role=SUPER_ADMIN");
 
-      if (hasUrlToken || hasSessionCookie) {
+      if (hasUrlToken || hasSuperAdminCookie) {
         setIsAuthorized(true);
         setCheckingAuth(false);
       } else {
-        // Direct visit bina cookie/token ke -> Kick to unified login gate
-        setIsAuthorized(false);
-        window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=unauthorized`);
+        kickToLogin("super_admin_required");
       }
     };
 
-    checkAuthentication();
-  }, [pathname, isAuthPage]);
+    checkSuperAdminAuth();
+  }, [pathname, isAuthPage, kickToLogin]);
 
+  // 2. Multi-Tab Logout Sync: Kisi bhi tab me logout ho toh turant close ho
+  useEffect(() => {
+    let authChannel: BroadcastChannel | null = null;
+    try {
+      authChannel = new BroadcastChannel("auth_sync_channel");
+      authChannel.onmessage = (event) => {
+        if (event.data === "LOGOUT") {
+          kickToLogin("session_terminated");
+        }
+      };
+    } catch {}
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === "eventqr_logout_event") {
+        kickToLogin("session_terminated");
+      }
+    };
+
+    window.addEventListener("storage", handleStorageEvent);
+
+    return () => {
+      if (authChannel) authChannel.close();
+      window.removeEventListener("storage", handleStorageEvent);
+    };
+  }, [kickToLogin]);
+
+  // 3. Centralized Exit Session
   const handleExitSession = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
 
     try {
-      // Server-side httpOnly cookies delete karein
       await fetch("/api/auth/logout", {
         method: "POST",
+        credentials: "include",
       });
-    } catch {
-      // Continue cleanup
-    }
+    } catch {}
 
-    // Client-side cookies purge
-    const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
-    document.cookie = `eventqr_session${expiredSuffix}`;
-    document.cookie = `eventqr_session_role${expiredSuffix}`;
-    document.cookie = `super_admin_token${expiredSuffix}`;
-    document.cookie = `super_admin_session${expiredSuffix}`;
-    document.cookie = `token${expiredSuffix}`;
-    document.cookie = `session${expiredSuffix}`;
+    // Broadcast across all open tabs
+    try {
+      const authChannel = new BroadcastChannel("auth_sync_channel");
+      authChannel.postMessage("LOGOUT");
+      authChannel.close();
+    } catch {}
 
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch {
-        // Fallback
-      }
+    try {
+      localStorage.setItem("eventqr_logout_event", Date.now().toString());
+    } catch {}
 
-      window.location.href = MAIN_LOGIN_GATEWAY_URL;
-    }
+    purgeClientState();
+    window.location.replace(`${MAIN_LOGIN_GATEWAY_URL}?error=logged_out`);
   };
 
   return (
     <html lang="en">
       <body className="bg-[#030712] text-slate-100 antialiased min-h-screen font-sans selection:bg-pink-500 selection:text-white">
         {checkingAuth && !isAuthPage ? (
-          // Jab tak authentication verify nahi hoti, dashboard render nahi hoga
           <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
-            <span className="text-xs font-mono text-slate-400">Verifying Super Admin Authorization...</span>
+            <span className="text-xs font-mono text-slate-400">
+              Verifying Super Admin Cryptographic Clearance...
+            </span>
           </div>
         ) : isAuthPage ? (
           <main className="min-h-screen">{children}</main>
@@ -164,7 +207,11 @@ export default function RootLayout({
                               : "text-slate-400 hover:text-white hover:bg-slate-900/60"
                           }`}
                         >
-                          <Icon className={`w-4 h-4 ${isActive ? "text-pink-400" : "text-slate-500"}`} />
+                          <Icon
+                            className={`w-4 h-4 ${
+                              isActive ? "text-pink-400" : "text-slate-500"
+                            }`}
+                          />
                           <span>{item.name}</span>
                         </Link>
                       );
@@ -206,9 +253,11 @@ export default function RootLayout({
               <header className="h-16 border-b border-slate-800/80 bg-[#080c14]/80 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-40">
                 <div className="flex items-center gap-3">
                   <h2 className="text-sm font-bold text-white capitalize">
-                    {pathname === "/" ? "Dashboard" : pathname.replace("/", "").replace("-", " ")}
+                    {pathname === "/"
+                      ? "Dashboard"
+                      : pathname.replace("/", "").replace("-", " ")}
                   </h2>
-                  <span className="text-xs text-slate-500">| Welcome back 👋</span>
+                  <span className="text-xs text-slate-500">| Enterprise Clearance Mode</span>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -231,11 +280,11 @@ export default function RootLayout({
 
                   <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
                     <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-pink-500 to-rose-500 text-white font-bold flex items-center justify-center text-xs">
-                      A
+                      SA
                     </div>
                     <div className="text-left hidden md:block">
-                      <p className="text-xs font-bold text-white leading-none">Admin</p>
-                      <p className="text-[10px] text-slate-500 leading-none mt-1">Super Admin</p>
+                      <p className="text-xs font-bold text-white leading-none">Root</p>
+                      <p className="text-[10px] text-pink-400 leading-none mt-1 font-mono">SUPER_ADMIN</p>
                     </div>
                   </div>
                 </div>
