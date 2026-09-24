@@ -19,7 +19,6 @@ const SUPER_ADMIN_LIVE_URL =
   "https://eventqr-live-super-admin.vercel.app";
 
 // --- LAYER 2: IN-MEMORY RATE LIMITER (Brute-Force Guard) ---
-// Max 5 attempts per 60 seconds per IP
 interface RateLimitTracker {
   count: number;
   resetAt: number;
@@ -78,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const identifier = String(body.email || body.identifier || "").trim().toLowerCase();
+    const identifier = String(body.email || body.loginId || body.identifier || "").trim().toLowerCase();
     const inputPass = String(body.password || "").trim();
     const requestedPortal = String(body.portalRole || "").trim().toUpperCase();
 
@@ -138,13 +137,15 @@ export async function POST(req: NextRequest) {
           .setExpirationTime(isSuper ? "1d" : "7d")
           .sign(JWT_SECRET);
 
+        const targetBase = SUPER_ADMIN_LIVE_URL.replace(/\/$/, "");
         const redirectUrl = isSuper
-          ? `${SUPER_ADMIN_LIVE_URL}/?token=${token}`
+          ? `${targetBase}/?token=${encodeURIComponent(token)}`
           : "/events";
 
         const res = NextResponse.json({
           success: true,
           role: rawRole,
+          token, // CRITICAL: Frontend needs this for explicit URL handshake
           redirectTo: redirectUrl,
           user: {
             id: userRecord.id,
@@ -155,6 +156,16 @@ export async function POST(req: NextRequest) {
         });
 
         // Set High-Security HttpOnly Cookies
+        if (isSuper) {
+          res.cookies.set("super_admin_session", token, {
+            path: "/",
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: "lax",
+            maxAge: 60 * 60 * 24,
+          });
+        }
+
         res.cookies.set("eventqr_session", token, {
           path: "/",
           httpOnly: true,
@@ -170,6 +181,9 @@ export async function POST(req: NextRequest) {
           sameSite: "lax",
           maxAge: 60 * 60 * 24 * (isSuper ? 1 : 7),
         });
+
+        // Anti-cache header so login state isn't held in history
+        res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
 
         // Clear rate limiter on successful login
         rateLimitMap.delete(ip);
@@ -213,6 +227,7 @@ export async function POST(req: NextRequest) {
         const res = NextResponse.json({
           success: true,
           role: "STUDIO_ADMIN",
+          token, // CRITICAL: Token returned to UI
           redirectTo: "/events",
           user: {
             id: clientRecord.id,
@@ -237,6 +252,8 @@ export async function POST(req: NextRequest) {
           sameSite: "lax",
           maxAge: 60 * 60 * 24 * 7,
         });
+
+        res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
 
         rateLimitMap.delete(ip);
 
