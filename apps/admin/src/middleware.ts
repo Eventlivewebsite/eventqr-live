@@ -14,7 +14,7 @@ const SUPER_ADMIN_URL =
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  // 1. Static asset, internal endpoint aur file extensions bypass
+  // 1. Static files, assets, API routes ko sidha allow karein
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -23,6 +23,12 @@ export async function middleware(req: NextRequest) {
     pathname === "/sitemap.xml" ||
     /\.(.*)$/.test(pathname)
   ) {
+    return NextResponse.next();
+  }
+
+  // 2. CRITICAL: /login page par KABHI loop mat banne do
+  // Chahe cookie ho ya na ho, /login page hamesha cleanly khulna chahiye
+  if (pathname === "/login") {
     return NextResponse.next();
   }
 
@@ -35,64 +41,42 @@ export async function middleware(req: NextRequest) {
     if (reason) loginUrl.searchParams.set("error", reason);
 
     const res = NextResponse.redirect(loginUrl);
-    // Eradicate untrusted or expired cookies immediately
+    // Loop todne ke liye saari corrupt cookies turant kill karein
     res.cookies.set("eventqr_session", "", { path: "/", maxAge: 0, expires: new Date(0) });
     res.cookies.set("eventqr_session_role", "", { path: "/", maxAge: 0, expires: new Date(0) });
     res.cookies.set("admin_token", "", { path: "/", maxAge: 0, expires: new Date(0) });
     res.cookies.set("client_token", "", { path: "/", maxAge: 0, expires: new Date(0) });
     res.cookies.set("super_admin_session", "", { path: "/", maxAge: 0, expires: new Date(0) });
 
-    // Anti-Cache Lockdown
-    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.headers.set("Pragma", "no-cache");
-    res.headers.set("Expires", "0");
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return res;
   };
 
-  // 2. Login Page Gate
-  if (pathname === "/login") {
-    if (token) {
-      try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
-        const role = String(payload.role || "").toUpperCase();
-
-        // STRICT ISOLATION: Agar Super Admin hai toh Super Admin portal par transfer karo
-        if (role === "SUPER_ADMIN") {
-          return NextResponse.redirect(new URL(SUPER_ADMIN_URL));
-        }
-
-        // Sirf Studio Admin ya Admin hi /events me enter hoga
-        if (role === "STUDIO_ADMIN" || role === "CLIENT" || role === "ADMIN") {
-          return NextResponse.redirect(new URL("/events", req.url));
-        }
-      } catch {
-        // Corrupt token, clear and allow login screen
-      }
-    }
-    return NextResponse.next();
+  // 3. Root route (/) handling
+  if (pathname === "/") {
+    if (!token) return redirectToLogin();
   }
 
-  // 3. Direct unauthenticated visit rejection
+  // 4. Token na ho toh login bhejo
   if (!token) {
     return redirectToLogin("unauthorized");
   }
 
   try {
-    // 4. Cryptographic signature and expiration verification
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const userRole = String(payload.role || "").toUpperCase();
 
-    // 5. Cross-Leakage Block: Super Admin galti se bhi /events ya admin internal routes me na ghuse
+    // 5. Super Admin cross-leak roko: Super Admin direct yahan aaye toh use uske dashboard bhejo
     if (userRole === "SUPER_ADMIN") {
       return NextResponse.redirect(new URL(SUPER_ADMIN_URL));
     }
 
-    // 6. Strict Role Gate: Sirf Studio Partner / Admin allowed
+    // 6. Sirf Studio Admin ya Admin ko allow karo
     if (userRole !== "ADMIN" && userRole !== "STUDIO_ADMIN" && userRole !== "CLIENT") {
       return redirectToLogin("forbidden");
     }
 
-    // 7. Token Handshake from transfer query
+    // 7. Token query handshake (clean URL)
     if (tokenFromQuery) {
       const isProduction = process.env.NODE_ENV === "production";
       const cleanUrl = req.nextUrl.clone();
@@ -115,19 +99,12 @@ export async function middleware(req: NextRequest) {
         maxAge: 60 * 60 * 24 * 7,
       });
 
-      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
       return response;
     }
 
-    // 8. Prevent browser back/forward caching of protected content
     const response = NextResponse.next();
-    response.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate"
-    );
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return response;
   } catch {
     return redirectToLogin("invalid_session");
