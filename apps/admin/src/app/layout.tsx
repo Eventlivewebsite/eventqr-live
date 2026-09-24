@@ -14,27 +14,41 @@ export default function RootLayout({
   const isLoginPage = pathname === "/login" || pathname?.startsWith("/login");
   const [hasValidSession, setHasValidSession] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // 1. Agar login page hai toh check skip karein
+    setMounted(true);
+
+    // 1. Agar login page hai toh authentication check skip karein
     if (isLoginPage) {
       setChecking(false);
       return;
     }
 
     // 2. Client-side authentication check
-    const session = localStorage.getItem("studio_client_session") || localStorage.getItem("eventqr_user");
-    const hasRoleCookie = document.cookie.includes("eventqr_session");
+    const session =
+      typeof window !== "undefined"
+        ? localStorage.getItem("studio_client_session") ||
+          localStorage.getItem("eventqr_user")
+        : null;
+
+    const hasRoleCookie =
+      typeof document !== "undefined" &&
+      document.cookie.includes("eventqr_session");
 
     if (!session && !hasRoleCookie) {
-      window.location.replace(`/login?error=unauthorized&redirect=${encodeURIComponent(pathname || "")}`);
+      window.location.replace(
+        `/login?error=unauthorized&redirect=${encodeURIComponent(
+          pathname || ""
+        )}`
+      );
       return;
     }
 
     setHasValidSession(true);
     setChecking(false);
 
-    // 3. Cross-Tab Synchronized Logout Listener
+    // 3. Multi-Tab Synchronized Logout Listener
     let authChannel: BroadcastChannel | null = null;
     if (typeof window.BroadcastChannel !== "undefined") {
       authChannel = new BroadcastChannel("auth_sync_channel");
@@ -59,24 +73,35 @@ export default function RootLayout({
     };
   }, [isLoginPage, pathname]);
 
-  // LOGIN PAGE VIEW: Left sidebar 0% render hoga, clean screen
+  // Initial SSR mount hone tak clean fallback taaki hydration break na ho
+  if (!mounted) {
+    return (
+      <html lang="en">
+        <body className="bg-[#030712] min-h-screen text-slate-100 font-sans antialiased">
+          {children}
+        </body>
+      </html>
+    );
+  }
+
+  // 1. LOGIN PAGE VIEW: Left sidebar 0% render hoga, clean full screen soft pink layout
   if (isLoginPage) {
     return (
       <html lang="en">
-        <body className="bg-slate-950 min-h-screen font-sans antialiased">
+        <body className="bg-[#ffe4e6] min-h-screen font-sans antialiased overflow-x-hidden">
           <main className="min-h-screen w-full">{children}</main>
         </body>
       </html>
     );
   }
 
-  // PROTECTED ADMIN PAGES VIEW
+  // 2. PROTECTED STUDIO ADMIN PAGES VIEW
   return (
     <html lang="en">
-      <body className="bg-[#030712] text-slate-100 min-h-screen antialiased">
+      <body className="bg-[#030712] text-slate-100 min-h-screen font-sans antialiased selection:bg-pink-500 selection:text-white">
         <div className="flex min-h-screen w-full">
           {hasValidSession && <StudioSidebar />}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#030712]">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-inherit">
             {checking ? (
               <div className="flex min-h-screen items-center justify-center bg-[#030712]">
                 <div className="w-8 h-8 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />

@@ -33,73 +33,55 @@ export default function UnifiedLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Frame Coordinates (0, 1, 2 columns | 0, 1 rows)
-  const [frameX, setFrameX] = useState<0 | 1 | 2>(1); // 0=Left, 1=Center, 2=Right
-  const [frameY, setFrameY] = useState<0 | 1>(1);     // 0=Up, 1=Down
+  // Grid coordinates: 3 cols (0: Left, 1: Center, 2: Right) x 2 rows (0: Up, 1: Down)
+  const [col, setCol] = useState<0 | 1 | 2>(1);
+  const [row, setRow] = useState<0 | 1>(1);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
 
-  const mascotContainerRef = useRef<HTMLDivElement>(null);
+  const mascotBoxRef = useRef<HTMLDivElement>(null);
   const isSuperAdmin = role === "SUPER_ADMIN";
 
-  // Mouse angle tracking relative to the Mascot
+  // Dynamic Cursor Tracking
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isPasswordFocused) return;
 
-      if (!mascotContainerRef.current) return;
-      const rect = mascotContainerRef.current.getBoundingClientRect();
-      const mascotCenterX = rect.left + rect.width / 2;
-      const mascotCenterY = rect.top + rect.height / 2;
+      if (!mascotBoxRef.current) return;
+      const rect = mascotBoxRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
 
-      const deltaX = e.clientX - mascotCenterX;
-      const deltaY = e.clientY - mascotCenterY;
+      const deltaX = e.clientX - centerX;
+      const deltaY = e.clientY - centerY;
 
-      // X-Axis Columns (Strict boundaries)
-      let targetX: 0 | 1 | 2 = 1;
-      if (deltaX < -70) {
-        targetX = 0; // Left frame
-      } else if (deltaX > 70) {
-        targetX = 2; // Right frame
-      } else {
-        targetX = 1; // Center frame
-      }
+      // Horizontal tracking
+      let nextCol: 0 | 1 | 2 = 1;
+      if (deltaX < -50) nextCol = 0; // Look Left
+      else if (deltaX > 50) nextCol = 2; // Look Right
+      else nextCol = 1; // Look Center
 
-      // Y-Axis Rows
-      let targetY: 0 | 1 = 1;
-      if (deltaY < -40) {
-        targetY = 0; // Looking Up
-      } else {
-        targetY = 1; // Looking Down / Forward
-      }
+      // Vertical tracking
+      let nextRow: 0 | 1 = 1;
+      if (deltaY < -20) nextRow = 0; // Look Up
+      else nextRow = 1; // Look Down
 
-      setFrameX(targetX);
-      setFrameY(targetY);
+      setCol(nextCol);
+      setRow(nextRow);
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [isPasswordFocused]);
 
-  // Email typing ke waqt character cursor ko follow karega
-  const handleEmailChange = (val: string) => {
-    setEmail(val);
-    if (!isPasswordFocused) {
-      setFrameY(1);
-      const len = val.length;
-      if (len < 8) setFrameX(0);
-      else if (len < 18) setFrameX(1);
-      else setFrameX(2);
-    }
-  };
-
-  // Exact background-position calculation (3 columns: 0%, 50%, 100% | 2 rows: 0%, 100%)
-  const getSpritePosition = () => {
+  // Pixel-perfect background position calculation
+  const getBackgroundPosition = () => {
     if (isPasswordFocused) {
-      // Password active hone par look-away shy frame (Top-Right)
+      // Shy / Looking away when typing password
       return "100% 0%";
     }
-    const posX = frameX === 0 ? "0%" : frameX === 1 ? "50%" : "100%";
-    const posY = frameY === 0 ? "0%" : "100%";
+    const posX = col === 0 ? "0%" : col === 1 ? "50%" : "100%";
+    const posY = row === 0 ? "0%" : "100%";
     return `${posX} ${posY}`;
   };
 
@@ -152,14 +134,12 @@ export default function UnifiedLoginPage() {
           }
         }
 
-        // Strict Super Admin isolation
         if (authenticatedRole === "SUPER_ADMIN") {
           const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
           window.location.replace(`${targetBase}/?token=${encodeURIComponent(token)}`);
           return;
         }
 
-        // Strict Studio Admin routing
         if (
           authenticatedRole === "STUDIO_ADMIN" ||
           authenticatedRole === "CLIENT" ||
@@ -184,45 +164,48 @@ export default function UnifiedLoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#fff1f2] via-[#ffe4e6] to-[#fce7f3] flex flex-col items-center justify-center p-4 selection:bg-pink-500 selection:text-white font-sans relative overflow-hidden">
       
-      {/* Soft Pink Ambient Glow Orbs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-pink-300/35 rounded-full blur-3xl pointer-events-none" />
+      {/* Soft Ambient Glows */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-pink-300/30 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-rose-300/30 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Mascot Circle Housing */}
+      {/* Mascot Housing Container */}
       <div 
-        ref={mascotContainerRef}
-        className="relative -mb-12 z-20 flex flex-col items-center select-none"
+        ref={mascotBoxRef}
+        onClick={() => {
+          setIsClicked(true);
+          setTimeout(() => setIsClicked(false), 300);
+        }}
+        className="relative -mb-12 z-20 flex flex-col items-center select-none cursor-pointer"
       >
-        {/* Soft Shadow Base under the head */}
-        <div className="relative w-32 h-32 rounded-full p-1.5 bg-gradient-to-b from-white/90 to-pink-100/80 shadow-[0_15px_35px_rgba(244,63,94,0.18)] border border-white/90 backdrop-blur-md flex items-center justify-center animate-[bounce_4s_ease-in-out_infinite]">
+        {/* Outer Circular Ring */}
+        <div className={`w-[124px] h-[124px] rounded-full p-[3px] bg-gradient-to-b from-white to-pink-200 shadow-xl flex items-center justify-center border border-white transition-transform duration-150 ${isClicked ? "scale-90" : "hover:scale-105"}`}>
           
-          {/* Inner Viewport Container: Absolute Pixel-Perfect Single Frame */}
-          <div 
-            className="w-full h-full rounded-full overflow-hidden bg-[#e0f2fe]/40 border-2 border-pink-200/60 transition-transform duration-200"
-            style={{
-              backgroundImage: `url(${SPRITE_URL})`,
-              backgroundRepeat: "no-repeat",
-              // 300% width = exact 3 columns, 200% height = exact 2 rows
-              backgroundSize: "300% 200%",
-              backgroundPosition: getSpritePosition(),
-              // steps() stops partial image bleeding completely
-              transition: "background-position 0s step-end",
-            }}
-          />
+          {/* Inner Clipping Mask: Strict 1-Frame Crop */}
+          <div className="w-[114px] h-[114px] rounded-full overflow-hidden bg-[#eaf4fc] relative flex items-center justify-center">
+            <div 
+              className="w-full h-full rounded-full"
+              style={{
+                backgroundImage: `url(${SPRITE_URL})`,
+                backgroundRepeat: "no-repeat",
+                backgroundSize: "300% 200%",
+                backgroundPosition: getBackgroundPosition(),
+                transition: "background-position 0.05s ease-out",
+              }}
+            />
+          </div>
         </div>
 
-        {/* Shy Bubble on Password Focus */}
+        {/* Shy Reaction Bubble */}
         {isPasswordFocused && (
-          <span className="text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-pink-600 to-rose-500 text-white px-3.5 py-1 rounded-full shadow-lg shadow-pink-500/25 -mt-3 z-30 animate-in fade-in zoom-in-75 duration-200 border border-white/60">
+          <span className="text-[10px] font-black uppercase tracking-wider bg-pink-600 text-white px-3 py-0.5 rounded-full shadow-md -mt-2 z-30 animate-bounce">
             🙈 No Peeking!
           </span>
         )}
       </div>
 
-      {/* Main Glassmorphic Card */}
-      <div className="w-full max-w-[440px] bg-white/90 backdrop-blur-2xl border border-pink-200/90 rounded-[36px] p-8 pt-16 shadow-[0_20px_60px_-15px_rgba(244,63,94,0.12)] space-y-6 z-10 transition-all">
+      {/* Main Login Card */}
+      <div className="w-full max-w-[440px] bg-white/95 backdrop-blur-2xl border border-pink-200/90 rounded-[36px] p-8 pt-16 shadow-[0_20px_60px_-15px_rgba(244,63,94,0.12)] space-y-6 z-10">
         
-        {/* Header */}
         <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2">
             <span className="text-3xl font-black text-slate-900 tracking-tight">
@@ -272,13 +255,13 @@ export default function UnifiedLoginPage() {
 
         {/* Error Notification */}
         {error && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Form Fields */}
+        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
           <div className="space-y-1.5">
             <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
@@ -292,10 +275,10 @@ export default function UnifiedLoginPage() {
                 disabled={loading}
                 value={email}
                 onFocus={() => {
-                  setFrameY(1);
-                  setFrameX(1);
+                  setRow(1);
+                  setCol(1);
                 }}
-                onChange={(e) => handleEmailChange(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder={
                   isSuperAdmin ? "master@eventqr.live" : "royal_studio or studio@mail.com"
                 }
@@ -324,9 +307,7 @@ export default function UnifiedLoginPage() {
               <button
                 type="button"
                 tabIndex={-1}
-                onClick={() => {
-                  setShowPassword(!showPassword);
-                }}
+                onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 text-slate-400 hover:text-slate-600 transition cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

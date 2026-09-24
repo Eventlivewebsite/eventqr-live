@@ -26,7 +26,7 @@ const MAIN_LOGIN_GATEWAY_URL =
 const NAVIGATION_ITEMS = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
-  { name: "Approval Requests", href: "/approvals", icon: ShieldAlert },
+  { name: "Approval Requests", href: "/requests", icon: ShieldAlert },
   { name: "Gallery", href: "/gallery", icon: ImageIcon },
   { name: "QR Codes", href: "/qr-codes", icon: QrCode },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
