@@ -30,59 +30,40 @@ export default function UnifiedLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mascot dynamic tracking & reaction state
-  const mascotRef = useRef<HTMLDivElement>(null);
-  const [mascotLook, setMascotLook] = useState<"center" | "left" | "right" | "up" | "down" | "hide">("center");
+  // Cartoon reaction states
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [pupilPos, setPupilPos] = useState({ x: 0, y: 0 });
+  const [headTilt, setHeadTilt] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = role === "SUPER_ADMIN";
 
-  // Cursor tracking effect for mascot
+  // Cursor tracking for Eyes & Head Tilt
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // Agar password focus hai toh cursor follow na kare (sharma raha hai / hide mode)
-      if (mascotLook === "hide") return;
+      if (isPasswordFocused) return; // Password par hands/shy mode rehta hai
 
-      if (!mascotRef.current) return;
-      const rect = mascotRef.current.getBoundingClientRect();
-      const mascotCenterX = rect.left + rect.width / 2;
-      const mascotCenterY = rect.top + rect.height / 2;
+      if (!cardRef.current) return;
+      const rect = cardRef.current.getBoundingClientRect();
+      const faceCenterX = rect.left + rect.width / 2;
+      const faceCenterY = rect.top + 70; // Mascot head position
 
-      const deltaX = e.clientX - mascotCenterX;
-      const deltaY = e.clientY - mascotCenterY;
+      const dx = e.clientX - faceCenterX;
+      const dy = e.clientY - faceCenterY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Angle calculation
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        if (deltaX < -60) setMascotLook("left");
-        else if (deltaX > 60) setMascotLook("right");
-        else setMascotLook("center");
-      } else {
-        if (deltaY < -60) setMascotLook("up");
-        else if (deltaY > 60) setMascotLook("down");
-        else setMascotLook("center");
-      }
+      // Max eye pupil movement range (-7px to +7px)
+      const maxMove = 7;
+      const moveX = Math.max(-maxMove, Math.min(maxMove, (dx / (dist || 1)) * maxMove));
+      const moveY = Math.max(-maxMove, Math.min(maxMove, (dy / (dist || 1)) * maxMove));
+
+      setPupilPos({ x: moveX, y: moveY });
+      setHeadTilt(Math.max(-10, Math.min(10, (dx / 30))));
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [mascotLook]);
-
-  // Sprite Background Positions based on directions.png
-  const getMascotPosition = () => {
-    switch (mascotLook) {
-      case "left":
-        return { transform: "rotate(-6deg) translateX(-4px)" };
-      case "right":
-        return { transform: "rotate(6deg) translateX(4px)" };
-      case "up":
-        return { transform: "translateY(-6px) scale(0.98)" };
-      case "down":
-        return { transform: "translateY(5px)" };
-      case "hide":
-        return { transform: "rotate(-18deg) translateY(12px) scale(0.92)", filter: "blur(0.5px)" };
-      default:
-        return { transform: "translate(0, 0)" };
-    }
-  };
+  }, [isPasswordFocused]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +95,7 @@ export default function UnifiedLoginPage() {
 
       const data = await res.json().catch(() => ({
         success: false,
-        error: "Server response was invalid. Please try again.",
+        error: "Server response invalid. Please check internet connection.",
       }));
 
       if (res.ok && data.success) {
@@ -133,14 +114,14 @@ export default function UnifiedLoginPage() {
           }
         }
 
-        // SUPER ADMIN STRICT ISOLATION
+        // Super Admin isolated transfer
         if (authenticatedRole === "SUPER_ADMIN") {
-          const targetDomain = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
-          window.location.replace(`${targetDomain}/?token=${encodeURIComponent(token)}`);
+          const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
+          window.location.replace(`${targetBase}/?token=${encodeURIComponent(token)}`);
           return;
         }
 
-        // STUDIO ADMIN STRICT ROUTING
+        // Studio Admin direct route
         if (
           authenticatedRole === "STUDIO_ADMIN" ||
           authenticatedRole === "CLIENT" ||
@@ -150,59 +131,127 @@ export default function UnifiedLoginPage() {
           return;
         }
 
-        setError("Unrecognized account clearance level.");
+        setError("Access clearance mismatch.");
         setLoading(false);
       } else {
-        setError(data.error || "Authentication failed. Please verify credentials.");
-        setMascotLook("hide");
+        setError(data.error || "Invalid username or password.");
         setLoading(false);
       }
     } catch {
-      setError("Network or server connection issue. Please retry.");
+      setError("Unable to connect to authentication gateway.");
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fff1f2] via-[#ffe4e6] to-[#fce7f3] flex flex-col items-center justify-center p-4 selection:bg-pink-500 selection:text-white font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#ffe4e6] via-[#fecdd3] to-[#fbcfe8] flex flex-col items-center justify-center p-4 selection:bg-pink-500 selection:text-white font-sans relative overflow-hidden">
       
-      {/* Soft Glow Ambient Background Orbs */}
+      {/* Soft Ambient Pastel Orbs */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-pink-300/40 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-rose-300/30 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-rose-300/40 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Interactive Mascot Area */}
-      <div className="relative -mb-6 z-10 flex flex-col items-center select-none" ref={mascotRef}>
-        <div 
-          className="transition-all duration-300 ease-out drop-shadow-xl"
-          style={getMascotPosition()}
-        >
-          <img
-            src="https://raw.githubusercontent.com/nilbuild/page-mascot/main/characters/glasses/directions.png"
-            alt="EventQR Mascot"
-            className="w-24 h-24 object-contain pointer-events-none filter drop-shadow-md"
-          />
+      {/* Interactive Cartoon Character Wrapper */}
+      <div 
+        className="relative -mb-8 z-20 flex flex-col items-center select-none"
+        style={{
+          transform: `rotate(${headTilt}deg)`,
+          transition: "transform 0.15s ease-out",
+        }}
+      >
+        {/* Character Head Body */}
+        <div className="relative w-28 h-28 bg-[#fde047] border-4 border-slate-900 rounded-full flex flex-col items-center justify-center shadow-xl overflow-hidden">
+          
+          {/* Eyebrows */}
+          <div className="flex gap-4 mb-1 z-10">
+            <div className={`w-5 h-1.5 bg-slate-900 rounded-full transition-transform duration-200 ${isPasswordFocused ? "rotate-12 translate-y-1" : "-rotate-6"}`} />
+            <div className={`w-5 h-1.5 bg-slate-900 rounded-full transition-transform duration-200 ${isPasswordFocused ? "-rotate-12 translate-y-1" : "rotate-6"}`} />
+          </div>
+
+          {/* Glasses Frame with Animated Pupils */}
+          <div className="flex items-center gap-1 z-10">
+            {/* Left Eye Glass */}
+            <div className="w-10 h-10 bg-white border-[3.5px] border-slate-900 rounded-full relative flex items-center justify-center overflow-hidden shadow-inner">
+              {isPasswordFocused ? (
+                // Shy/Closed eye curve
+                <div className="w-6 h-1 bg-slate-900 rounded-full translate-y-1" />
+              ) : (
+                // Moving Eyeball
+                <div 
+                  className="w-4 h-4 bg-slate-900 rounded-full relative transition-transform duration-75 ease-out"
+                  style={{ transform: `translate(${pupilPos.x}px, ${pupilPos.y}px)` }}
+                >
+                  <div className="w-1.5 h-1.5 bg-white rounded-full absolute top-0.5 right-0.5" />
+                </div>
+              )}
+            </div>
+
+            {/* Glasses Bridge */}
+            <div className="w-2 h-1 bg-slate-900 -mx-0.5" />
+
+            {/* Right Eye Glass */}
+            <div className="w-10 h-10 bg-white border-[3.5px] border-slate-900 rounded-full relative flex items-center justify-center overflow-hidden shadow-inner">
+              {isPasswordFocused ? (
+                <div className="w-6 h-1 bg-slate-900 rounded-full translate-y-1" />
+              ) : (
+                <div 
+                  className="w-4 h-4 bg-slate-900 rounded-full relative transition-transform duration-75 ease-out"
+                  style={{ transform: `translate(${pupilPos.x}px, ${pupilPos.y}px)` }}
+                >
+                  <div className="w-1.5 h-1.5 bg-white rounded-full absolute top-0.5 right-0.5" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Blushing Cheeks */}
+          <div className="flex justify-between w-20 px-2 mt-1 z-10">
+            <div className="w-3.5 h-2 bg-pink-400/80 rounded-full blur-[1px]" />
+            <div className="w-3.5 h-2 bg-pink-400/80 rounded-full blur-[1px]" />
+          </div>
+
+          {/* Mouth Reaction */}
+          <div className="z-10 mt-0.5 transition-all duration-200">
+            {isPasswordFocused ? (
+              <div className="w-3 h-2 border-b-2 border-slate-900 rounded-full" />
+            ) : (
+              <div className="w-4 h-2 bg-slate-900 rounded-b-full" />
+            )}
+          </div>
+
+          {/* Animated Cartoon Hands (covers eyes on password focus) */}
+          <div 
+            className={`absolute inset-x-0 bottom-0 flex justify-between px-3 z-30 transition-transform duration-300 ease-out ${
+              isPasswordFocused ? "translate-y-2" : "translate-y-16"
+            }`}
+          >
+            <div className="w-7 h-9 bg-yellow-400 border-3 border-slate-900 rounded-full rotate-12 shadow" />
+            <div className="w-7 h-9 bg-yellow-400 border-3 border-slate-900 rounded-full -rotate-12 shadow" />
+          </div>
         </div>
-        {mascotLook === "hide" && (
-          <span className="text-[10px] font-bold bg-pink-100 text-pink-600 px-2.5 py-0.5 rounded-full border border-pink-200 shadow-sm animate-bounce">
-            🙈 No peeking!
+
+        {isPasswordFocused && (
+          <span className="text-[10px] font-black tracking-wider uppercase bg-pink-600 text-white px-3 py-0.5 rounded-full shadow-md mt-1 animate-bounce">
+            🙈 No Peeking!
           </span>
         )}
       </div>
 
-      {/* Main Glassmorphic Card */}
-      <div className="w-full max-w-[440px] bg-white/90 backdrop-blur-xl border border-pink-200/80 rounded-[32px] p-8 shadow-2xl shadow-pink-500/10 space-y-6 z-20 transition-all">
-        
+      {/* Login Card */}
+      <div 
+        ref={cardRef}
+        className="w-full max-w-[440px] bg-white/95 backdrop-blur-xl border border-pink-200/90 rounded-[32px] p-8 shadow-2xl shadow-pink-500/15 space-y-6 z-10 transition-all"
+      >
         {/* Brand Header */}
         <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2">
-            <span className="text-3xl font-black text-slate-800 tracking-tight">
+            <span className="text-3xl font-black text-slate-900 tracking-tight">
               EventQR <span className="text-pink-600">Live</span>
             </span>
             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-pink-50 text-pink-600 border border-pink-200">
               GATEWAY
             </span>
           </div>
-          <p className="text-xs text-slate-500">Choose your workspace to get started</p>
+          <p className="text-xs text-slate-500">Select portal to authenticate workspace</p>
         </div>
 
         {/* Portal Switch Tabs */}
@@ -212,7 +261,6 @@ export default function UnifiedLoginPage() {
             onClick={() => {
               setRole("SUPER_ADMIN");
               setError(null);
-              setMascotLook("center");
             }}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               isSuperAdmin
@@ -229,7 +277,6 @@ export default function UnifiedLoginPage() {
             onClick={() => {
               setRole("STUDIO_CLIENT");
               setError(null);
-              setMascotLook("center");
             }}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               !isSuperAdmin
@@ -263,8 +310,6 @@ export default function UnifiedLoginPage() {
                 required
                 disabled={loading}
                 value={email}
-                onFocus={() => setMascotLook("down")}
-                onBlur={() => setMascotLook("center")}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={
                   isSuperAdmin ? "master@eventqr.live" : "royal_studio or studio@mail.com"
@@ -285,8 +330,8 @@ export default function UnifiedLoginPage() {
                 required
                 disabled={loading}
                 value={password}
-                onFocus={() => setMascotLook("hide")} // Sharma kar chupne ka reaction
-                onBlur={() => setMascotLook("center")}
+                onFocus={() => setIsPasswordFocused(true)}
+                onBlur={() => setIsPasswordFocused(false)}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 className="w-full bg-slate-50/80 border border-pink-100 rounded-xl pl-10 pr-10 py-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-pink-500 focus:bg-white focus:ring-2 focus:ring-pink-500/10 disabled:opacity-50"
@@ -294,10 +339,7 @@ export default function UnifiedLoginPage() {
               <button
                 type="button"
                 tabIndex={-1}
-                onClick={() => {
-                  setShowPassword(!showPassword);
-                  setMascotLook(showPassword ? "hide" : "right");
-                }}
+                onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 text-slate-400 hover:text-slate-600 transition cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -308,8 +350,6 @@ export default function UnifiedLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            onMouseEnter={() => setMascotLook("up")}
-            onMouseLeave={() => setMascotLook("center")}
             className={`w-full mt-2 py-3.5 px-4 text-white text-xs font-black rounded-xl flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xl ${
               isSuperAdmin
                 ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/25"
@@ -334,7 +374,7 @@ export default function UnifiedLoginPage() {
 
         <div className="pt-2 border-t border-pink-100/80 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
           <Sparkles className="w-3.5 h-3.5 text-pink-500" />
-          <span>Enterprise Multi-Tenant Security Shield</span>
+          <span>Enterprise Multi-Tenant Security Gateway</span>
         </div>
       </div>
     </div>
