@@ -13,17 +13,19 @@ const STUDIO_LOGIN_URL =
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
+  // 1. Static files aur API routes bypass karein
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    /\.(.*)$/.test(pathname)
+    pathname === "/login"
   ) {
     return NextResponse.next();
   }
 
+  // 2. Token extraction (URL Query pehle, fir Cookies)
   const tokenFromQuery = searchParams.get("token");
   const tokenFromCookie =
     req.cookies.get("super_admin_session")?.value ||
@@ -31,39 +33,43 @@ export async function middleware(req: NextRequest) {
 
   const token = tokenFromQuery || tokenFromCookie;
 
-  const forceLogin = (reason: string) => {
+  const redirectToLogin = (reason: string) => {
     const loginUrl = new URL(STUDIO_LOGIN_URL);
     loginUrl.searchParams.set("error", reason);
 
     const res = NextResponse.redirect(loginUrl.toString());
-    const delList = ["super_admin_session", "super_admin_token", "eventqr_session", "eventqr_session_role"];
-    delList.forEach((c) => res.cookies.set(c, "", { path: "/", maxAge: 0 }));
-
+    res.cookies.set("super_admin_session", "", { path: "/", maxAge: 0 });
+    res.cookies.set("super_admin_token", "", { path: "/", maxAge: 0 });
+    res.cookies.set("eventqr_session", "", { path: "/", maxAge: 0 });
+    res.cookies.set("eventqr_session_role", "", { path: "/", maxAge: 0 });
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return res;
   };
 
+  // Direct visit bina token ke -> Redirect to login
   if (!token) {
-    return forceLogin("unauthorized");
+    return redirectToLogin("unauthorized");
   }
 
   try {
+    // 3. Verify JWT
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const userRole = String(payload.role || "").toUpperCase();
 
-    // SUPER_ADMIN clearance required
+    // STRICT CHECK: Sirf SUPER_ADMIN allow hoga
     if (userRole !== "SUPER_ADMIN") {
-      return forceLogin("forbidden");
+      return redirectToLogin("forbidden_not_super_admin");
     }
 
-    // Token query handshake
+    // 4. Token Handshake: Agar token URL me aaya hai, toh cookie set karein aur clean URL par bheinjein
     if (tokenFromQuery) {
       const isProduction = process.env.NODE_ENV === "production";
       const cleanUrl = req.nextUrl.clone();
       cleanUrl.searchParams.delete("token");
 
-      const res = NextResponse.redirect(cleanUrl);
-      res.cookies.set("super_admin_session", tokenFromQuery, {
+      const response = NextResponse.redirect(cleanUrl);
+
+      response.cookies.set("super_admin_session", tokenFromQuery, {
         path: "/",
         httpOnly: true,
         secure: isProduction,
@@ -71,23 +77,25 @@ export async function middleware(req: NextRequest) {
         maxAge: 60 * 60 * 24, // 24 hours
       });
 
-      res.cookies.set("eventqr_session", tokenFromQuery, {
+      response.cookies.set("eventqr_session_role", "SUPER_ADMIN", {
         path: "/",
-        httpOnly: true,
+        httpOnly: false,
         secure: isProduction,
         sameSite: "lax",
         maxAge: 60 * 60 * 24,
       });
 
-      res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
-      return res;
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      return response;
     }
 
+    // 5. Valid session already present -> Allow access
     const response = NextResponse.next();
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return response;
-  } catch {
-    return forceLogin("invalid_session");
+  } catch (err) {
+    console.error("Super Admin Middleware Verification Failed:", err);
+    return redirectToLogin("invalid_or_expired_token");
   }
 }
 

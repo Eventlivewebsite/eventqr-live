@@ -14,7 +14,9 @@ import {
   EyeOff,
 } from "lucide-react";
 
-const LIVE_SUPER_ADMIN_URL = "https://eventqr-live-super-admin.vercel.app";
+const LIVE_SUPER_ADMIN_URL =
+  process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
+  "https://eventqr-live-super-admin.vercel.app";
 
 type PortalRole = "SUPER_ADMIN" | "STUDIO_CLIENT";
 
@@ -36,7 +38,7 @@ export default function UnifiedLoginPage() {
     setError(null);
     setLoading(true);
 
-    const cleanIdentifier = email.trim().toLowerCase();
+    const cleanIdentifier = email.trim();
     const cleanPassword = password.trim();
 
     if (!cleanIdentifier || !cleanPassword) {
@@ -53,6 +55,7 @@ export default function UnifiedLoginPage() {
         },
         body: JSON.stringify({
           email: cleanIdentifier,
+          loginId: cleanIdentifier,
           password: cleanPassword,
           portalRole: role,
         }),
@@ -64,46 +67,46 @@ export default function UnifiedLoginPage() {
       }));
 
       if (res.ok && data.success) {
+        // Backend se authenticated real role extract karein
+        const authenticatedRole = String(
+          data.role || data.user?.role || ""
+        ).toUpperCase();
+        const token = data.token || "";
+
+        // Client cache safely clean karein taaki purane session se clash na ho
         if (typeof window !== "undefined") {
           localStorage.removeItem("eventqr_user");
           localStorage.removeItem("studio_client_session");
 
           localStorage.setItem("eventqr_user", JSON.stringify(data.user));
 
-          if (data.role === "STUDIO_ADMIN") {
+          if (authenticatedRole === "STUDIO_ADMIN" || authenticatedRole === "CLIENT") {
             localStorage.setItem("studio_client_session", JSON.stringify(data.user));
           }
         }
 
-        const userRole = String(data.role || "").toUpperCase();
+        // ============================================================
+        // 1. STRICT SUPER ADMIN HANDOVER (Cross-Domain Token Handshake)
+        // ============================================================
+        if (authenticatedRole === "SUPER_ADMIN") {
+          // Token query parameter me transfer karein taaki Super Admin portal verify kar sake
+          const targetDomain = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
+          const handoverUrl = `${targetDomain}/?token=${encodeURIComponent(token)}`;
 
-        // 1. Super Admin: Always handover to dedicated super admin console
-        if (userRole === "SUPER_ADMIN") {
-          let destination = data.redirectTo;
-
-          if (
-            !destination ||
-            destination === "/super-admin" ||
-            destination.includes("localhost:3001")
-          ) {
-            destination = LIVE_SUPER_ADMIN_URL;
-          }
-
-          window.location.href = destination;
+          window.location.replace(handoverUrl);
           return;
         }
 
-        // 2. Studio Admin / Client: Internal routing
-        const targetDestination = data.redirectTo || "/events";
-        if (
-          targetDestination.startsWith("http://") ||
-          targetDestination.startsWith("https://")
-        ) {
-          window.location.href = targetDestination;
-        } else {
-          router.push(targetDestination);
-          router.refresh();
+        // ============================================================
+        // 2. STRICT STUDIO ADMIN / CLIENT ROUTING
+        // ============================================================
+        if (authenticatedRole === "STUDIO_ADMIN" || authenticatedRole === "CLIENT" || authenticatedRole === "ADMIN") {
+          window.location.replace("/events");
+          return;
         }
+
+        setError("Unrecognized account clearance level.");
+        setLoading(false);
       } else {
         setError(data.error || "Authentication failed. Please verify credentials.");
         setLoading(false);
