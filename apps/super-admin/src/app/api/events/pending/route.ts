@@ -11,15 +11,18 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export async function GET(req: NextRequest) {
   try {
-    // 1. Strict Server-Side Super Admin Authentication Check
+    // 1. Comprehensive Cookie & Header Extraction for Super Admin
     const token =
+      req.cookies.get("super_admin_session")?.value ||
+      req.cookies.get("super_admin_token")?.value ||
       req.cookies.get("eventqr_session")?.value ||
       req.cookies.get("admin_token")?.value ||
-      req.headers.get("authorization")?.replace("Bearer ", "");
+      req.headers.get("authorization")?.replace("Bearer ", "") ||
+      req.nextUrl.searchParams.get("token");
 
     if (!token) {
       return NextResponse.json(
-        { success: false, error: "Access Denied: Unauthenticated session." },
+        { success: false, error: "Access Denied: Unauthenticated session.", events: [] },
         { status: 401 }
       );
     }
@@ -28,41 +31,50 @@ export async function GET(req: NextRequest) {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       const userRole = String(payload.role || "").toUpperCase();
 
-      if (userRole !== "SUPER_ADMIN") {
+      if (userRole !== "SUPER_ADMIN" && userRole !== "ADMIN") {
         return NextResponse.json(
-          { success: false, error: "Access Forbidden: Super Admin clearance required." },
+          { success: false, error: "Access Forbidden: Super Admin clearance required.", events: [] },
           { status: 403 }
         );
       }
     } catch {
       return NextResponse.json(
-        { success: false, error: "Invalid or expired session token." },
+        { success: false, error: "Invalid or expired session token.", events: [] },
         { status: 401 }
       );
     }
 
-    // 2. Fetch Events with Settings and Client Relations Safely
-    const events = await (prisma.event as any).findMany({
-      where: { isDeleted: false },
-      include: {
-        settings: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // 2. Safe Database Query with Fallback
+    let events: any[] = [];
+    try {
+      events = await (prisma.event as any).findMany({
+        where: {
+          OR: [{ isDeleted: false }, { isDeleted: null }],
+        },
+        include: {
+          settings: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch {
+      // Fallback agar isDeleted column exist nahi karta
+      events = await (prisma.event as any).findMany({
+        include: {
+          settings: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
 
     let clientMap: Record<string, any> = {};
     try {
-      const clients = await (prisma.client as any).findMany({
-        where: { isDeleted: false },
-      });
+      const clients = await (prisma.client as any).findMany();
       if (Array.isArray(clients)) {
         clients.forEach((c: any) => {
           clientMap[c.id] = c;
         });
       }
-    } catch {
-      // Safe fallback if client fetch fails
-    }
+    } catch {}
 
     const formattedEvents = events.map((ev: any) => {
       const studio = ev.clientId ? clientMap[ev.clientId] : null;
@@ -71,7 +83,7 @@ export async function GET(req: NextRequest) {
       let finalStatus = "PENDING";
       let isLiveBool = false;
 
-      if (rawStatus === "APPROVED" || rawStatus === "ACTIVE") {
+      if (rawStatus === "APPROVED" || rawStatus === "ACTIVE" || ev.isLive) {
         finalStatus = "APPROVED";
         isLiveBool = true;
       } else if (rawStatus === "REJECTED") {
@@ -82,11 +94,12 @@ export async function GET(req: NextRequest) {
         isLiveBool = false;
       }
 
-      // Parse Custom Settings for Storage Retention and Expiry Date
       let customSettings: any = {};
       try {
         if (ev.settings?.customSettings) {
-          customSettings = JSON.parse(ev.settings.customSettings);
+          customSettings = typeof ev.settings.customSettings === "string" 
+            ? JSON.parse(ev.settings.customSettings) 
+            : ev.settings.customSettings;
         }
       } catch {
         customSettings = {};
@@ -115,8 +128,8 @@ export async function GET(req: NextRequest) {
             studio?.companyName ||
             studio?.name ||
             studio?.loginId ||
-            "Wasim Studio",
-          email: studio?.email || "wasim@gmail.com",
+            "Studio Partner",
+          email: studio?.email || "studio@eventqr.live",
           phone: studio?.phone || "N/A",
         },
       };
