@@ -15,7 +15,6 @@ import {
   Bell,
   Search,
   Loader2,
-  Palette,
 } from "lucide-react";
 import "./globals.css";
 
@@ -23,10 +22,11 @@ const MAIN_LOGIN_GATEWAY_URL =
   process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL ||
   "https://eventqr-live-admin.vercel.app/login";
 
+// FIXED: Sahi verified routes configure kiye gaye hain
 const NAVIGATION_ITEMS = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
-  { name: "Approval Requests", href: "/requests", icon: ShieldAlert },
+  { name: "Approval Requests", href: "/approvals", icon: ShieldAlert },
   { name: "Gallery", href: "/gallery", icon: ImageIcon },
   { name: "QR Codes", href: "/qr-codes", icon: QrCode },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
@@ -62,7 +62,7 @@ export default function RootLayout({
     } catch {}
   };
 
-  // Cross-Tab Logout Listener: Agar kisi aur tab me logout ho tabhi redirect kare
+  // Cross-Tab Logout Listener: Kisi aur tab me logout hote hi instant termination
   useEffect(() => {
     let authChannel: BroadcastChannel | null = null;
     try {
@@ -99,7 +99,7 @@ export default function RootLayout({
       });
     } catch {}
 
-    // Broadcast across tabs
+    // Broadcast across all open tabs
     try {
       const authChannel = new BroadcastChannel("auth_sync_channel");
       authChannel.postMessage("LOGOUT");
@@ -110,6 +110,7 @@ export default function RootLayout({
       localStorage.setItem("eventqr_logout_event", Date.now().toString());
     } catch {}
 
+    // Deep cookie & session eradication
     const expiredSuffix = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
     document.cookie = `super_admin_session${expiredSuffix}`;
     document.cookie = `super_admin_token${expiredSuffix}`;
@@ -134,7 +135,7 @@ export default function RootLayout({
     );
   }
 
-  // Theme styling definitions
+  // Exact Theme Configuration Classes
   const themeClasses = {
     dark: {
       body: "bg-[#030712] text-slate-100",
@@ -169,7 +170,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${themeClasses.body} antialiased min-h-screen font-sans selection:bg-pink-500 selection:text-white`}>
         <div className="flex min-h-screen w-full">
-          {/* Left Sidebar */}
+          {/* Left Master Sidebar */}
           <aside className={`w-64 border-r ${themeClasses.sidebar} flex flex-col justify-between p-5 shrink-0 sticky top-0 h-screen transition-colors duration-200`}>
             <div className="space-y-6">
               {/* Brand Header */}
@@ -188,7 +189,7 @@ export default function RootLayout({
                 </p>
               </div>
 
-              {/* Nav Links */}
+              {/* Navigation Items */}
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider px-3 block mb-2">
                   Master Menu
@@ -207,7 +208,7 @@ export default function RootLayout({
                         href={item.href}
                         className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition ${
                           isActive
-                            ? "bg-gradient-to-r from-pink-500/20 to-purple-500/10 text-pink-500 border border-pink-500/30"
+                            ? "bg-gradient-to-r from-pink-500/20 to-purple-500/10 text-pink-500 border border-pink-500/30 font-bold shadow-sm"
                             : themeClasses.navHover
                         }`}
                       >
@@ -240,7 +241,7 @@ export default function RootLayout({
                 type="button"
                 onClick={handleExitSession}
                 disabled={isLoggingOut}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition cursor-pointer disabled:opacity-50"
               >
                 {isLoggingOut ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -252,7 +253,7 @@ export default function RootLayout({
             </div>
           </aside>
 
-          {/* Main Area with Top Header */}
+          {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0">
             <header className={`h-16 border-b ${themeClasses.header} backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-40 transition-colors duration-200`}>
               <div className="flex items-center gap-3">
@@ -275,7 +276,7 @@ export default function RootLayout({
                   />
                 </div>
 
-                {/* Theme Selector Dropdown */}
+                {/* Theme Selector (Dark, Blue, Light) */}
                 <div className="flex items-center gap-1 bg-slate-800/40 p-1 rounded-xl border border-slate-700/50">
                   <button
                     type="button"
