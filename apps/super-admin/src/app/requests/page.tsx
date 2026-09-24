@@ -74,7 +74,7 @@ export default function ApprovalRequestsPage() {
     return String(str).trim();
   };
 
-  // Fetch Requests
+  // Fetch Requests without wrongful redirection to Admin
   const loadRequests = useCallback(async () => {
     setLoading(true);
     setErrorBanner(null);
@@ -89,13 +89,12 @@ export default function ApprovalRequestsPage() {
         },
       });
 
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-
       if (!res.ok) {
-        setErrorBanner(`Server communication failed with status ${res.status}`);
+        if (res.status === 401) {
+          setErrorBanner("Session clearance required. Please re-authenticate your master key.");
+        } else {
+          setErrorBanner(`Server communication failed with status ${res.status}`);
+        }
         setRequests([]);
         return;
       }
@@ -105,7 +104,6 @@ export default function ApprovalRequestsPage() {
         events: [],
       }));
 
-      // Support both `events` and `requests` mapping safely
       const items = data.events || (data as any).requests || [];
       if (data.success && Array.isArray(items)) {
         setRequests(items);
@@ -114,7 +112,7 @@ export default function ApprovalRequestsPage() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Network error";
-      setErrorBanner(`Secure fetch error: ${msg}`);
+      setErrorBanner(`Secure fetch issue: ${msg}`);
       setRequests([]);
     } finally {
       setLoading(false);
@@ -122,13 +120,7 @@ export default function ApprovalRequestsPage() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    if (isMounted) {
-      void loadRequests();
-    }
-    return () => {
-      isMounted = false;
-    };
+    loadRequests();
   }, [loadRequests]);
 
   // Action Handler (ACCEPT or REJECT)
@@ -155,15 +147,9 @@ export default function ApprovalRequestsPage() {
         body: JSON.stringify({ action: action.toLowerCase() === "accept" ? "approve" : "reject" }),
       });
 
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-
       const data: ApiResponse = await res.json().catch(() => ({ success: false }));
 
       if (res.ok && data.success) {
-        // Update state in UI immediately
         setRequests((prev) =>
           prev.map((req) =>
             req.id === cleanId
@@ -258,7 +244,7 @@ export default function ApprovalRequestsPage() {
       : "http://localhost:3002");
 
   return (
-    <div className="p-8 space-y-6 bg-[#030712] min-h-screen text-slate-100 font-sans selection:bg-pink-500 selection:text-white">
+    <div className="p-8 space-y-6 bg-inherit min-h-screen font-sans">
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-8 bg-[#080c14] border border-slate-800/80 rounded-3xl shadow-2xl relative overflow-hidden">
         <div className="space-y-1">
@@ -513,7 +499,6 @@ export default function ApprovalRequestsPage() {
                         )}
                       </td>
 
-                      {/* Actions */}
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -570,7 +555,7 @@ export default function ApprovalRequestsPage() {
         )}
       </div>
 
-      {/* AUDIT MODAL (WITH STORAGE DETAILS DISPLAY) */}
+      {/* Audit Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-xl bg-[#080c14] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-150">
