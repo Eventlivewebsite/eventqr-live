@@ -148,7 +148,6 @@ export async function GET(
     }
 
     // 3. IDOR / Resource Ownership Validation
-    // Studio Admin sirf apna event dekh sake; Super Admin sab dekh sakta hai
     if (session.role === "STUDIO_ADMIN" && event.clientId && event.clientId !== session.userId) {
       return NextResponse.json(
         { success: false, error: "Access Forbidden: Resource ownership validation failed." },
@@ -305,87 +304,84 @@ export async function POST(
       eventUpdateData.pinCode = sanitizedPin.length > 0 ? sanitizedPin : null;
     }
 
-    // 4. Atomic Database Transaction
-    await prisma.$transaction(async (tx: any) => {
-      // Core Event Update
-      await tx.event.update({
-        where: { id: cleanId },
-        data: eventUpdateData,
-      });
-
-      // Settings Object Bundle
-      const serializedCustomSettings = JSON.stringify({
-        familyMembers: Array.isArray(body.familyMembers) ? body.familyMembers.slice(0, 100) : [],
-        foodItems: Array.isArray(body.foodItems) ? body.foodItems.slice(0, 150) : [],
-        decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
-        heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
-      });
-
-      const settingsData = {
-        subtitle: finalSubtitle,
-        allowDownloads: Boolean(body.allowDownloads ?? true),
-        allowLikes: Boolean(body.allowComments ?? true),
-        customSettings: serializedCustomSettings,
-      };
-
-      await tx.eventSettings.upsert({
-        where: { eventId: cleanId },
-        update: settingsData,
-        create: { eventId: cleanId, ...settingsData },
-      });
-
-      // Sync Categories / Albums with Bound Constraints
-      if (Array.isArray(body.categories)) {
-        const categories = body.categories.slice(0, 30);
-        for (let i = 0; i < categories.length; i++) {
-          const cat = sanitizeString(categories[i], 80);
-          if (!cat) continue;
-          const slug = cat
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "");
-
-          if (!slug) continue;
-
-          const existing = await tx.album.findFirst({
-            where: { eventId: cleanId, slug },
-          });
-
-          if (!existing) {
-            await tx.album.create({
-              data: { eventId: cleanId, title: cat, slug, sortOrder: i },
-            });
-          } else {
-            await tx.album.update({
-              where: { id: existing.id },
-              data: { title: cat, sortOrder: i },
-            });
-          }
-        }
-      }
-
-      // Sync Timeline Atomically
-      if (Array.isArray(body.timeline)) {
-        await tx.eventTimeline.deleteMany({ where: { eventId: cleanId } });
-        const timelineItems = body.timeline.slice(0, 40);
-
-        for (let i = 0; i < timelineItems.length; i++) {
-          const t = timelineItems[i];
-          const itemTitle = sanitizeString(t?.title, 100);
-          if (!itemTitle) continue;
-
-          await tx.eventTimeline.create({
-            data: {
-              eventId: cleanId,
-              title: itemTitle,
-              timeText: sanitizeString(t.time || "TBD", 30),
-              statusText: sanitizeString(t.status || "UPCOMING", 30),
-              sortOrder: i,
-            },
-          });
-        }
-      }
+    // 4. Safe Sequential Execution (Supabase Pooler Friendly)
+    await prisma.event.update({
+      where: { id: cleanId },
+      data: eventUpdateData,
     });
+
+    // Settings Object Bundle
+    const serializedCustomSettings = JSON.stringify({
+      familyMembers: Array.isArray(body.familyMembers) ? body.familyMembers.slice(0, 100) : [],
+      foodItems: Array.isArray(body.foodItems) ? body.foodItems.slice(0, 150) : [],
+      decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
+      heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
+    });
+
+    const settingsData = {
+      subtitle: finalSubtitle,
+      allowDownloads: Boolean(body.allowDownloads ?? true),
+      allowLikes: Boolean(body.allowComments ?? true),
+      customSettings: serializedCustomSettings,
+    };
+
+    await prisma.eventSettings.upsert({
+      where: { eventId: cleanId },
+      update: settingsData,
+      create: { eventId: cleanId, ...settingsData },
+    });
+
+    // Sync Categories / Albums
+    if (Array.isArray(body.categories)) {
+      const categories = body.categories.slice(0, 30);
+      for (let i = 0; i < categories.length; i++) {
+        const cat = sanitizeString(categories[i], 80);
+        if (!cat) continue;
+        const slug = cat
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+
+        if (!slug) continue;
+
+        const existing = await prisma.album.findFirst({
+          where: { eventId: cleanId, slug },
+        });
+
+        if (!existing) {
+          await prisma.album.create({
+            data: { eventId: cleanId, title: cat, slug, sortOrder: i },
+          });
+        } else {
+          await prisma.album.update({
+            where: { id: existing.id },
+            data: { title: cat, sortOrder: i },
+          });
+        }
+      }
+    }
+
+    // Sync Timeline
+    if (Array.isArray(body.timeline)) {
+      await prisma.eventTimeline.deleteMany({ where: { eventId: cleanId } });
+      const timelineItems = body.timeline.slice(0, 40);
+
+      for (let i = 0; i < timelineItems.length; i++) {
+        const t = timelineItems[i];
+        const itemTitle = sanitizeString(t?.title, 100);
+        if (!itemTitle) continue;
+
+        await prisma.eventTimeline.create({
+          data: {
+            eventId: cleanId,
+            title: itemTitle,
+            timeText: sanitizeString(t.time || "TBD", 30),
+            statusText: sanitizeString(t.status || "UPCOMING", 30),
+            sortOrder: i,
+          },
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -394,7 +390,7 @@ export async function POST(
   } catch (error: any) {
     console.error("POST /api/events/[id]/configure internal error:", error);
     return NextResponse.json(
-      { success: false, error: "Transaction aborted: Internal processing error." },
+      { success: false, error: error?.message || "Internal processing error." },
       { status: 500 }
     );
   }
