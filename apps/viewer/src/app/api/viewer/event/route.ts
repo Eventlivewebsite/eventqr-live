@@ -3,9 +3,14 @@ import { PrismaClient } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = new PrismaClient();
+  }
+  return globalForPrisma.prisma;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,6 +20,8 @@ export async function GET(req: NextRequest) {
     if (!slug) {
       return NextResponse.json({ success: false, error: "Slug required" }, { status: 400 });
     }
+
+    const prisma = getPrisma();
 
     const event: any = await prisma.event.findFirst({
       where: { slug, isDeleted: false },
