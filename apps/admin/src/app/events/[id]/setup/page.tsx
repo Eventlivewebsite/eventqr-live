@@ -78,13 +78,14 @@ export default function MasterEventSetupPage() {
   const [newProgTitle, setNewProgTitle] = useState("");
   const [newProgTime, setNewProgTime] = useState("");
 
-  const viewerBaseUrl =
+const viewerBaseUrl =
     typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
       ? "https://eventqr-live-viewer.vercel.app"
       : "http://localhost:3000";
 
   const eventSlug = eventData?.slug || "event-" + eventId.slice(-6);
-  const liveViewerUrl = `${viewerBaseUrl}/e/${eventSlug}`;
+  // Viewer root par event slug query parameter ke through pass hota hai
+  const liveViewerUrl = `${viewerBaseUrl}?event=${eventSlug}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(
     liveViewerUrl
   )}`;

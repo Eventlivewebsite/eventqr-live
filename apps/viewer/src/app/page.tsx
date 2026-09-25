@@ -10,16 +10,23 @@ export default function ViewerHomePage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
+ useEffect(() => {
     async function fetchEvent() {
       try {
-        // Query param (?event=slug ya ?slug=slug) ya URL path se slug extract karein
         const urlParams = new URLSearchParams(window.location.search);
         const querySlug = urlParams.get("event") || urlParams.get("slug");
         const pathSlug = window.location.pathname.split("/").filter(Boolean).pop();
-        const activeSlug = querySlug || (pathSlug !== "e" ? pathSlug : null) || "testing-nns3";
+        const activeSlug = querySlug || (pathSlug && pathSlug !== "e" ? pathSlug : null) || "testing-nns3";
 
-        const res = await fetch(`/api/viewer/event?slug=${encodeURIComponent(activeSlug)}`);
+        // Admin backend API URL
+        const adminBase =
+          typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
+            ? "https://eventqr-live-admin-2mc76o3hm-new-4aa5.vercel.app"
+            : "http://localhost:3001";
+
+        const res = await fetch(`${adminBase}/api/events/${encodeURIComponent(activeSlug)}/configure`, {
+          cache: "no-store",
+        });
         const data = await res.json().catch(() => null);
 
         if (res.ok && data?.success && data?.event) {
@@ -36,7 +43,6 @@ export default function ViewerHomePage() {
     }
     fetchEvent();
   }, []);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center">
