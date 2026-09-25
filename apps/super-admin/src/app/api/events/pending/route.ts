@@ -11,14 +11,12 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export async function GET(req: NextRequest) {
   try {
-    // 1. Comprehensive Cookie & Header Extraction for Super Admin
     const token =
       req.cookies.get("super_admin_session")?.value ||
       req.cookies.get("super_admin_token")?.value ||
       req.cookies.get("eventqr_session")?.value ||
       req.cookies.get("admin_token")?.value ||
-      req.headers.get("authorization")?.replace("Bearer ", "") ||
-      req.nextUrl.searchParams.get("token");
+      req.headers.get("authorization")?.replace("Bearer ", "");
 
     if (!token) {
       return NextResponse.json(
@@ -33,89 +31,52 @@ export async function GET(req: NextRequest) {
 
       if (userRole !== "SUPER_ADMIN" && userRole !== "ADMIN") {
         return NextResponse.json(
-          { success: false, error: "Access Forbidden: Super Admin clearance required.", events: [] },
+          { success: false, error: "Super Admin clearance required.", events: [] },
           { status: 403 }
         );
       }
     } catch {
       return NextResponse.json(
-        { success: false, error: "Invalid or expired session token.", events: [] },
+        { success: false, error: "Invalid token.", events: [] },
         { status: 401 }
       );
     }
 
-    // 2. Safe Database Query with Fallback
-    let events: any[] = [];
-    try {
-      events = await (prisma.event as any).findMany({
-        where: {
-          OR: [{ isDeleted: false }, { isDeleted: null }],
-        },
-        include: {
-          settings: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-    } catch {
-      // Fallback agar isDeleted column exist nahi karta
-      events = await (prisma.event as any).findMany({
-        include: {
-          settings: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-    }
-
-    let clientMap: Record<string, any> = {};
-    try {
-      const clients = await (prisma.client as any).findMany();
-      if (Array.isArray(clients)) {
-        clients.forEach((c: any) => {
-          clientMap[c.id] = c;
-        });
-      }
-    } catch {}
+    const events = await (prisma.event as any).findMany({
+      include: {
+        client: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     const formattedEvents = events.map((ev: any) => {
-      const studio = ev.clientId ? clientMap[ev.clientId] : null;
       const rawStatus = String(ev.status || "").trim().toUpperCase();
 
       let finalStatus = "PENDING";
       let isLiveBool = false;
 
-      if (rawStatus === "APPROVED" || rawStatus === "ACTIVE" || ev.isLive) {
+      if (rawStatus === "APPROVED" || rawStatus === "ACTIVE") {
         finalStatus = "APPROVED";
         isLiveBool = true;
       } else if (rawStatus === "REJECTED") {
         finalStatus = "REJECTED";
         isLiveBool = false;
       } else {
-        finalStatus = "PENDING";
+        finalStatus = "PENDING"; // Covers PENDING_APPROVAL and DRAFT
         isLiveBool = false;
-      }
-
-      let customSettings: any = {};
-      try {
-        if (ev.settings?.customSettings) {
-          customSettings = typeof ev.settings.customSettings === "string" 
-            ? JSON.parse(ev.settings.customSettings) 
-            : ev.settings.customSettings;
-        }
-      } catch {
-        customSettings = {};
       }
 
       return {
         id: String(ev.id),
-        name: ev.title || ev.name || "Untitled Event",
-        title: ev.title || ev.name || "Untitled Event",
+        name: ev.title || "Untitled Event",
+        title: ev.title || "Untitled Event",
         slug: ev.slug || "",
-        type: ev.eventType || ev.type || "WEDDING",
+        type: ev.type || "WEDDING",
         eventDate: ev.eventDate
           ? new Date(ev.eventDate).toISOString()
           : new Date().toISOString(),
-        retentionDays: ev.retentionDays || customSettings.retentionDays || 15,
-        storageExpiryDate: customSettings.storageExpiryDate || null,
+        retentionDays: 15,
+        storageExpiryDate: null,
         status: finalStatus,
         isLive: isLiveBool,
         photosCount: 0,
@@ -123,14 +84,10 @@ export async function GET(req: NextRequest) {
           ? new Date(ev.createdAt).toISOString()
           : new Date().toISOString(),
         client: {
-          id: ev.clientId || studio?.id || "default-studio",
-          name:
-            studio?.companyName ||
-            studio?.name ||
-            studio?.loginId ||
-            "Studio Partner",
-          email: studio?.email || "studio@eventqr.live",
-          phone: studio?.phone || "N/A",
+          id: ev.clientId || "default-studio",
+          name: ev.client?.companyName || ev.client?.name || ev.clientName || "Studio Partner",
+          email: ev.client?.email || "studio@eventqr.live",
+          phone: ev.client?.phone || "N/A",
         },
       };
     });
@@ -141,13 +98,8 @@ export async function GET(req: NextRequest) {
       total: formattedEvents.length,
     });
   } catch (error: any) {
-    console.error("[PENDING_EVENTS_500_CRASH]:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error fetching approval queue.",
-        events: [],
-      },
+      { success: false, error: "Internal server error fetching approval queue.", events: [] },
       { status: 500 }
     );
   }

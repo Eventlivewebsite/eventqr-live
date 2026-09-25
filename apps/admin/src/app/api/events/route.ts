@@ -3,14 +3,11 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// 1. GET: Fetch All Events
 export async function GET(req: NextRequest) {
   try {
     const events = await (prisma.event as any).findMany({
       orderBy: { createdAt: "desc" },
-      include: {
-        client: true,
-      },
+      include: { client: true },
     });
 
     const formattedEvents = events.map((ev: any) => ({
@@ -20,13 +17,12 @@ export async function GET(req: NextRequest) {
       slug: ev.slug,
       status: String(ev.status || "ACTIVE").toUpperCase(),
       eventDate: ev.eventDate ? new Date(ev.eventDate).toISOString() : new Date().toISOString(),
-      isLive: Boolean(ev.isLive || ev.status === "ACTIVE" || ev.status === "APPROVED"),
+      isLive: Boolean(ev.status === "ACTIVE" || ev.status === "APPROVED"),
       _count: { albums: 0 },
     }));
 
     return NextResponse.json({ success: true, events: formattedEvents });
   } catch (err: any) {
-    console.error("[GET_EVENTS_ERR]:", err);
     return NextResponse.json(
       { success: false, error: "Failed to fetch events.", events: [] },
       { status: 500 }
@@ -34,7 +30,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// 2. POST: Create Event (100% Matched to schema.prisma)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
@@ -64,35 +59,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Resolve Foreign Keys: adminId and clientId
-    let clientId: string | null = null;
-    let adminId: string | null = null;
+    const firstClient = await prisma.client.findFirst();
+    const firstUser = await prisma.user.findFirst();
 
-    try {
-      const firstClient = await prisma.client.findFirst();
-      if (firstClient) {
-        clientId = firstClient.id;
-        adminId = firstClient.adminId || null;
-      }
-    } catch {}
-
-    if (!adminId) {
-      try {
-        const firstUser = await prisma.user.findFirst();
-        if (firstUser) {
-          adminId = firstUser.id;
-        }
-      } catch {}
-    }
+    const clientId = firstClient ? firstClient.id : null;
+    const adminId = firstClient?.adminId || firstUser?.id || null;
 
     if (!clientId || !adminId) {
       return NextResponse.json(
-        { success: false, error: "Database relation missing: valid client or admin record required." },
+        { success: false, error: "Missing Client or Admin association in database." },
         { status: 400 }
       );
     }
 
-    // Collision-Proof Slug
     const baseSlug = (slug || cleanTitle)
       .toLowerCase()
       .trim()
@@ -101,22 +80,33 @@ export async function POST(req: NextRequest) {
       .slice(0, 40);
     const uniqueSlug = `${baseSlug || "event"}-${Math.random().toString(36).substring(2, 6)}`;
 
-    // Normalize EventType Enum
-    const validTypes = ["WEDDING", "CORPORATE", "BIRTHDAY", "FESTIVAL", "CONFERENCE", "PARTY", "OTHER"];
-    const normalizedType = validTypes.includes(String(type).toUpperCase())
-      ? String(type).toUpperCase()
-      : "WEDDING";
+    // Exact EventType Enum Mapping
+    const validEventTypes = [
+      "WEDDING",
+      "BIRTHDAY",
+      "ENGAGEMENT",
+      "ANNIVERSARY",
+      "BABY_SHOWER",
+      "CORPORATE",
+      "CUSTOM",
+      "OTHER",
+    ];
+    const rawType = String(type).toUpperCase();
+    const finalType = validEventTypes.includes(rawType) ? rawType : "OTHER";
 
-    // Strictly match fields to schema.prisma
+    // Exact AccessMode Enum Mapping (PUBLIC or PRIVATE only)
+    const finalAccessMode = pinCode ? "PRIVATE" : "PUBLIC";
+
+    // 100% Schema-Compliant Event Creation
     const newEvent = await (prisma.event as any).create({
       data: {
         adminId: adminId,
         clientId: clientId,
         title: cleanTitle,
         slug: uniqueSlug,
-        type: normalizedType as any,
-        status: "PENDING" as any,
-        accessMode: pinCode ? ("PIN" as any) : ("PUBLIC" as any),
+        type: finalType as any,
+        status: "PENDING_APPROVAL" as any, // Exact Enum Value
+        accessMode: finalAccessMode as any, // Exact Enum Value
         pinCode: pinCode ? String(pinCode).trim().slice(0, 10) : null,
         brideName: brideName ? String(brideName).trim().slice(0, 100) : null,
         groomName: groomName ? String(groomName).trim().slice(0, 100) : null,
@@ -128,7 +118,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "Event request submitted successfully!",
+        message: "Event request submitted successfully! Super Admin approval is pending.",
         event: newEvent,
       },
       { status: 201 }
