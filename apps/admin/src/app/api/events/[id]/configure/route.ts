@@ -350,11 +350,21 @@ export async function POST(
       customSettings: serializedCustomSettings,
     };
 
-    await prisma.eventSettings.upsert({
+   // Safe settings update without relying on unique constraint
+    const existingSettings = await prisma.eventSettings.findFirst({
       where: { eventId: cleanId },
-      update: settingsData,
-      create: { eventId: cleanId, ...settingsData },
     });
+
+    if (existingSettings) {
+      await prisma.eventSettings.update({
+        where: { id: existingSettings.id },
+        data: settingsData,
+      });
+    } else {
+      await prisma.eventSettings.create({
+        data: { eventId: cleanId, ...settingsData },
+      });
+    }
 
     // Sync Categories / Albums
     if (Array.isArray(body.categories)) {
