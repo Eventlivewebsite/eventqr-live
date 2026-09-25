@@ -311,13 +311,38 @@ export async function POST(
     });
 
     // Settings Object Bundle
-    const serializedCustomSettings = JSON.stringify({
-      familyMembers: Array.isArray(body.familyMembers) ? body.familyMembers.slice(0, 100) : [],
-      foodItems: Array.isArray(body.foodItems) ? body.foodItems.slice(0, 150) : [],
-      decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
-      heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
-    });
+    // Clean oversized image data from state
+      const cleanFamily = Array.isArray(body.familyMembers)
+        ? body.familyMembers.slice(0, 100).map((m: any) => ({
+            id: String(m.id || Date.now()),
+            name: sanitizeString(m.name, 100),
+            role: sanitizeString(m.role, 100),
+            bio: sanitizeString(m.bio, 250),
+            photoUrl: typeof m.photoUrl === "string" && m.photoUrl.length > 200000 
+              ? "" // Drop oversized uncompressed payload
+              : m.photoUrl || "",
+          }))
+        : [];
 
+      const cleanFood = Array.isArray(body.foodItems)
+        ? body.foodItems.slice(0, 150).map((f: any) => ({
+            id: String(f.id || Date.now()),
+            name: sanitizeString(f.name, 100),
+            category: f.category === "NON_VEG" ? "NON_VEG" : "VEG",
+            description: sanitizeString(f.description, 250),
+            photoUrl: typeof f.photoUrl === "string" && f.photoUrl.length > 200000 
+              ? "" 
+              : f.photoUrl || "",
+          }))
+        : [];
+
+      // Settings Object Bundle
+      const serializedCustomSettings = JSON.stringify({
+        familyMembers: cleanFamily,
+        foodItems: cleanFood,
+        decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
+        heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
+      });
     const settingsData = {
       subtitle: finalSubtitle,
       allowDownloads: Boolean(body.allowDownloads ?? true),
