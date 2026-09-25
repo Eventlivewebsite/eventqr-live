@@ -4,13 +4,11 @@ import { jwtVerify } from "jose";
 
 export const dynamic = "force-dynamic";
 
-// Cryptographic Secret Engine Initialization
 const RAW_JWT_SECRET = process.env.JWT_SECRET;
 const JWT_SECRET = new TextEncoder().encode(
   RAW_JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
 );
 
-// Session Verification & Role Authorization Helper
 interface AuthSession {
   userId: string;
   role: string;
@@ -29,8 +27,6 @@ async function authenticateAndAuthorize(req: NextRequest): Promise<AuthSession |
     const role = String(payload.role || "").toUpperCase();
 
     if (!userId || !role) return null;
-
-    // Sirf verified Admin, Studio Admin ya Super Admin ko allow karein
     if (role !== "ADMIN" && role !== "STUDIO_ADMIN" && role !== "SUPER_ADMIN") {
       return null;
     }
@@ -41,7 +37,6 @@ async function authenticateAndAuthorize(req: NextRequest): Promise<AuthSession |
   }
 }
 
-// Default Presets
 const PRESETS: Record<string, any> = {
   WEDDING: {
     badge: "LIVE WEDDING EVENT",
@@ -76,9 +71,7 @@ const PRESETS: Record<string, any> = {
       { name: "Kids Zone", count: 90 },
     ],
     decorationZones: ["Balloon Arch", "Cake Stage", "Kids Play Area", "Selfie Backdrop"],
-    timeline: [
-      { title: "Cake Cutting", time: "06:30 PM", status: "LIVE" },
-    ],
+    timeline: [{ title: "Cake Cutting", time: "06:30 PM", status: "LIVE" }],
   },
   CORPORATE: {
     badge: "GLOBAL SUMMIT 2026",
@@ -94,20 +87,17 @@ const PRESETS: Record<string, any> = {
   },
 };
 
-// Input Sanitizer to block XSS and Malformed injections
 function sanitizeString(val: any, maxLength = 250): string {
   if (typeof val !== "string") return "";
   return val.trim().slice(0, maxLength);
 }
 
-// Strict Image URL and Base64 Sanitizer (Prevents Database & Payload crashes)
 function sanitizeImageUrl(url: any): string {
   if (typeof url !== "string") return "";
   const trimmed = url.trim();
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed.slice(0, 1000);
   }
-  // Safe thumbnail Base64 images under 150KB
   if (trimmed.startsWith("data:image/") && trimmed.length < 150000) {
     return trimmed;
   }
@@ -141,12 +131,10 @@ export async function GET(
     }
 
     const event: any = await prisma.event.findFirst({
-      where: {
-        id: cleanId,
-        isDeleted: false,
-      },
+      where: { id: cleanId, isDeleted: false },
       include: {
         settings: true,
+        customFields: true,
         albums: { orderBy: { sortOrder: "asc" } },
         timelines: { orderBy: { sortOrder: "asc" } },
       },
@@ -170,19 +158,26 @@ export async function GET(
     const preset = PRESETS[evType] || PRESETS.WEDDING;
 
     const dbAlbums: any[] = Array.isArray(event.albums) ? event.albums : [];
-    const dbTimeline: any[] = Array.isArray(event.timelines)
-      ? event.timelines
-      : Array.isArray(event.timeline)
-      ? event.timeline
-      : [];
+    const dbTimeline: any[] = Array.isArray(event.timelines) ? event.timelines : [];
 
-    let customSettings: any = {};
+    // Parse stored CustomFields
+    const customMap: Record<string, string> = {};
+    if (Array.isArray(event.customFields)) {
+      event.customFields.forEach((cf: any) => {
+        customMap[cf.fieldName] = cf.fieldValue;
+      });
+    }
+
+    let familyMembers = [];
+    let foodItems = [];
+    let decorationZones = preset.decorationZones;
+
     try {
-      if (event.settings?.customSettings) {
-        customSettings = JSON.parse(event.settings.customSettings);
-      }
+      if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]);
+      if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]);
+      if (customMap["decorationZones"]) decorationZones = JSON.parse(customMap["decorationZones"]);
     } catch {
-      customSettings = {};
+      // safe fallback
     }
 
     return NextResponse.json({
@@ -192,7 +187,7 @@ export async function GET(
         slug: event.slug || "event-" + event.id.slice(-6),
         type: event.type || "WEDDING",
         status: event.status || "APPROVED",
-        heroTag: customSettings.heroTag || preset.badge,
+        heroTag: customMap["heroTag"] || preset.badge,
         welcomeHeading: event.title || preset.defaultHeading,
         welcomeSubtext: event.settings?.subtitle || preset.defaultSubtext,
         venueName: event.location || preset.venue,
@@ -207,7 +202,7 @@ export async function GET(
         allowComments: event.settings?.allowLikes ?? true,
         categories: dbAlbums.length > 0 ? dbAlbums.map((a: any) => a.title) : preset.categories,
         albums: dbAlbums.length > 0 ? dbAlbums.map((a: any) => ({ name: a.title, count: 0 })) : preset.albums,
-        decorationZones: customSettings.decorationZones || preset.decorationZones,
+        decorationZones,
         timeline: dbTimeline.length > 0
           ? dbTimeline.map((t: any) => ({
               title: t.title,
@@ -215,12 +210,12 @@ export async function GET(
               status: t.statusText || t.status || "UPCOMING",
             }))
           : preset.timeline,
-        familyMembers: customSettings.familyMembers || [],
-        foodItems: customSettings.foodItems || [],
+        familyMembers,
+        foodItems,
       },
     });
   } catch (error: any) {
-    console.error("GET /api/events/[id]/configure internal error:", error);
+    console.error("GET /api/events/[id]/configure error:", error);
     return NextResponse.json(
       { success: false, error: "Internal processing error." },
       { status: 500 }
@@ -236,7 +231,6 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 1. Authentication Check
     const session = await authenticateAndAuthorize(req);
     if (!session) {
       return NextResponse.json(
@@ -256,16 +250,9 @@ export async function POST(
       );
     }
 
-    // 2. Fetch Existing Event & Verify Ownership (Anti-IDOR)
     const existingEvent = await prisma.event.findFirst({
-      where: {
-        id: cleanId,
-        isDeleted: false,
-      },
-      select: {
-        id: true,
-        clientId: true,
-      },
+      where: { id: cleanId, isDeleted: false },
+      select: { id: true, clientId: true },
     });
 
     if (!existingEvent) {
@@ -277,12 +264,12 @@ export async function POST(
 
     if (session.role === "STUDIO_ADMIN" && existingEvent.clientId && existingEvent.clientId !== session.userId) {
       return NextResponse.json(
-        { success: false, error: "Access Forbidden: Unauthorized modification attempt on unowned resource." },
+        { success: false, error: "Access Forbidden: Unauthorized modification attempt." },
         { status: 403 }
       );
     }
 
-    // 3. Strict Input Sanitization & Boundaries
+    // 1. Update Core Event fields (Valid columns only)
     const finalTitle = sanitizeString(body.welcomeHeading || body.title || "Celebration", 150);
     const finalSubtitle = sanitizeString(body.welcomeSubtext || "Forever Begins Today", 250);
 
@@ -314,13 +301,37 @@ export async function POST(
       eventUpdateData.pinCode = sanitizedPin.length > 0 ? sanitizedPin : null;
     }
 
-    // 4. Update Event table directly
     await prisma.event.update({
       where: { id: cleanId },
       data: eventUpdateData,
     });
 
-    // 5. Clean and compress list payloads (Prevents 413 & DB crashes)
+    // 2. Safe EventSettings Update (Matching Schema Exactly)
+    const settingsFields = {
+      subtitle: finalSubtitle,
+      allowDownloads: Boolean(body.allowDownloads ?? true),
+      allowLikes: Boolean(body.allowComments ?? true),
+    };
+
+    const existingSettings = await prisma.eventSettings.findFirst({
+      where: { eventId: cleanId },
+    });
+
+    if (existingSettings) {
+      await prisma.eventSettings.update({
+        where: { id: existingSettings.id },
+        data: settingsFields,
+      });
+    } else {
+      await prisma.eventSettings.create({
+        data: {
+          eventId: cleanId,
+          ...settingsFields,
+        },
+      });
+    }
+
+    // 3. Store Custom Collections using Prisma CustomField model
     const cleanFamily = Array.isArray(body.familyMembers)
       ? body.familyMembers.slice(0, 50).map((m: any) => ({
           id: String(m.id || Date.now()),
@@ -341,37 +352,35 @@ export async function POST(
         }))
       : [];
 
-    const serializedCustomSettings = JSON.stringify({
-      familyMembers: cleanFamily,
-      foodItems: cleanFood,
-      decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
-      heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
-    });
+    const customFieldsToStore = [
+      { name: "heroTag", value: sanitizeString(body.heroTag || "LIVE EVENT", 50) },
+      { name: "decorationZones", value: JSON.stringify(Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : []) },
+      { name: "familyMembers", value: JSON.stringify(cleanFamily) },
+      { name: "foodItems", value: JSON.stringify(cleanFood) },
+    ];
 
-    const settingsData = {
-      subtitle: finalSubtitle,
-      allowDownloads: Boolean(body.allowDownloads ?? true),
-      allowLikes: Boolean(body.allowComments ?? true),
-      customSettings: serializedCustomSettings,
-    };
-
-    // 6. Safe Settings Upsert Replacement (100% immune to Prisma unique constraint error)
-    const existingSettings = await prisma.eventSettings.findFirst({
-      where: { eventId: cleanId },
-    });
-
-    if (existingSettings) {
-      await prisma.eventSettings.update({
-        where: { id: existingSettings.id },
-        data: settingsData,
+    for (const cf of customFieldsToStore) {
+      const existingField = await prisma.customField.findFirst({
+        where: { eventId: cleanId, fieldName: cf.name },
       });
-    } else {
-      await prisma.eventSettings.create({
-        data: { eventId: cleanId, ...settingsData },
-      });
+
+      if (existingField) {
+        await prisma.customField.update({
+          where: { id: existingField.id },
+          data: { fieldValue: cf.value },
+        });
+      } else {
+        await prisma.customField.create({
+          data: {
+            eventId: cleanId,
+            fieldName: cf.name,
+            fieldValue: cf.value,
+          },
+        });
+      }
     }
 
-    // 7. Sync Categories / Albums
+    // 4. Sync Categories / Albums
     if (Array.isArray(body.categories)) {
       const categories = body.categories.slice(0, 30);
       for (let i = 0; i < categories.length; i++) {
@@ -401,7 +410,7 @@ export async function POST(
       }
     }
 
-    // 8. Sync Timeline
+    // 5. Sync Timeline
     if (Array.isArray(body.timeline)) {
       await prisma.eventTimeline.deleteMany({ where: { eventId: cleanId } });
       const timelineItems = body.timeline.slice(0, 40);
