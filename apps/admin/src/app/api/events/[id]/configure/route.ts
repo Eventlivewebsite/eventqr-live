@@ -100,6 +100,20 @@ function sanitizeString(val: any, maxLength = 250): string {
   return val.trim().slice(0, maxLength);
 }
 
+// Strict Image URL and Base64 Sanitizer (Prevents Database & Payload crashes)
+function sanitizeImageUrl(url: any): string {
+  if (typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed.slice(0, 1000);
+  }
+  // Safe thumbnail Base64 images under 150KB
+  if (trimmed.startsWith("data:image/") && trimmed.length < 150000) {
+    return trimmed;
+  }
+  return "";
+}
+
 // -------------------------------------------------------------
 // GET: Fetch Event Configurations
 // -------------------------------------------------------------
@@ -108,7 +122,6 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 1. Authentication Check
     const session = await authenticateAndAuthorize(req);
     if (!session) {
       return NextResponse.json(
@@ -127,7 +140,6 @@ export async function GET(
       );
     }
 
-    // 2. Fetch Event with Soft-Delete Guard
     const event: any = await prisma.event.findFirst({
       where: {
         id: cleanId,
@@ -147,7 +159,6 @@ export async function GET(
       );
     }
 
-    // 3. IDOR / Resource Ownership Validation
     if (session.role === "STUDIO_ADMIN" && event.clientId && event.clientId !== session.userId) {
       return NextResponse.json(
         { success: false, error: "Access Forbidden: Resource ownership validation failed." },
@@ -264,7 +275,6 @@ export async function POST(
       );
     }
 
-    // Strict Ownership Enforcement: Studio Admin sirf apna resource edit kare
     if (session.role === "STUDIO_ADMIN" && existingEvent.clientId && existingEvent.clientId !== session.userId) {
       return NextResponse.json(
         { success: false, error: "Access Forbidden: Unauthorized modification attempt on unowned resource." },
@@ -304,45 +314,40 @@ export async function POST(
       eventUpdateData.pinCode = sanitizedPin.length > 0 ? sanitizedPin : null;
     }
 
-    // 4. Safe Sequential Execution (Supabase Pooler Friendly)
+    // 4. Update Event table directly
     await prisma.event.update({
       where: { id: cleanId },
       data: eventUpdateData,
     });
 
-    // Settings Object Bundle
-    // Clean oversized image data from state
-      const cleanFamily = Array.isArray(body.familyMembers)
-        ? body.familyMembers.slice(0, 100).map((m: any) => ({
-            id: String(m.id || Date.now()),
-            name: sanitizeString(m.name, 100),
-            role: sanitizeString(m.role, 100),
-            bio: sanitizeString(m.bio, 250),
-            photoUrl: typeof m.photoUrl === "string" && m.photoUrl.length > 200000 
-              ? "" // Drop oversized uncompressed payload
-              : m.photoUrl || "",
-          }))
-        : [];
+    // 5. Clean and compress list payloads (Prevents 413 & DB crashes)
+    const cleanFamily = Array.isArray(body.familyMembers)
+      ? body.familyMembers.slice(0, 50).map((m: any) => ({
+          id: String(m.id || Date.now()),
+          name: sanitizeString(m.name, 100),
+          role: sanitizeString(m.role, 100),
+          bio: sanitizeString(m.bio, 250),
+          photoUrl: sanitizeImageUrl(m.photoUrl),
+        }))
+      : [];
 
-      const cleanFood = Array.isArray(body.foodItems)
-        ? body.foodItems.slice(0, 150).map((f: any) => ({
-            id: String(f.id || Date.now()),
-            name: sanitizeString(f.name, 100),
-            category: f.category === "NON_VEG" ? "NON_VEG" : "VEG",
-            description: sanitizeString(f.description, 250),
-            photoUrl: typeof f.photoUrl === "string" && f.photoUrl.length > 200000 
-              ? "" 
-              : f.photoUrl || "",
-          }))
-        : [];
+    const cleanFood = Array.isArray(body.foodItems)
+      ? body.foodItems.slice(0, 100).map((f: any) => ({
+          id: String(f.id || Date.now()),
+          name: sanitizeString(f.name, 100),
+          category: f.category === "NON_VEG" ? "NON_VEG" : "VEG",
+          description: sanitizeString(f.description, 250),
+          photoUrl: sanitizeImageUrl(f.photoUrl),
+        }))
+      : [];
 
-      // Settings Object Bundle
-      const serializedCustomSettings = JSON.stringify({
-        familyMembers: cleanFamily,
-        foodItems: cleanFood,
-        decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
-        heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
-      });
+    const serializedCustomSettings = JSON.stringify({
+      familyMembers: cleanFamily,
+      foodItems: cleanFood,
+      decorationZones: Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : [],
+      heroTag: sanitizeString(body.heroTag || "LIVE EVENT", 50),
+    });
+
     const settingsData = {
       subtitle: finalSubtitle,
       allowDownloads: Boolean(body.allowDownloads ?? true),
@@ -350,7 +355,7 @@ export async function POST(
       customSettings: serializedCustomSettings,
     };
 
-   // Safe settings update without relying on unique constraint
+    // 6. Safe Settings Upsert Replacement (100% immune to Prisma unique constraint error)
     const existingSettings = await prisma.eventSettings.findFirst({
       where: { eventId: cleanId },
     });
@@ -366,7 +371,7 @@ export async function POST(
       });
     }
 
-    // Sync Categories / Albums
+    // 7. Sync Categories / Albums
     if (Array.isArray(body.categories)) {
       const categories = body.categories.slice(0, 30);
       for (let i = 0; i < categories.length; i++) {
@@ -396,7 +401,7 @@ export async function POST(
       }
     }
 
-    // Sync Timeline
+    // 8. Sync Timeline
     if (Array.isArray(body.timeline)) {
       await prisma.eventTimeline.deleteMany({ where: { eventId: cleanId } });
       const timelineItems = body.timeline.slice(0, 40);
