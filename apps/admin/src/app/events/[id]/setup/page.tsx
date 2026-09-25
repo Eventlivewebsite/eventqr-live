@@ -13,7 +13,6 @@ import {
   ExternalLink,
   QrCode,
   Download,
-  Tag,
   Clock,
   CheckCircle2,
   Film,
@@ -23,11 +22,8 @@ import {
   Unlock,
   ShieldCheck,
   HardDrive,
-  Printer,
-  AlertTriangle,
   UploadCloud,
   ImageIcon,
-  Calendar,
 } from "lucide-react";
 
 export default function MasterEventSetupPage() {
@@ -45,7 +41,7 @@ export default function MasterEventSetupPage() {
   const [eventData, setEventData] = useState<any>(null);
   const [occasionLabel, setOccasionLabel] = useState("WEDDING");
 
-  // Dynamic Content Fields (replacing dummy values everywhere)
+  // Dynamic Content Fields
   const [heroTag, setHeroTag] = useState("");
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
@@ -79,7 +75,6 @@ export default function MasterEventSetupPage() {
 
   // Input states
   const [newCatInput, setNewCatInput] = useState("");
-  const [newDecorInput, setNewDecorInput] = useState("");
   const [newProgTitle, setNewProgTitle] = useState("");
   const [newProgTime, setNewProgTime] = useState("");
 
@@ -94,7 +89,7 @@ export default function MasterEventSetupPage() {
     liveViewerUrl
   )}`;
 
-  // File Upload Helper (Base64 for immediate zero-cloud friction)
+  // File Upload Helper
   const handleImageFile = (file: File, callback: (base64: string) => void) => {
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -152,20 +147,20 @@ export default function MasterEventSetupPage() {
       setSaveSuccess(false);
 
       const payload = {
-        title: title.trim(),
-        welcomeHeading: title.trim(),
-        welcomeSubtext: subtitle.trim(),
-        venueName: venueName.trim(),
-        heroTag: heroTag.trim(),
-        activeCeremony: activeCeremony.trim(),
-        ceremonyStartTime: ceremonyTime.trim(),
-        eventDate,
+        title: (title || "Celebration").trim(),
+        welcomeHeading: (title || "Celebration").trim(),
+        welcomeSubtext: (subtitle || "").trim(),
+        venueName: (venueName || "").trim(),
+        heroTag: (heroTag || "LIVE EVENT").trim(),
+        activeCeremony: (activeCeremony || "Main Ceremony").trim(),
+        ceremonyStartTime: (ceremonyTime || "18:00").trim(),
+        eventDate: eventDate ? new Date(eventDate).toISOString() : null,
         accessMode,
         pinCode: accessMode === "PRIVATE" ? pinCode.trim() : null,
         allowDownloads,
         allowComments,
         autoCompress,
-        retentionDays,
+        retentionDays: Number(retentionDays) || 15,
         categories: categories.map((c) => c.trim()).filter(Boolean),
         decorationZones,
         timeline,
@@ -179,16 +174,22 @@ export default function MasterEventSetupPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json().catch(() => null);
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = null;
+      }
 
       if (res.ok && data?.success) {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3500);
       } else {
-        alert(data?.error || "Deployment failed.");
+        alert(data?.error || `Server Error (${res.status}): ${rawText.slice(0, 150)}`);
       }
-    } catch {
-      alert("Network error occurred during deployment.");
+    } catch (err: any) {
+      alert("Network error: " + (err?.message || "Request could not be sent."));
     } finally {
       setSaving(false);
     }
@@ -284,7 +285,7 @@ export default function MasterEventSetupPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase">Event Title (Replaces all dummy text)</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase">Event Title</label>
               <input
                 type="text"
                 value={title}
@@ -462,7 +463,6 @@ export default function MasterEventSetupPage() {
             {foodItems.map((dish, idx) => (
               <div key={dish.id || idx} className="p-5 bg-[#030712] border border-slate-800 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
-                  {/* Veg / Non-Veg Switch */}
                   <div className="flex gap-2">
                     <button
                       type="button"
