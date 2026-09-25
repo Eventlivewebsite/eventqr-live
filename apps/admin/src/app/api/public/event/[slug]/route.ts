@@ -11,11 +11,18 @@ export async function GET(
     const { slug } = await context.params;
 
     if (!slug) {
-      return NextResponse.json({ success: false, error: "Slug required" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Identifier required" }, { status: 400 });
     }
 
+    // Slug aur ID dono se search karein
     const event: any = await prisma.event.findFirst({
-      where: { slug: String(slug), isDeleted: false },
+      where: {
+        OR: [
+          { slug: String(slug) },
+          { id: String(slug) },
+        ],
+        isDeleted: false,
+      },
       include: {
         settings: true,
         customFields: true,

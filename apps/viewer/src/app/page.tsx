@@ -18,11 +18,22 @@ export default function ViewerHomePage() {
         const pathParts = window.location.pathname.split("/").filter(Boolean);
         const pathSlug = pathParts[pathParts.length - 1];
         
-        const activeSlug = querySlug || (pathSlug && pathSlug !== "e" ? pathSlug : null) || "testing-nns3";
+        // Screenshot me ID 'cmugp2qbt000004l7t1ywppgc' ya slug 'testing-nns3'
+        const activeSlug = querySlug || (pathSlug && pathSlug !== "e" ? pathSlug : null) || "cmugp2qbt000004l7t1ywppgc";
 
-        const res = await fetch(`https://eventqr-live-admin-2mc76o3hm-new-4aa5.vercel.app/api/public/event/${encodeURIComponent(activeSlug)}`, {
+        const adminHost = "https://eventqr-live-admin.vercel.app";
+
+        // First try production domain, fallback to current preview if needed
+        let res = await fetch(`${adminHost}/api/public/event/${encodeURIComponent(activeSlug)}`, {
           cache: "no-store",
         });
+
+        if (!res.ok) {
+          res = await fetch(`https://eventqr-live-admin-2mc76o3hm-new-4aa5.vercel.app/api/public/event/${encodeURIComponent(activeSlug)}`, {
+            cache: "no-store",
+          });
+        }
+
         const data = await res.json().catch(() => null);
 
         if (res.ok && data?.success && data?.event) {
