@@ -1,150 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: Fetch event's current viewer controls and media feed
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get("eventId");
 
     if (!eventId) {
-      return NextResponse.json({ success: false, message: "Event ID required" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "eventId is required" }, { status: 400 });
     }
 
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        settings: true,
-        analytics: true,
-        albums: {
-          include: {
-            media: {
-              where: { isDeleted: false },
-              orderBy: { uploadedAt: "desc" },
-            },
-          },
-        },
-      },
+    const controls = await prisma.eventSettings.findFirst({
+      where: { eventId },
     });
 
-    if (!event) {
-      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true, event });
+    return NextResponse.json({ success: true, controls });
   } catch (error: any) {
-    console.error("VIEWER_CONTROL_GET_ERR:", error);
-    return NextResponse.json({ success: false, message: error?.message || "Failed" }, { status: 500 });
+    return NextResponse.json({ success: false, error: error?.message || "Internal error" }, { status: 500 });
   }
 }
 
-// PATCH: Real-time update viewer switches & settings
-export async function PATCH(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { 
-      eventId,
-      isLive,
-      qrEnabled,
-      guestBook,
-      allowGuestUpload,
-      accessMode,
-      pinCode,
-      themeColor,
-      // Settings fields
-      showWatermark,
-      watermarkText,
-      watermarkPosition,
-      allowDownloads,
-      allowLikes,
-      showHighlights,
-      showCountdown,
-      subtitle
-    } = body;
-
-    if (!eventId) {
-      return NextResponse.json({ success: false, message: "Event ID required" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    if (!body || !body.eventId) {
+      return NextResponse.json({ success: false, error: "eventId is required" }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Update Core Event Flags
-      const updatedEvent = await tx.event.update({
-        where: { id: eventId },
-        data: {
-          ...(isLive !== undefined && { isLive }),
-          ...(qrEnabled !== undefined && { qrEnabled }),
-          ...(guestBook !== undefined && { guestBook }),
-          ...(allowGuestUpload !== undefined && { allowGuestUpload }),
-          ...(accessMode && { accessMode }),
-          ...(pinCode !== undefined && { pinCode }),
-          ...(themeColor && { themeColor }),
-        },
-      });
-
-      // 2. Upsert Settings Record
-      const updatedSettings = await tx.eventSettings.upsert({
-        where: { eventId },
-        create: {
-          eventId,
-          subtitle: subtitle || "Forever Begins Today",
-          showWatermark: showWatermark ?? true,
-          watermarkText: watermarkText || updatedEvent.title,
-          watermarkPosition: watermarkPosition || "BOTTOM_RIGHT",
-          allowDownloads: allowDownloads ?? true,
-          allowLikes: allowLikes ?? true,
-          showHighlights: showHighlights ?? true,
-          showCountdown: showCountdown ?? true,
-        },
-        update: {
-          ...(showWatermark !== undefined && { showWatermark }),
-          ...(watermarkText !== undefined && { watermarkText }),
-          ...(watermarkPosition !== undefined && { watermarkPosition }),
-          ...(allowDownloads !== undefined && { allowDownloads }),
-          ...(allowLikes !== undefined && { allowLikes }),
-          ...(showHighlights !== undefined && { showHighlights }),
-          ...(showCountdown !== undefined && { showCountdown }),
-          ...(subtitle !== undefined && { subtitle }),
-        },
-      });
-
-      return { event: updatedEvent, settings: updatedSettings };
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "Viewer settings updated live!",
-      data: result,
-    });
-  } catch (error: any) {
-    console.error("VIEWER_CONTROL_PATCH_ERR:", error);
-    return NextResponse.json({ success: false, message: error?.message || "Update failed" }, { status: 500 });
-  }
-}
-
-// PUT: Real-time Photo Moderation (Approve/Hide/Delete photo from viewer screen)
-export async function PUT(req: NextRequest) {
-  try {
-    const { mediaId, isApproved, isDeleted } = await req.json();
-
-    if (!mediaId) {
-      return NextResponse.json({ success: false, message: "Media ID required" }, { status: 400 });
-    }
-
-    const updatedMedia = await prisma.media.update({
-      where: { id: mediaId },
-      data: {
-        ...(isApproved !== undefined && { isApproved }),
-        ...(isDeleted !== undefined && { isDeleted }),
+    const updated = await prisma.eventSettings.upsert({
+      where: { eventId: body.eventId },
+      update: {
+        allowDownloads: body.allowDownloads ?? true,
+        allowLikes: body.allowLikes ?? true,
+      },
+      create: {
+        eventId: body.eventId,
+        allowDownloads: body.allowDownloads ?? true,
+        allowLikes: body.allowLikes ?? true,
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Media status synced with viewer screen!",
-      media: updatedMedia,
-    });
+    return NextResponse.json({ success: true, updated });
   } catch (error: any) {
-    console.error("MEDIA_MODERATION_ERR:", error);
-    return NextResponse.json({ success: false, message: error?.message || "Moderation failed" }, { status: 500 });
+    return NextResponse.json({ success: false, error: error?.message || "Internal error" }, { status: 500 });
   }
 }
