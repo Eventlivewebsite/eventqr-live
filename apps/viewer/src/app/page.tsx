@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sparkles, Calendar, MapPin, Lock, Unlock, Clock, Users, Utensils, Award } from "lucide-react";
+import { Sparkles, Calendar, MapPin, Lock, Clock, Users, Utensils } from "lucide-react";
 
 export default function ViewerHomePage() {
   const [eventData, setEventData] = useState<any>(null);
@@ -10,28 +10,36 @@ export default function ViewerHomePage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
- useEffect(() => {
+  useEffect(() => {
     async function fetchEvent() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const querySlug = urlParams.get("event") || urlParams.get("slug");
         const pathParts = window.location.pathname.split("/").filter(Boolean);
         const pathSlug = pathParts[pathParts.length - 1];
-        
-        // Screenshot me ID 'cmugp2qbt000004l7t1ywppgc' ya slug 'testing-nns3'
-        const activeSlug = querySlug || (pathSlug && pathSlug !== "e" ? pathSlug : null) || "cmugp2qbt000004l7t1ywppgc";
 
+        // Pick dynamic slug from URL or fallback to the target slug
+        const activeSlug =
+          querySlug ||
+          (pathSlug && pathSlug !== "e" ? pathSlug : null) ||
+          "khan-1819";
+
+        // Call the configured admin API endpoint
         const adminHost = "https://eventqr-live-admin.vercel.app";
-
-        // First try production domain, fallback to current preview if needed
-        let res = await fetch(`${adminHost}/api/public/event/${encodeURIComponent(activeSlug)}`, {
-          cache: "no-store",
-        });
+        let res = await fetch(
+          `${adminHost}/api/events/${encodeURIComponent(activeSlug)}/configure`,
+          {
+            cache: "no-store",
+          }
+        );
 
         if (!res.ok) {
-          res = await fetch(`https://eventqr-live-admin-2mc76o3hm-new-4aa5.vercel.app/api/public/event/${encodeURIComponent(activeSlug)}`, {
-            cache: "no-store",
-          });
+          res = await fetch(
+            `https://eventqr-live-admin-2mc76o3hm-new-4aa5.vercel.app/api/events/${encodeURIComponent(activeSlug)}/configure`,
+            {
+              cache: "no-store",
+            }
+          );
         }
 
         const data = await res.json().catch(() => null);
@@ -43,13 +51,15 @@ export default function ViewerHomePage() {
           }
         }
       } catch (err) {
-        console.error("Viewer fetch error", err);
+        console.error("Viewer fetch error:", err);
       } finally {
         setLoading(false);
       }
     }
+
     fetchEvent();
   }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center">
@@ -81,10 +91,10 @@ export default function ViewerHomePage() {
         <div className="p-4 bg-pink-500/10 border border-pink-500/20 rounded-full">
           <Clock className="w-10 h-10 text-pink-400 animate-pulse" />
         </div>
-        <h1 className="text-3xl font-black">{eventData.title}</h1>
+        <h1 className="text-3xl font-black">{eventData.title || eventData.welcomeHeading}</h1>
         <p className="text-slate-400 text-sm">This event is scheduled to go live on:</p>
         <span className="text-xl font-mono font-bold text-pink-400 bg-pink-500/10 px-4 py-2 rounded-xl border border-pink-500/20">
-          {eventDateParsed.toLocaleDateString()}
+          {!isNaN(eventDateParsed.getTime()) ? eventDateParsed.toLocaleDateString() : "Scheduled Soon"}
         </span>
         <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
           The gallery, family profiles, food menus, and live feeds will automatically unlock on the scheduled date.
@@ -102,7 +112,7 @@ export default function ViewerHomePage() {
             <Lock className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black">{eventData.title}</h1>
+            <h1 className="text-2xl font-black">{eventData.title || eventData.welcomeHeading}</h1>
             <p className="text-xs text-slate-400 mt-1">This event is private. Enter 4-digit PIN to access.</p>
           </div>
           <form
@@ -144,6 +154,11 @@ export default function ViewerHomePage() {
   const vegItems = foodList.filter((f: any) => f.category === "VEG");
   const nonVegItems = foodList.filter((f: any) => f.category === "NON_VEG");
 
+  const formattedDate =
+    eventData.eventDate && !isNaN(new Date(eventData.eventDate).getTime())
+      ? new Date(eventData.eventDate).toLocaleDateString()
+      : "Today";
+
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 p-4 md:p-8 space-y-8 max-w-4xl mx-auto font-sans">
       {/* Hero Header */}
@@ -151,14 +166,18 @@ export default function ViewerHomePage() {
         <span className="px-3 py-1 rounded-full text-[10px] font-black bg-pink-500/20 text-pink-400 border border-pink-500/30 uppercase tracking-widest">
           {eventData.heroTag || "LIVE CELEBRATION"}
         </span>
-        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight">{eventData.title}</h1>
-        <p className="text-sm text-slate-400 font-medium">{eventData.subtitle}</p>
+        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight">
+          {eventData.title || eventData.welcomeHeading}
+        </h1>
+        <p className="text-sm text-slate-400 font-medium">
+          {eventData.subtitle || eventData.welcomeSubtext}
+        </p>
         <div className="flex flex-wrap justify-center items-center gap-4 pt-2 text-xs text-slate-300 font-mono">
           <span className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-            <Calendar className="w-3.5 h-3.5 text-pink-400" /> {new Date(eventData.eventDate).toLocaleDateString()}
+            <Calendar className="w-3.5 h-3.5 text-pink-400" /> {formattedDate}
           </span>
           <span className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-            <MapPin className="w-3.5 h-3.5 text-pink-400" /> {eventData.venueName}
+            <MapPin className="w-3.5 h-3.5 text-pink-400" /> {eventData.venueName || "Venue"}
           </span>
         </div>
       </div>

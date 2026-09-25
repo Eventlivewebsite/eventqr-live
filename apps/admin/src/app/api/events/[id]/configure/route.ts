@@ -105,33 +105,32 @@ function sanitizeImageUrl(url: any): string {
 }
 
 // -------------------------------------------------------------
-// GET: Fetch Event Configurations
+// GET: Fetch Event Configurations (Public & Admin Dual-Mode)
 // -------------------------------------------------------------
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await authenticateAndAuthorize(req);
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Access Denied: Unauthenticated access." },
-        { status: 401 }
-      );
-    }
-
     const { id } = await context.params;
     const cleanId = sanitizeString(id, 64);
 
     if (!cleanId) {
       return NextResponse.json(
-        { success: false, error: "Event ID required." },
+        { success: false, error: "Event identifier required." },
         { status: 400 }
       );
     }
 
+    // ID ya SLUG dono se event dhoondein taaki Viewer aur Admin dono chal sakein
     const event: any = await prisma.event.findFirst({
-      where: { id: cleanId, isDeleted: false },
+      where: {
+        OR: [
+          { id: cleanId },
+          { slug: cleanId },
+        ],
+        isDeleted: false,
+      },
       include: {
         settings: true,
         customFields: true,
@@ -147,7 +146,9 @@ export async function GET(
       );
     }
 
-    if (session.role === "STUDIO_ADMIN" && event.clientId && event.clientId !== session.userId) {
+    // Optional Check: Agar Admin logged in hai aur STUDIO_ADMIN hai toh ownership check
+    const session = await authenticateAndAuthorize(req);
+    if (session && session.role === "STUDIO_ADMIN" && event.clientId && event.clientId !== session.userId) {
       return NextResponse.json(
         { success: false, error: "Access Forbidden: Resource ownership validation failed." },
         { status: 403 }
@@ -180,7 +181,7 @@ export async function GET(
       // safe fallback
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       event: {
         id: event.id,
@@ -189,7 +190,9 @@ export async function GET(
         status: event.status || "APPROVED",
         heroTag: customMap["heroTag"] || preset.badge,
         welcomeHeading: event.title || preset.defaultHeading,
+        title: event.title || preset.defaultHeading,
         welcomeSubtext: event.settings?.subtitle || preset.defaultSubtext,
+        subtitle: event.settings?.subtitle || preset.defaultSubtext,
         venueName: event.location || preset.venue,
         eventDate: event.eventDate ? event.eventDate.toISOString() : null,
         activeCeremony: preset.activeCeremony,
@@ -214,6 +217,10 @@ export async function GET(
         foodItems,
       },
     });
+
+    res.headers.set("Access-Control-Allow-Origin", "*");
+    res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    return res;
   } catch (error: any) {
     console.error("GET /api/events/[id]/configure error:", error);
     return NextResponse.json(
@@ -224,7 +231,7 @@ export async function GET(
 }
 
 // -------------------------------------------------------------
-// POST: Update & Deploy Event Configurations
+// POST: Update & Deploy Event Configurations (Strict Secure Admin Only)
 // -------------------------------------------------------------
 export async function POST(
   req: NextRequest,
@@ -251,7 +258,13 @@ export async function POST(
     }
 
     const existingEvent = await prisma.event.findFirst({
-      where: { id: cleanId, isDeleted: false },
+      where: {
+        OR: [
+          { id: cleanId },
+          { slug: cleanId },
+        ],
+        isDeleted: false,
+      },
       select: { id: true, clientId: true },
     });
 
@@ -261,6 +274,8 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    const targetEventId = existingEvent.id;
 
     if (session.role === "STUDIO_ADMIN" && existingEvent.clientId && existingEvent.clientId !== session.userId) {
       return NextResponse.json(
@@ -302,11 +317,11 @@ export async function POST(
     }
 
     await prisma.event.update({
-      where: { id: cleanId },
+      where: { id: targetEventId },
       data: eventUpdateData,
     });
 
-    // 2. Safe EventSettings Update (Matching Schema Exactly)
+    // 2. Safe EventSettings Update
     const settingsFields = {
       subtitle: finalSubtitle,
       allowDownloads: Boolean(body.allowDownloads ?? true),
@@ -314,7 +329,7 @@ export async function POST(
     };
 
     const existingSettings = await prisma.eventSettings.findFirst({
-      where: { eventId: cleanId },
+      where: { eventId: targetEventId },
     });
 
     if (existingSettings) {
@@ -325,7 +340,7 @@ export async function POST(
     } else {
       await prisma.eventSettings.create({
         data: {
-          eventId: cleanId,
+          eventId: targetEventId,
           ...settingsFields,
         },
       });
@@ -361,7 +376,7 @@ export async function POST(
 
     for (const cf of customFieldsToStore) {
       const existingField = await prisma.customField.findFirst({
-        where: { eventId: cleanId, fieldName: cf.name },
+        where: { eventId: targetEventId, fieldName: cf.name },
       });
 
       if (existingField) {
@@ -372,7 +387,7 @@ export async function POST(
       } else {
         await prisma.customField.create({
           data: {
-            eventId: cleanId,
+            eventId: targetEventId,
             fieldName: cf.name,
             fieldValue: cf.value,
           },
@@ -394,12 +409,12 @@ export async function POST(
         if (!slug) continue;
 
         const existing = await prisma.album.findFirst({
-          where: { eventId: cleanId, slug },
+          where: { eventId: targetEventId, slug },
         });
 
         if (!existing) {
           await prisma.album.create({
-            data: { eventId: cleanId, title: cat, slug, sortOrder: i },
+            data: { eventId: targetEventId, title: cat, slug, sortOrder: i },
           });
         } else {
           await prisma.album.update({
@@ -412,7 +427,7 @@ export async function POST(
 
     // 5. Sync Timeline
     if (Array.isArray(body.timeline)) {
-      await prisma.eventTimeline.deleteMany({ where: { eventId: cleanId } });
+      await prisma.eventTimeline.deleteMany({ where: { eventId: targetEventId } });
       const timelineItems = body.timeline.slice(0, 40);
 
       for (let i = 0; i < timelineItems.length; i++) {
@@ -422,7 +437,7 @@ export async function POST(
 
         await prisma.eventTimeline.create({
           data: {
-            eventId: cleanId,
+            eventId: targetEventId,
             title: itemTitle,
             timeText: sanitizeString(t.time || "TBD", 30),
             statusText: sanitizeString(t.status || "UPCOMING", 30),
@@ -432,10 +447,12 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       message: "Viewer configurations successfully secured and deployed!",
     });
+    res.headers.set("Access-Control-Allow-Origin", "*");
+    return res;
   } catch (error: any) {
     console.error("POST /api/events/[id]/configure internal error:", error);
     return NextResponse.json(
