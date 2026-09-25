@@ -1,134 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { jwtVerify } from "jose";
 
 export const dynamic = "force-dynamic";
 
-const RAW_JWT_SECRET = process.env.JWT_SECRET;
-const JWT_SECRET = new TextEncoder().encode(
-  RAW_JWT_SECRET || "eventqr_live_secure_jwt_secret_key_2026_super_admin"
-);
-
-interface AuthSession {
-  userId: string;
-  role: string;
-}
-
-async function authenticateAndAuthorize(req: NextRequest): Promise<AuthSession | null> {
-  const token =
-    req.cookies.get("eventqr_session")?.value ||
-    req.headers.get("authorization")?.replace("Bearer ", "");
-
-  if (!token) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    const userId = String(payload.userId || "");
-    const role = String(payload.role || "").toUpperCase();
-
-    if (!userId || !role) return null;
-    if (role !== "ADMIN" && role !== "STUDIO_ADMIN" && role !== "SUPER_ADMIN") {
-      return null;
-    }
-
-    return { userId, role };
-  } catch {
-    return null;
-  }
-}
-
-const PRESETS: Record<string, any> = {
-  WEDDING: {
-    badge: "LIVE WEDDING EVENT",
-    defaultHeading: "A & S Wedding Celebration",
-    defaultSubtext: "Forever Begins Today",
-    venue: "Jaipur Palace, Ballroom",
-    activeCeremony: "Wedding Reception",
-    ceremonyTime: "06:00 PM",
-    categories: ["Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"],
-    albums: [
-      { name: "Wedding", count: 120 },
-      { name: "Haldi", count: 85 },
-      { name: "Reception", count: 210 },
-    ],
-    decorationZones: ["Wedding Stage", "Floral Decoration", "Lighting", "Entrance", "Dining", "Selfie Booth"],
-    timeline: [
-      { title: "Haldi Ceremony", time: "11:00 AM", status: "COMPLETED" },
-      { title: "Wedding Reception", time: "06:00 PM", status: "LIVE" },
-      { title: "Dinner", time: "08:00 PM", status: "UPCOMING" },
-    ],
-  },
-  BIRTHDAY: {
-    badge: "BIRTHDAY BASH LIVE",
-    defaultHeading: "Aarav's 1st Birthday Fiesta",
-    defaultSubtext: "One Year of Pure Joy",
-    venue: "Grand Celebration Hall",
-    activeCeremony: "Cake Cutting Ceremony",
-    ceremonyTime: "06:30 PM",
-    categories: ["Cake Cutting", "Magic Show", "Kids Zone", "Family Moments", "Dance Party"],
-    albums: [
-      { name: "Cake Cutting", count: 45 },
-      { name: "Kids Zone", count: 90 },
-    ],
-    decorationZones: ["Balloon Arch", "Cake Stage", "Kids Play Area", "Selfie Backdrop"],
-    timeline: [{ title: "Cake Cutting", time: "06:30 PM", status: "LIVE" }],
-  },
-  CORPORATE: {
-    badge: "GLOBAL SUMMIT 2026",
-    defaultHeading: "Tech Leadership Summit",
-    defaultSubtext: "Innovate, Lead, Transform",
-    venue: "Convention Center, Bangalore",
-    activeCeremony: "Keynote Address",
-    ceremonyTime: "10:30 AM",
-    categories: ["Keynote", "Workshops", "Awards Gala", "Networking", "Dinner"],
-    albums: [{ name: "Keynote Stage", count: 80 }],
-    decorationZones: ["Main Stage", "VIP Registration", "Dining Hall"],
-    timeline: [{ title: "Keynote Address", time: "10:30 AM", status: "LIVE" }],
-  },
-};
-
-function sanitizeString(val: any, maxLength = 250): string {
-  if (typeof val !== "string") return "";
-  return val.trim().slice(0, maxLength);
-}
-
-function sanitizeImageUrl(url: any): string {
-  if (typeof url !== "string") return "";
-  const trimmed = url.trim();
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed.slice(0, 1000);
-  }
-  if (trimmed.startsWith("data:image/") && trimmed.length < 150000) {
-    return trimmed;
-  }
-  return "";
-}
-
-// -------------------------------------------------------------
-// GET: Fetch Event Configurations (Public & Admin Dual-Mode)
-// -------------------------------------------------------------
-export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const cleanId = sanitizeString(id, 64);
+    const cleanId = String(id || "").trim();
 
-    if (!cleanId) {
-      return NextResponse.json(
-        { success: false, error: "Event identifier required." },
-        { status: 400 }
-      );
-    }
-
-    // ID ya SLUG dono se event dhoondein taaki Viewer aur Admin dono chal sakein
     const event: any = await prisma.event.findFirst({
       where: {
-        OR: [
-          { id: cleanId },
-          { slug: cleanId },
-        ],
+        OR: [{ id: cleanId }, { slug: cleanId }],
         isDeleted: false,
       },
       include: {
@@ -140,28 +22,9 @@ export async function GET(
     });
 
     if (!event) {
-      return NextResponse.json(
-        { success: false, error: "Event resource not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
     }
 
-    // Optional Check: Agar Admin logged in hai aur STUDIO_ADMIN hai toh ownership check
-    const session = await authenticateAndAuthorize(req);
-    if (session && session.role === "STUDIO_ADMIN" && event.clientId && event.clientId !== session.userId) {
-      return NextResponse.json(
-        { success: false, error: "Access Forbidden: Resource ownership validation failed." },
-        { status: 403 }
-      );
-    }
-
-    const evType = String(event.type || "WEDDING").toUpperCase();
-    const preset = PRESETS[evType] || PRESETS.WEDDING;
-
-    const dbAlbums: any[] = Array.isArray(event.albums) ? event.albums : [];
-    const dbTimeline: any[] = Array.isArray(event.timelines) ? event.timelines : [];
-
-    // Parse stored CustomFields
     const customMap: Record<string, string> = {};
     if (Array.isArray(event.customFields)) {
       event.customFields.forEach((cf: any) => {
@@ -171,293 +34,38 @@ export async function GET(
 
     let familyMembers = [];
     let foodItems = [];
-    let decorationZones = preset.decorationZones;
-
     try {
       if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]);
       if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]);
-      if (customMap["decorationZones"]) decorationZones = JSON.parse(customMap["decorationZones"]);
-    } catch {
-      // safe fallback
-    }
+    } catch {}
 
     const res = NextResponse.json({
       success: true,
       event: {
         id: event.id,
-        slug: event.slug || "event-" + event.id.slice(-6),
-        type: event.type || "WEDDING",
-        status: event.status || "APPROVED",
-        heroTag: customMap["heroTag"] || preset.badge,
-        welcomeHeading: event.title || preset.defaultHeading,
-        title: event.title || preset.defaultHeading,
-        welcomeSubtext: event.settings?.subtitle || preset.defaultSubtext,
-        subtitle: event.settings?.subtitle || preset.defaultSubtext,
-        venueName: event.location || preset.venue,
-        eventDate: event.eventDate ? event.eventDate.toISOString() : null,
-        activeCeremony: preset.activeCeremony,
-        ceremonyStartTime: preset.ceremonyTime,
-        accessMode: event.accessMode || "PUBLIC",
-        pinCode: event.pinCode || "",
-        retentionDays: event.retentionDays || 15,
-        autoCompress: true,
-        allowDownloads: event.settings?.allowDownloads ?? true,
-        allowComments: event.settings?.allowLikes ?? true,
-        categories: dbAlbums.length > 0 ? dbAlbums.map((a: any) => a.title) : preset.categories,
-        albums: dbAlbums.length > 0 ? dbAlbums.map((a: any) => ({ name: a.title, count: 0 })) : preset.albums,
-        decorationZones,
-        timeline: dbTimeline.length > 0
-          ? dbTimeline.map((t: any) => ({
-              title: t.title,
-              time: t.timeText || t.time || "TBD",
-              status: t.statusText || t.status || "UPCOMING",
-            }))
-          : preset.timeline,
+        slug: event.slug,
+        title: event.title || "Live Celebration",
+        subtitle: event.settings?.subtitle || "Forever Begins Today",
+        venueName: event.location || "Grand Palace",
+        eventDate: event.eventDate ? event.eventDate.toISOString() : new Date().toISOString(),
+        accessMode: "PUBLIC",
+        heroTag: customMap["heroTag"] || "LIVE CELEBRATION",
         familyMembers,
         foodItems,
       },
     });
 
     res.headers.set("Access-Control-Allow-Origin", "*");
-    res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
     return res;
   } catch (error: any) {
-    console.error("GET /api/events/[id]/configure error:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal processing error." },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Server Error" }, { status: 500 });
   }
 }
 
-// -------------------------------------------------------------
-// POST: Update & Deploy Event Configurations (Strict Secure Admin Only)
-// -------------------------------------------------------------
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await authenticateAndAuthorize(req);
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Access Denied: Unauthenticated access." },
-        { status: 401 }
-      );
-    }
-
-    const { id } = await context.params;
-    const cleanId = sanitizeString(id, 64);
-    const body = await req.json().catch(() => null);
-
-    if (!cleanId || !body || typeof body !== "object") {
-      return NextResponse.json(
-        { success: false, error: "Invalid payload provided." },
-        { status: 400 }
-      );
-    }
-
-    const existingEvent = await prisma.event.findFirst({
-      where: {
-        OR: [
-          { id: cleanId },
-          { slug: cleanId },
-        ],
-        isDeleted: false,
-      },
-      select: { id: true, clientId: true },
-    });
-
-    if (!existingEvent) {
-      return NextResponse.json(
-        { success: false, error: "Target event resource not found." },
-        { status: 404 }
-      );
-    }
-
-    const targetEventId = existingEvent.id;
-
-    if (session.role === "STUDIO_ADMIN" && existingEvent.clientId && existingEvent.clientId !== session.userId) {
-      return NextResponse.json(
-        { success: false, error: "Access Forbidden: Unauthorized modification attempt." },
-        { status: 403 }
-      );
-    }
-
-    // 1. Update Core Event fields (Valid columns only)
-    const finalTitle = sanitizeString(body.welcomeHeading || body.title || "Celebration", 150);
-    const finalSubtitle = sanitizeString(body.welcomeSubtext || "Forever Begins Today", 250);
-
-    const eventUpdateData: Record<string, any> = { title: finalTitle };
-
-    if (body.venueName !== undefined) {
-      eventUpdateData.location = sanitizeString(body.venueName, 200);
-    }
-
-    if (body.eventDate) {
-      const parsedDate = new Date(body.eventDate);
-      if (!isNaN(parsedDate.getTime())) {
-        eventUpdateData.eventDate = parsedDate;
-      }
-    }
-
-    if (body.retentionDays !== undefined) {
-      const parsedDays = Number(body.retentionDays);
-      eventUpdateData.retentionDays = isNaN(parsedDays) || parsedDays < 1 ? 15 : Math.min(parsedDays, 365);
-    }
-
-    if (body.accessMode !== undefined) {
-      const mode = String(body.accessMode).toUpperCase();
-      eventUpdateData.accessMode = ["PUBLIC", "PIN", "PRIVATE"].includes(mode) ? mode : "PUBLIC";
-    }
-
-    if (body.pinCode !== undefined) {
-      const sanitizedPin = sanitizeString(body.pinCode, 10);
-      eventUpdateData.pinCode = sanitizedPin.length > 0 ? sanitizedPin : null;
-    }
-
-    await prisma.event.update({
-      where: { id: targetEventId },
-      data: eventUpdateData,
-    });
-
-    // 2. Safe EventSettings Update
-    const settingsFields = {
-      subtitle: finalSubtitle,
-      allowDownloads: Boolean(body.allowDownloads ?? true),
-      allowLikes: Boolean(body.allowComments ?? true),
-    };
-
-    const existingSettings = await prisma.eventSettings.findFirst({
-      where: { eventId: targetEventId },
-    });
-
-    if (existingSettings) {
-      await prisma.eventSettings.update({
-        where: { id: existingSettings.id },
-        data: settingsFields,
-      });
-    } else {
-      await prisma.eventSettings.create({
-        data: {
-          eventId: targetEventId,
-          ...settingsFields,
-        },
-      });
-    }
-
-    // 3. Store Custom Collections using Prisma CustomField model
-    const cleanFamily = Array.isArray(body.familyMembers)
-      ? body.familyMembers.slice(0, 50).map((m: any) => ({
-          id: String(m.id || Date.now()),
-          name: sanitizeString(m.name, 100),
-          role: sanitizeString(m.role, 100),
-          bio: sanitizeString(m.bio, 250),
-          photoUrl: sanitizeImageUrl(m.photoUrl),
-        }))
-      : [];
-
-    const cleanFood = Array.isArray(body.foodItems)
-      ? body.foodItems.slice(0, 100).map((f: any) => ({
-          id: String(f.id || Date.now()),
-          name: sanitizeString(f.name, 100),
-          category: f.category === "NON_VEG" ? "NON_VEG" : "VEG",
-          description: sanitizeString(f.description, 250),
-          photoUrl: sanitizeImageUrl(f.photoUrl),
-        }))
-      : [];
-
-    const customFieldsToStore = [
-      { name: "heroTag", value: sanitizeString(body.heroTag || "LIVE EVENT", 50) },
-      { name: "decorationZones", value: JSON.stringify(Array.isArray(body.decorationZones) ? body.decorationZones.slice(0, 50) : []) },
-      { name: "familyMembers", value: JSON.stringify(cleanFamily) },
-      { name: "foodItems", value: JSON.stringify(cleanFood) },
-    ];
-
-    for (const cf of customFieldsToStore) {
-      const existingField = await prisma.customField.findFirst({
-        where: { eventId: targetEventId, fieldName: cf.name },
-      });
-
-      if (existingField) {
-        await prisma.customField.update({
-          where: { id: existingField.id },
-          data: { fieldValue: cf.value },
-        });
-      } else {
-        await prisma.customField.create({
-          data: {
-            eventId: targetEventId,
-            fieldName: cf.name,
-            fieldValue: cf.value,
-          },
-        });
-      }
-    }
-
-    // 4. Sync Categories / Albums
-    if (Array.isArray(body.categories)) {
-      const categories = body.categories.slice(0, 30);
-      for (let i = 0; i < categories.length; i++) {
-        const cat = sanitizeString(categories[i], 80);
-        if (!cat) continue;
-        const slug = cat
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "");
-
-        if (!slug) continue;
-
-        const existing = await prisma.album.findFirst({
-          where: { eventId: targetEventId, slug },
-        });
-
-        if (!existing) {
-          await prisma.album.create({
-            data: { eventId: targetEventId, title: cat, slug, sortOrder: i },
-          });
-        } else {
-          await prisma.album.update({
-            where: { id: existing.id },
-            data: { title: cat, sortOrder: i },
-          });
-        }
-      }
-    }
-
-    // 5. Sync Timeline
-    if (Array.isArray(body.timeline)) {
-      await prisma.eventTimeline.deleteMany({ where: { eventId: targetEventId } });
-      const timelineItems = body.timeline.slice(0, 40);
-
-      for (let i = 0; i < timelineItems.length; i++) {
-        const t = timelineItems[i];
-        const itemTitle = sanitizeString(t?.title, 100);
-        if (!itemTitle) continue;
-
-        await prisma.eventTimeline.create({
-          data: {
-            eventId: targetEventId,
-            title: itemTitle,
-            timeText: sanitizeString(t.time || "TBD", 30),
-            statusText: sanitizeString(t.status || "UPCOMING", 30),
-            sortOrder: i,
-          },
-        });
-      }
-    }
-
-    const res = NextResponse.json({
-      success: true,
-      message: "Viewer configurations successfully secured and deployed!",
-    });
-    res.headers.set("Access-Control-Allow-Origin", "*");
-    return res;
-  } catch (error: any) {
-    console.error("POST /api/events/[id]/configure internal error:", error);
-    return NextResponse.json(
-      { success: false, error: error?.message || "Internal processing error." },
-      { status: 500 }
-    );
-  }
+export async function OPTIONS() {
+  const res = new NextResponse(null, { status: 204 });
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  return res;
 }
