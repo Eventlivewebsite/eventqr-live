@@ -13,30 +13,20 @@ export default function ViewerHomePage() {
   useEffect(() => {
     async function fetchEvent() {
       try {
-        // Slug ya current domain/subdomain se event fetch karein
-        const pathSlug = window.location.pathname.split("/").filter(Boolean).pop() || "demo-event";
-        const res = await fetch(`/api/viewer/event?slug=${pathSlug}`);
+        // Query param (?event=slug ya ?slug=slug) ya URL path se slug extract karein
+        const urlParams = new URLSearchParams(window.location.search);
+        const querySlug = urlParams.get("event") || urlParams.get("slug");
+        const pathSlug = window.location.pathname.split("/").filter(Boolean).pop();
+        const activeSlug = querySlug || (pathSlug !== "e" ? pathSlug : null) || "testing-nns3";
+
+        const res = await fetch(`/api/viewer/event?slug=${encodeURIComponent(activeSlug)}`);
         const data = await res.json().catch(() => null);
 
-        if (res.ok && data?.success) {
+        if (res.ok && data?.success && data?.event) {
           setEventData(data.event);
           if (data.event.accessMode === "PUBLIC") {
             setIsUnlocked(true);
           }
-        } else {
-          // Fallback demo data
-          setEventData({
-            title: "Rahul & Sneha's Wedding",
-            subtitle: "Forever Begins Today",
-            venueName: "Grand Palace Hall, Delhi",
-            eventDate: "2026-09-19",
-            accessMode: "PUBLIC",
-            heroTag: "LIVE WEDDING EVENT",
-            familyMembers: [],
-            foodItems: [],
-            timeline: [],
-          });
-          setIsUnlocked(true);
         }
       } catch (err) {
         console.error("Viewer fetch error", err);
