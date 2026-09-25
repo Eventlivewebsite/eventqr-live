@@ -1,8 +1,18 @@
-import { auth } from "@repo/auth";
-import { toNextJsHandler } from "better-auth/next-js";
+import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const dynamicParams = true;
-export const revalidate = 0;
+export const runtime = "nodejs";
 
-export const { GET, POST } = toNextJsHandler(auth);
+export async function GET(req: NextRequest) {
+  const { auth } = await import("@repo/auth");
+  const { toNextJsHandler } = await import("better-auth/next-js");
+  const handlers = toNextJsHandler(auth);
+  return handlers.GET(req);
+}
+
+export async function POST(req: NextRequest) {
+  const { auth } = await import("@repo/auth");
+  const { toNextJsHandler } = await import("better-auth/next-js");
+  const handlers = toNextJsHandler(auth);
+  return handlers.POST(req);
+}
