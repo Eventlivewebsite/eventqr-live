@@ -89,11 +89,39 @@ export default function MasterEventSetupPage() {
     liveViewerUrl
   )}`;
 
-  // File Upload Helper
+  // Auto-Compress Images to avoid Vercel 4.5MB 413 Payload Limit
   const handleImageFile = (file: File, callback: (base64: string) => void) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      callback(String(reader.result));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 500;
+        const MAX_HEIGHT = 500;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL("image/jpeg", 0.65);
+        callback(compressedBase64);
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
