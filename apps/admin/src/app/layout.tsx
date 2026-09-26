@@ -19,13 +19,11 @@ export default function RootLayout({
   useEffect(() => {
     setMounted(true);
 
-    // 1. Agar login page hai toh authentication check skip karein
     if (isLoginPage) {
       setChecking(false);
       return;
     }
 
-    // 2. Client-side authentication check
     const session =
       typeof window !== "undefined"
         ? localStorage.getItem("studio_client_session") ||
@@ -48,7 +46,6 @@ export default function RootLayout({
     setHasValidSession(true);
     setChecking(false);
 
-    // 3. Multi-Tab Synchronized Logout Listener
     let authChannel: BroadcastChannel | null = null;
     if (typeof window.BroadcastChannel !== "undefined") {
       authChannel = new BroadcastChannel("auth_sync_channel");
@@ -73,44 +70,38 @@ export default function RootLayout({
     };
   }, [isLoginPage, pathname]);
 
-  // Initial SSR mount hone tak clean fallback taaki hydration break na ho
   if (!mounted) {
     return (
       <html lang="en">
-        <body className="bg-[#030712] min-h-screen text-slate-100 font-sans antialiased">
+        <body className="bg-slate-900 min-h-screen text-slate-100 font-sans antialiased">
           {children}
         </body>
       </html>
     );
   }
 
-  // 1. LOGIN PAGE VIEW: Left sidebar 0% render hoga, clean full screen soft pink layout
   if (isLoginPage) {
     return (
       <html lang="en">
-        <body className="bg-[#ffe4e6] min-h-screen font-sans antialiased overflow-x-hidden">
-          <main className="min-h-screen w-full">{children}</main>
+        <body className="bg-slate-950 min-h-screen text-slate-100 font-sans antialiased">
+          {children}
         </body>
       </html>
     );
   }
 
-  // 2. PROTECTED STUDIO ADMIN PAGES VIEW
   return (
     <html lang="en">
-      <body className="bg-[#030712] text-slate-100 min-h-screen font-sans antialiased selection:bg-pink-500 selection:text-white">
-        <div className="flex min-h-screen w-full">
-          {hasValidSession && <StudioSidebar />}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-inherit">
-            {checking ? (
-              <div className="flex min-h-screen items-center justify-center bg-[#030712]">
-                <div className="w-8 h-8 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
-              </div>
-            ) : (
-              children
-            )}
-          </main>
-        </div>
+      <body className="bg-slate-50 text-slate-900 font-sans antialiased h-screen overflow-hidden flex">
+        {/* Sticky Fixed Sidebar */}
+        <aside className="w-64 flex-shrink-0 h-screen overflow-y-auto border-r border-slate-200 bg-white">
+          <StudioSidebar />
+        </aside>
+
+        {/* Scrollable Main Content Form */}
+        <main className="flex-1 h-screen overflow-y-auto">
+          {children}
+        </main>
       </body>
     </html>
   );

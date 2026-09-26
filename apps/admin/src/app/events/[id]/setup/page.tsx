@@ -8,12 +8,68 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Client-side auto compression for high-res images
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          "image/jpeg",
+          0.82
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+}
+
 export default function EventSetupPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const eventId = resolvedParams.id;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
   const [slug, setSlug] = useState("");
 
@@ -40,7 +96,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [inviteTimeText, setInviteTimeText] = useState("07:00 PM Onwards");
   const [inviteVenueText, setInviteVenueText] = useState("Jaipur Palace, Rajasthan");
 
-  // 4. Unified Categories & Decoration Hub (Applies to both Photos & Videos)
+  // 4. Unified Categories & Decoration Hub
   const [commonCategories, setCommonCategories] = useState<string[]>([
     "Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"
   ]);
@@ -105,7 +161,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           if (cm.ourStoryUrl) setOurStoryUrl(cm.ourStoryUrl);
           if (cm.ceremonyName) setCeremonyName(cm.ceremonyName);
 
-          // Invitation
           if (cm.inviteBadge) setInviteBadge(cm.inviteBadge);
           if (cm.inviteCoupleInitials) setInviteCoupleInitials(cm.inviteCoupleInitials);
           if (cm.inviteTagline) setInviteTagline(cm.inviteTagline);
@@ -134,21 +189,26 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
     loadData();
   }, [eventId]);
 
-  const handleFileUpload = async (file: File, category: string, cb: (url: string) => void) => {
+  const handleFileUpload = async (rawFile: File, category: string, cb: (url: string) => void) => {
     try {
+      setUploading(true);
+      const fileToUpload = await compressImage(rawFile);
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", fileToUpload);
       fd.append("eventId", eventId);
       fd.append("category", category);
+
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const json = await res.json();
       if (json.success && json.url) {
         cb(json.url);
       } else {
-        alert("Upload error: " + json.error);
+        alert("Upload error: " + (json.error || "Failed"));
       }
     } catch (e: any) {
       alert("Upload failed: " + e.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -167,7 +227,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         highlightPhotos,
         ourStoryUrl,
         ceremonyName,
-        // Invitation
         inviteBadge,
         inviteCoupleInitials,
         inviteTagline,
@@ -175,12 +234,10 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         inviteDateText,
         inviteTimeText,
         inviteVenueText,
-        // Categories & Decoration synced for both
         photoCategories: commonCategories,
         videoCategories: commonCategories,
         decorationItems: decorationAlbums,
         showDecoration: true,
-        // Timelines & Modules
         showTimeline,
         timelines,
         showFoodMenu,
@@ -245,7 +302,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             )}
             <button
               onClick={handlePublishAll}
-              disabled={saving}
+              disabled={saving || uploading}
               className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-2.5 rounded-2xl font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition"
             >
               {saving ? <Loader2 className="animate-spin h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
@@ -253,6 +310,12 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             </button>
           </div>
         </div>
+
+        {uploading && (
+          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 font-semibold text-xs flex items-center gap-2">
+            <Loader2 className="animate-spin h-4 w-4 text-amber-600" /> Compressing & uploading media to server...
+          </div>
+        )}
 
         {msg && (
           <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold text-sm">
@@ -507,7 +570,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             <p className="text-xs text-gray-500 mt-1">Changes made here automatically apply to both Photos and Videos sections.</p>
           </div>
 
-          {/* Gallery Category Chips */}
           <div>
             <span className="text-xs font-bold text-gray-700 uppercase">Active Categories (Photos & Videos)</span>
             <div className="flex flex-wrap gap-2 mt-2">
@@ -536,7 +598,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
-          {/* Decoration Albums */}
           <div className="pt-2 border-t">
             <span className="text-xs font-bold text-gray-700 uppercase">Decoration Drawer Albums (Photos & Videos)</span>
             <div className="flex flex-wrap gap-2 mt-2">
@@ -688,7 +749,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {dishPhoto ? "Photo Ready" : "Upload Photo"}
+                  <Upload size={14} /> {dishPhoto ? "✓ Photo Set" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"
@@ -786,7 +847,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {memPhoto ? "Photo Set" : "Upload Photo"}
+                  <Upload size={14} /> {memPhoto ? "✓ Photo Set" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"
