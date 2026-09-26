@@ -1,23 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await context.params;
-    const cleanId = String(id || "").trim();
-
-    const event: any = await prisma.event.findFirst({
-      where: {
-        OR: [{ id: cleanId }, { slug: cleanId }],
-        isDeleted: false,
-      },
+    const event = await prisma.event.findUnique({
+      where: { id },
       include: {
         settings: true,
         customFields: true,
-        albums: { orderBy: { sortOrder: "asc" } },
         timelines: { orderBy: { sortOrder: "asc" } },
+        albums: { orderBy: { sortOrder: "asc" } },
       },
     });
 
@@ -32,40 +30,109 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       });
     }
 
-    let familyMembers = [];
     let foodItems = [];
-    try {
-      if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]);
-      if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]);
-    } catch {}
+    let familyMembers = [];
+    let videosList = [];
+    let enabledModules = {
+      invitation: true,
+      family: true,
+      guestbook: true,
+      foodMenu: true,
+    };
 
-    const res = NextResponse.json({
+    try { if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]); } catch {}
+    try { if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]); } catch {}
+    try { if (customMap["videosList"]) videosList = JSON.parse(customMap["videosList"]); } catch {}
+    try { if (customMap["enabledModules"]) enabledModules = JSON.parse(customMap["enabledModules"]); } catch {}
+
+    return NextResponse.json({
       success: true,
       event: {
-        id: event.id,
-        slug: event.slug,
-        title: event.title || "Live Celebration",
-        subtitle: event.settings?.subtitle || "Forever Begins Today",
-        venueName: event.location || "Grand Palace",
-        eventDate: event.eventDate ? event.eventDate.toISOString() : new Date().toISOString(),
-        accessMode: "PUBLIC",
-        heroTag: customMap["heroTag"] || "LIVE CELEBRATION",
-        familyMembers,
+        ...event,
+        heroBannerUrl: customMap["heroBannerUrl"] || "",
+        heroTag: customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION"),
+        venueName: event.location || customMap["venueName"] || "",
+        highlightVideoUrl: customMap["highlightVideoUrl"] || "",
+        trendingLoved: customMap["trendingLoved"] || "Highlights",
+        trendingViewed: customMap["trendingViewed"] || "Special Moments",
+        trendingDownloaded: customMap["trendingDownloaded"] || "Event Album",
+        categoriesList: customMap["categoriesList"] ? JSON.parse(customMap["categoriesList"]) : ["Ceremony", "Haldi", "Reception", "Decoration"],
         foodItems,
+        familyMembers,
+        videosList,
+        enabledModules,
+        customMap,
       },
     });
-
-    res.headers.set("Access-Control-Allow-Origin", "*");
-    res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    return res;
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: "Server Error" }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
-export async function OPTIONS() {
-  const res = new NextResponse(null, { status: 204 });
-  res.headers.set("Access-Control-Allow-Origin", "*");
-  res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-  return res;
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    const body = await req.json();
+
+    const {
+      isLive,
+      venueName,
+      heroBannerUrl,
+      heroTag,
+      highlightVideoUrl,
+      trendingLoved,
+      trendingViewed,
+      trendingDownloaded,
+      categoriesList,
+      timelines,
+      foodItems,
+      familyMembers,
+      videosList,
+      enabledModules,
+    } = body;
+
+    await prisma.event.update({
+      where: { id },
+      data: {
+        ...(typeof isLive === "boolean" ? { isLive } : {}),
+        ...(venueName ? { location: venueName } : {}),
+      },
+    });
+
+    const fieldsToSave: Record<string, string> = {
+      venueName: venueName || "",
+      heroBannerUrl: heroBannerUrl || "",
+      heroTag: heroTag || "LIVE EVENT",
+      highlightVideoUrl: highlightVideoUrl || "",
+      trendingLoved: trendingLoved || "Highlights",
+      trendingViewed: trendingViewed || "Special Moments",
+      trendingDownloaded: trendingDownloaded || "Event Album",
+    };
+
+    if (categoriesList) fieldsToSave["categoriesList"] = JSON.stringify(categoriesList);
+    if (timelines) fieldsToSave["timelines"] = JSON.stringify(timelines);
+    if (foodItems) fieldsToSave["foodItems"] = JSON.stringify(foodItems);
+    if (familyMembers) fieldsToSave["familyMembers"] = JSON.stringify(familyMembers);
+    if (videosList) fieldsToSave["videosList"] = JSON.stringify(videosList);
+    if (enabledModules) fieldsToSave["enabledModules"] = JSON.stringify(enabledModules);
+
+    for (const [fieldName, fieldValue] of Object.entries(fieldsToSave)) {
+      if (fieldValue !== undefined) {
+        await prisma.eventCustomField.upsert({
+          where: {
+            eventId_fieldName: { eventId: id, fieldName },
+          },
+          update: { fieldValue: String(fieldValue) },
+          create: { eventId: id, fieldName, fieldValue: String(fieldValue) },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Settings saved successfully" });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
 }

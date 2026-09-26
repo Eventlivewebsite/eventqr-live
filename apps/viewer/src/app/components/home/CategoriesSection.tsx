@@ -1,15 +1,28 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 
-const categories = [
-  "Ceremony",
-  "Haldi",
-  "Mehendi",
-  "Reception",
-  "Family",
-  "Party",
-];
-
 export default function CategoriesSection() {
+  const [categories, setCategories] = useState<string[]>([
+    "Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"
+  ]);
+
+  useEffect(() => {
+    async function loadCats() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+        const json = res ? await res.json().catch(() => null) : null;
+        if (json?.success && Array.isArray(json?.event?.categoriesList) && json.event.categoriesList.length > 0) {
+          setCategories(json.event.categoriesList);
+        }
+      } catch {}
+    }
+    loadCats();
+  }, []);
+
   return (
     <section className="mt-8 px-5">
       <div className="mb-5 flex items-center gap-2">

@@ -39,7 +39,10 @@ export async function GET(req: NextRequest) {
         isDeleted: false,
       },
       include: {
+        settings: true,
         customFields: true,
+        albums: { orderBy: { sortOrder: "asc" } },
+        timelines: { orderBy: { sortOrder: "asc" } },
       },
     });
 
@@ -55,19 +58,48 @@ export async function GET(req: NextRequest) {
     }
 
     let foodItems = [];
-    try {
-      if (customMap["foodItems"]) {
-        foodItems = JSON.parse(customMap["foodItems"]);
-      }
-    } catch {}
+    let familyMembers = [];
+    let categoriesList = [];
+    let videosList = [];
+    let enabledModules = {
+      invitation: true,
+      family: true,
+      guestbook: true,
+      foodMenu: true,
+    };
+
+    try { if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]); } catch {}
+    try { if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]); } catch {}
+    try { if (customMap["categoriesList"]) categoriesList = JSON.parse(customMap["categoriesList"]); } catch {}
+    try { if (customMap["videosList"]) videosList = JSON.parse(customMap["videosList"]); } catch {}
+    try { if (customMap["enabledModules"]) enabledModules = JSON.parse(customMap["enabledModules"]); } catch {}
+
+    let timelineList = event.timelines || [];
+    if (timelineList.length === 0 && customMap["timelines"]) {
+      try { timelineList = JSON.parse(customMap["timelines"]); } catch {}
+    }
 
     return NextResponse.json({
       success: true,
       event: {
         id: event.id,
         title: event.title,
+        type: event.type,
         slug: event.slug,
+        location: event.location || customMap["venueName"] || "Grand Celebration Venue",
+        heroTag: customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION"),
+        heroBannerUrl: customMap["heroBannerUrl"] || "https://images.unsplash.com/photo-1519741497674-611481863552?w=1200",
+        highlightVideoUrl: customMap["highlightVideoUrl"] || "",
+        trendingLoved: customMap["trendingLoved"] || "Highlights",
+        trendingViewed: customMap["trendingViewed"] || "Special Moments",
+        trendingDownloaded: customMap["trendingDownloaded"] || "Event Album",
+        categoriesList: categoriesList.length > 0 ? categoriesList : ["Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party", "Decoration"],
+        timelines: timelineList,
+        albums: event.albums || [],
         foodItems,
+        familyMembers,
+        videosList,
+        enabledModules,
       },
     });
   } catch (err: any) {
