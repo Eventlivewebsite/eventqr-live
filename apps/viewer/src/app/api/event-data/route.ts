@@ -9,10 +9,7 @@ let cachedPrisma: PrismaClient | null = null;
 
 function getPrismaClient(): PrismaClient | null {
   const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    console.warn("DATABASE_URL is missing at evaluation.");
-    return null;
-  }
+  if (!connectionString) return null;
   if (!cachedPrisma) {
     const pool = new Pool({
       connectionString,
@@ -34,16 +31,12 @@ export async function GET(req: NextRequest) {
 
     const prisma = getPrismaClient();
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: "Database configuration not available yet",
-      }, { status: 503 });
+      return NextResponse.json({ success: false, error: "Database not connected" }, { status: 503 });
     }
 
     const event: any = await prisma.event.findFirst({
       where: {
         OR: [{ slug: String(slug) }, { id: String(slug) }],
-        isDeleted: false,
       },
       include: {
         settings: true,
@@ -64,49 +57,65 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    let foodItems = [];
-    let familyMembers = [];
-    let categoriesList = [];
-    let videosList = [];
-    let enabledModules = {
-      invitation: true,
-      family: true,
-      guestbook: true,
-      foodMenu: true,
-    };
+    // Check Publish Date
+    const scheduledDateStr = customMap["scheduledPublishDate"];
+    let isLocked = false;
+    if (scheduledDateStr && !event.isLive) {
+      const scheduledDate = new Date(scheduledDateStr);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (scheduledDate > today) {
+        isLocked = true;
+      }
+    }
 
+    let highlightPhotos: string[] = [];
+    let videoCategories: string[] = ["Highlights", "Ceremony", "Haldi", "Reception"];
+    let videoDecorationCategories: string[] = ["Stage Decor", "Entry Gate"];
+    let photoCategories: string[] = ["Ceremony", "Haldi", "Mehendi", "Reception"];
+    let photoDecorationCategories: string[] = ["Flower Setup", "Photo Booth"];
+    let timelines: any[] = [];
+    let foodItems: any[] = [];
+    let familyMembers: any[] = [];
+    let playlist: any[] = [];
+
+    try { if (customMap["highlightPhotos"]) highlightPhotos = JSON.parse(customMap["highlightPhotos"]); } catch {}
+    try { if (customMap["videoCategories"]) videoCategories = JSON.parse(customMap["videoCategories"]); } catch {}
+    try { if (customMap["videoDecorationCategories"]) videoDecorationCategories = JSON.parse(customMap["videoDecorationCategories"]); } catch {}
+    try { if (customMap["photoCategories"]) photoCategories = JSON.parse(customMap["photoCategories"]); } catch {}
+    try { if (customMap["photoDecorationCategories"]) photoDecorationCategories = JSON.parse(customMap["photoDecorationCategories"]); } catch {}
+    try { if (customMap["timelines"]) timelines = JSON.parse(customMap["timelines"]); } catch {}
     try { if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]); } catch {}
     try { if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]); } catch {}
-    try { if (customMap["categoriesList"]) categoriesList = JSON.parse(customMap["categoriesList"]); } catch {}
-    try { if (customMap["videosList"]) videosList = JSON.parse(customMap["videosList"]); } catch {}
-    try { if (customMap["enabledModules"]) enabledModules = JSON.parse(customMap["enabledModules"]); } catch {}
-
-    let timelineList = event.timelines || [];
-    if (timelineList.length === 0 && customMap["timelines"]) {
-      try { timelineList = JSON.parse(customMap["timelines"]); } catch {}
-    }
+    try { if (customMap["playlist"]) playlist = JSON.parse(customMap["playlist"]); } catch {}
 
     return NextResponse.json({
       success: true,
+      isLocked,
+      publishDate: scheduledDateStr || null,
       event: {
         id: event.id,
         title: event.title,
-        type: event.type,
-        slug: event.slug,
+        subtitle: customMap["subtitle"] || "Forever Begins Today",
         location: event.location || customMap["venueName"] || "Grand Celebration Venue",
         heroTag: customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION"),
-        heroBannerUrl: customMap["heroBannerUrl"] || "https://images.unsplash.com/photo-1519741497674-611481863552?w=1200",
+        highlightType: customMap["highlightType"] || "video",
         highlightVideoUrl: customMap["highlightVideoUrl"] || "",
-        trendingLoved: customMap["trendingLoved"] || "Highlights",
-        trendingViewed: customMap["trendingViewed"] || "Special Moments",
-        trendingDownloaded: customMap["trendingDownloaded"] || "Event Album",
-        categoriesList: categoriesList.length > 0 ? categoriesList : ["Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party", "Decoration"],
-        timelines: timelineList,
-        albums: event.albums || [],
+        highlightPhotos,
+        videoCategories,
+        videoDecorationCategories,
+        showVideoDecoration: customMap["showVideoDecoration"] !== "false",
+        photoCategories,
+        photoDecorationCategories,
+        showPhotoDecoration: customMap["showPhotoDecoration"] !== "false",
+        showTimeline: customMap["showTimeline"] !== "false",
+        timelines: timelines.length > 0 ? timelines : (event.timelines || []),
+        showFoodMenu: customMap["showFoodMenu"] !== "false",
         foodItems,
+        showFamily: customMap["showFamily"] !== "false",
         familyMembers,
-        videosList,
-        enabledModules,
+        showPlaylist: customMap["showPlaylist"] !== "false",
+        playlist,
       },
     });
   } catch (err: any) {

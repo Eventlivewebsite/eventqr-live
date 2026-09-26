@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Heart, Users } from "lucide-react";
+import { ArrowLeft, Users, Instagram, Facebook } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function FamilyPage() {
@@ -14,18 +14,10 @@ export default function FamilyPage() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
-
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
-        const json = res ? await res.json().catch(() => null) : null;
-
-        if (json?.success && Array.isArray(json?.event?.familyMembers) && json.event.familyMembers.length > 0) {
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
+        const json = await res.json();
+        if (json?.success && Array.isArray(json?.event?.familyMembers)) {
           setMembers(json.event.familyMembers);
-        } else {
-          // Fallback demo members if none entered
-          setMembers([
-            { id: 1, name: "Rajesh & Sunita", relation: "Parents", photoUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400" },
-            { id: 2, name: "Aman Sharma", relation: "Brother", photoUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400" },
-          ]);
         }
       } catch (e) {
         console.error(e);
@@ -38,7 +30,6 @@ export default function FamilyPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#fffaf5] to-[#fff1e6] pb-24 text-gray-900">
-      {/* Header */}
       <div className="sticky top-0 z-20 flex items-center justify-between border-b border-amber-100 bg-white/80 px-5 py-4 backdrop-blur-md">
         <button
           onClick={() => router.back()}
@@ -55,7 +46,7 @@ export default function FamilyPage() {
           {members.map((member) => (
             <div
               key={member.id}
-              className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-4 shadow-sm backdrop-blur-md"
+              className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/90 p-4 shadow-sm backdrop-blur-md"
             >
               <img
                 src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400"}
@@ -63,8 +54,30 @@ export default function FamilyPage() {
                 className="h-36 w-full rounded-2xl object-cover"
               />
               <div className="mt-3 text-center">
-                <h3 className="font-bold text-gray-900">{member.name}</h3>
-                <p className="text-xs text-amber-700">{member.relation}</p>
+                <h3 className="font-bold text-gray-900 text-sm">{member.name}</h3>
+                <p className="text-xs text-amber-700 font-medium">{member.relation}</p>
+                <div className="flex items-center justify-center gap-3 mt-3">
+                  {member.instagramUrl && (
+                    <a
+                      href={member.instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-1.5 rounded-full bg-pink-50 text-pink-600 hover:bg-pink-100 transition"
+                    >
+                      <Instagram size={15} />
+                    </a>
+                  )}
+                  {member.facebookUrl && (
+                    <a
+                      href={member.facebookUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-1.5 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                    >
+                      <Facebook size={15} />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ))}

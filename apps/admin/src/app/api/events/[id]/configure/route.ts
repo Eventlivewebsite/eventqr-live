@@ -30,37 +30,13 @@ export async function GET(
       });
     }
 
-    let foodItems = [];
-    let familyMembers = [];
-    let videosList = [];
-    let enabledModules = {
-      invitation: true,
-      family: true,
-      guestbook: true,
-      foodMenu: true,
-    };
-
-    try { if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]); } catch {}
-    try { if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]); } catch {}
-    try { if (customMap["videosList"]) videosList = JSON.parse(customMap["videosList"]); } catch {}
-    try { if (customMap["enabledModules"]) enabledModules = JSON.parse(customMap["enabledModules"]); } catch {}
-
     return NextResponse.json({
       success: true,
       event: {
         ...event,
-        heroBannerUrl: customMap["heroBannerUrl"] || "",
-        heroTag: customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION"),
         venueName: event.location || customMap["venueName"] || "",
+        heroTag: customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION"),
         highlightVideoUrl: customMap["highlightVideoUrl"] || "",
-        trendingLoved: customMap["trendingLoved"] || "Highlights",
-        trendingViewed: customMap["trendingViewed"] || "Special Moments",
-        trendingDownloaded: customMap["trendingDownloaded"] || "Event Album",
-        categoriesList: customMap["categoriesList"] ? JSON.parse(customMap["categoriesList"]) : ["Ceremony", "Haldi", "Reception", "Decoration"],
-        foodItems,
-        familyMembers,
-        videosList,
-        enabledModules,
         customMap,
       },
     });
@@ -78,57 +54,68 @@ export async function POST(
     const body = await req.json();
 
     const {
-      isLive,
       venueName,
-      heroBannerUrl,
       heroTag,
       highlightVideoUrl,
-      trendingLoved,
-      trendingViewed,
-      trendingDownloaded,
-      categoriesList,
+      subtitle,
+      scheduledPublishDate,
+      highlightType,
+      highlightPhotos,
+      videoCategories,
+      videoDecorationCategories,
+      showVideoDecoration,
+      photoCategories,
+      photoDecorationCategories,
+      showPhotoDecoration,
+      showTimeline,
       timelines,
+      showFoodMenu,
       foodItems,
+      showFamily,
       familyMembers,
-      videosList,
-      enabledModules,
+      showPlaylist,
+      playlist,
     } = body;
 
-    await prisma.event.update({
-      where: { id },
-      data: {
-        ...(typeof isLive === "boolean" ? { isLive } : {}),
-        ...(venueName ? { location: venueName } : {}),
-      },
-    });
+    if (venueName) {
+      await prisma.event.update({
+        where: { id },
+        data: { location: venueName },
+      });
+    }
 
-    const fieldsToSave: Record<string, string> = {
+    const fieldsToSave: Record<string, any> = {
       venueName: venueName || "",
-      heroBannerUrl: heroBannerUrl || "",
       heroTag: heroTag || "LIVE EVENT",
       highlightVideoUrl: highlightVideoUrl || "",
-      trendingLoved: trendingLoved || "Highlights",
-      trendingViewed: trendingViewed || "Special Moments",
-      trendingDownloaded: trendingDownloaded || "Event Album",
+      subtitle: subtitle || "Forever Begins Today",
+      scheduledPublishDate: scheduledPublishDate || "",
+      highlightType: highlightType || "video",
+      highlightPhotos: JSON.stringify(highlightPhotos || []),
+      videoCategories: JSON.stringify(videoCategories || []),
+      videoDecorationCategories: JSON.stringify(videoDecorationCategories || []),
+      showVideoDecoration: String(showVideoDecoration ?? true),
+      photoCategories: JSON.stringify(photoCategories || []),
+      photoDecorationCategories: JSON.stringify(photoDecorationCategories || []),
+      showPhotoDecoration: String(showPhotoDecoration ?? true),
+      showTimeline: String(showTimeline ?? true),
+      timelines: JSON.stringify(timelines || []),
+      showFoodMenu: String(showFoodMenu ?? true),
+      foodItems: JSON.stringify(foodItems || []),
+      showFamily: String(showFamily ?? true),
+      familyMembers: JSON.stringify(familyMembers || []),
+      showPlaylist: String(showPlaylist ?? true),
+      playlist: JSON.stringify(playlist || []),
     };
 
-    if (categoriesList) fieldsToSave["categoriesList"] = JSON.stringify(categoriesList);
-    if (timelines) fieldsToSave["timelines"] = JSON.stringify(timelines);
-    if (foodItems) fieldsToSave["foodItems"] = JSON.stringify(foodItems);
-    if (familyMembers) fieldsToSave["familyMembers"] = JSON.stringify(familyMembers);
-    if (videosList) fieldsToSave["videosList"] = JSON.stringify(videosList);
-    if (enabledModules) fieldsToSave["enabledModules"] = JSON.stringify(enabledModules);
-
     for (const [fieldName, fieldValue] of Object.entries(fieldsToSave)) {
-      if (fieldValue !== undefined) {
-        await prisma.eventCustomField.upsert({
-          where: {
-            eventId_fieldName: { eventId: id, fieldName },
-          },
-          update: { fieldValue: String(fieldValue) },
-          create: { eventId: id, fieldName, fieldValue: String(fieldValue) },
-        });
-      }
+      await prisma.customField.upsert({
+        where: {
+          eventId_fieldName: { eventId: id, fieldName },
+        },
+        update: { fieldValue: String(fieldValue) },
+        create: { eventId: id, fieldName, fieldValue: String(fieldValue) },
+      });
     }
 
     return NextResponse.json({ success: true, message: "Settings saved successfully" });
