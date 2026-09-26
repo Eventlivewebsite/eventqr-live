@@ -3,6 +3,7 @@
 import MobileContainer from "./components/layout/MobileContainer";
 import Header from "./components/layout/Header";
 import HeroBanner from "./components/home/HeroBanner";
+import GallerySection from "./components/home/GallerySection";
 import TrendingSection from "./components/home/TrendingSection";
 import CategoriesSection from "./components/home/CategoriesSection";
 import AlbumsSection from "./components/home/AlbumsSection";
@@ -15,11 +16,13 @@ export default function HomePage() {
     <MobileContainer>
       <Header />
       <HeroBanner />
+      <GallerySection />
       <TrendingSection />
       <CategoriesSection />
       <AlbumsSection />
       <PlaylistSection />
       <TimelineSection />
+      <div className="h-16" />
       <BottomNavigation />
     </MobileContainer>
   );
