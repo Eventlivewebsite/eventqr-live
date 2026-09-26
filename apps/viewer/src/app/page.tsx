@@ -1,7 +1,9 @@
 ﻿"use client";
 
+import { useState } from "react";
 import MobileContainer from "./components/layout/MobileContainer";
 import Header from "./components/layout/Header";
+import MenuDrawer from "./components/layout/drawer/MenuDrawer";
 import HeroBanner from "./components/home/HeroBanner";
 import GallerySection from "./components/home/GallerySection";
 import TrendingSection from "./components/home/TrendingSection";
@@ -12,9 +14,13 @@ import TimelineSection from "./components/home/TimelineSection";
 import BottomNavigation from "./components/navigation/BottomNavigation";
 
 export default function HomePage() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
     <MobileContainer>
-      <Header />
+      <Header onMenuClick={() => setDrawerOpen(true)} />
+      <MenuDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      
       <HeroBanner />
       <GallerySection />
       <TrendingSection />
@@ -22,6 +28,7 @@ export default function HomePage() {
       <AlbumsSection />
       <PlaylistSection />
       <TimelineSection />
+      
       <div className="h-16" />
       <BottomNavigation />
     </MobileContainer>
