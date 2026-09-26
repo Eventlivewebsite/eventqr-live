@@ -8,10 +8,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// Client-side auto compression for high-res images
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/")) return file;
-  return new Promise((resolve) => {
+// Client-side auto compression returning lightweight Base64 string
+async function compressAndConvertToBase64(file: File): Promise<string> {
+  if (file.type.startsWith("video/")) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (e) => {
@@ -19,8 +26,8 @@ async function compressImage(file: File): Promise<File> {
       img.src = e.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
+        const MAX_WIDTH = 900;
+        const MAX_HEIGHT = 900;
         let width = img.width;
         let height = img.height;
 
@@ -41,25 +48,12 @@ async function compressImage(file: File): Promise<File> {
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
 
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-                type: "image/jpeg",
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
-              resolve(file);
-            }
-          },
-          "image/jpeg",
-          0.82
-        );
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        resolve(dataUrl);
       };
-      img.onerror = () => resolve(file);
+      img.onerror = () => resolve(reader.result as string);
     };
-    reader.onerror = () => resolve(file);
+    reader.onerror = (err) => reject(err);
   });
 }
 
@@ -129,7 +123,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [dishDesc, setDishDesc] = useState("");
   const [dishPhoto, setDishPhoto] = useState("");
 
-  // 7. Family Members (Single Luxury Cards)
+  // 7. Family Members
   const [showFamily, setShowFamily] = useState(true);
   const [familyMembers, setFamilyMembers] = useState<any[]>([
     { id: 1, name: "Rajesh Sharma", relation: "Father of the Bride", photoUrl: "", instagramUrl: "", facebookUrl: "" }
@@ -189,24 +183,13 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
     loadData();
   }, [eventId]);
 
-  const handleFileUpload = async (rawFile: File, category: string, cb: (url: string) => void) => {
+  const handleProcessMedia = async (rawFile: File, cb: (dataUrl: string) => void) => {
     try {
       setUploading(true);
-      const fileToUpload = await compressImage(rawFile);
-      const fd = new FormData();
-      fd.append("file", fileToUpload);
-      fd.append("eventId", eventId);
-      fd.append("category", category);
-
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const json = await res.json();
-      if (json.success && json.url) {
-        cb(json.url);
-      } else {
-        alert("Upload error: " + (json.error || "Failed"));
-      }
+      const dataUri = await compressAndConvertToBase64(rawFile);
+      cb(dataUri);
     } catch (e: any) {
-      alert("Upload failed: " + e.message);
+      alert("Media processing error: " + e.message);
     } finally {
       setUploading(false);
     }
@@ -313,7 +296,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
         {uploading && (
           <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 font-semibold text-xs flex items-center gap-2">
-            <Loader2 className="animate-spin h-4 w-4 text-amber-600" /> Compressing & uploading media to server...
+            <Loader2 className="animate-spin h-4 w-4 text-amber-600" /> Compressing & applying photo...
           </div>
         )}
 
@@ -437,7 +420,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                     className="hidden"
                     onChange={e => {
                       if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0], "highlight_video", url => setHighlightVideoUrl(url));
+                        handleProcessMedia(e.target.files[0], url => setHighlightVideoUrl(url));
                       }
                     }}
                   />
@@ -456,7 +439,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                     className="hidden"
                     onChange={e => {
                       if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0], "hero_slideshow", url => setHighlightPhotos([...highlightPhotos, url]));
+                        handleProcessMedia(e.target.files[0], url => setHighlightPhotos([...highlightPhotos, url]));
                       }
                     }}
                   />
@@ -749,14 +732,14 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {dishPhoto ? "✓ Photo Set" : "Upload Photo"}
+                  <Upload size={14} /> {dishPhoto ? "✓ Photo Ready" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
                     onChange={e => {
                       if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0], "dishes", url => setDishPhoto(url));
+                        handleProcessMedia(e.target.files[0], url => setDishPhoto(url));
                       }
                     }}
                   />
@@ -854,7 +837,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                     className="hidden"
                     onChange={e => {
                       if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0], "family", url => setMemPhoto(url));
+                        handleProcessMedia(e.target.files[0], url => setMemPhoto(url));
                       }
                     }}
                   />
