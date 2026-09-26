@@ -4,27 +4,9 @@ import React, { useState, useEffect, use } from "react";
 import { 
   ArrowLeft, CheckCircle2, Loader2, Sparkles, MapPin, 
   Image as ImageIcon, Utensils, Users, Clock, Film, 
-  Music, Upload, Trash2, Calendar, Eye, Heart
+  Upload, Trash2, Mail
 } from "lucide-react";
 import Link from "next/link";
-
-function InstagramIcon({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
-    </svg>
-  );
-}
-
-function FacebookIcon({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-    </svg>
-  );
-}
 
 export default function EventSetupPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -32,14 +14,10 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
   const [slug, setSlug] = useState("");
 
-  // Event Type Preset
-  const [eventType, setEventType] = useState<"WEDDING" | "CORPORATE" | "BIRTHDAY" | "GENERAL">("WEDDING");
-
-  // 1. Basic Information
+  // 1. Basic Metadata
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [venueName, setVenueName] = useState("");
@@ -52,22 +30,28 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [highlightPhotos, setHighlightPhotos] = useState<string[]>([]);
   const [ourStoryUrl, setOurStoryUrl] = useState("");
   const [ceremonyName, setCeremonyName] = useState("Wedding Reception");
-  const [countdownTarget, setCountdownTarget] = useState("");
 
-  // 3. Photo & Video Categories
-  const [photoCategories, setPhotoCategories] = useState<string[]>(["Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"]);
-  const [videoCategories, setVideoCategories] = useState<string[]>(["Highlights", "Ceremony", "Haldi", "Reception"]);
-  const [newPhotoCat, setNewPhotoCat] = useState("");
-  const [newVideoCat, setNewVideoCat] = useState("");
+  // 3. Invitation Card Customizer
+  const [inviteBadge, setInviteBadge] = useState("WEDDING INVITATION");
+  const [inviteCoupleInitials, setInviteCoupleInitials] = useState("A & S");
+  const [inviteTagline, setInviteTagline] = useState("Together Forever");
+  const [inviteMessage, setInviteMessage] = useState("Together with our families we request the honour of your presence to celebrate our wedding ceremony and blessings.");
+  const [inviteDateText, setInviteDateText] = useState("15 February 2027");
+  const [inviteTimeText, setInviteTimeText] = useState("07:00 PM Onwards");
+  const [inviteVenueText, setInviteVenueText] = useState("Jaipur Palace, Rajasthan");
 
-  // 4. Decoration Section (Drawer Items)
-  const [showDecoration, setShowDecoration] = useState(true);
-  const [decorationItems, setDecorationItems] = useState<string[]>([
+  // 4. Unified Categories & Decoration Hub (Applies to both Photos & Videos)
+  const [commonCategories, setCommonCategories] = useState<string[]>([
+    "Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"
+  ]);
+  const [newCategory, setNewCategory] = useState("");
+
+  const [decorationAlbums, setDecorationAlbums] = useState<string[]>([
     "Wedding Stage", "Floral Decoration", "Lighting", "Entrance", "Dining", "Selfie Booth", "Reception Hall"
   ]);
   const [newDecorItem, setNewDecorItem] = useState("");
 
-  // 5. Timelines & Program Schedule
+  // 5. Timelines
   const [showTimeline, setShowTimeline] = useState(true);
   const [timelines, setTimelines] = useState<any[]>([
     { id: 1, title: "Wedding Reception", timeText: "06:00 PM", statusText: "LIVE" },
@@ -78,7 +62,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [progTime, setProgTime] = useState("");
   const [progStatus, setProgStatus] = useState("UPCOMING");
 
-  // 6. Food & Drinks Menu (Veg, Non-Veg, Drink)
+  // 6. Food & Drinks Feast
   const [showFoodMenu, setShowFoodMenu] = useState(true);
   const [foodItems, setFoodItems] = useState<any[]>([
     { id: 1, name: "Paneer Tikka Royale", category: "VEG", description: "Charcoal grilled cottage cheese with aromatic spices", photoUrl: "" },
@@ -89,7 +73,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [dishDesc, setDishDesc] = useState("");
   const [dishPhoto, setDishPhoto] = useState("");
 
-  // 7. Family Members / VIPs (Single Luxury Card with Socials)
+  // 7. Family Members (Single Luxury Cards)
   const [showFamily, setShowFamily] = useState(true);
   const [familyMembers, setFamilyMembers] = useState<any[]>([
     { id: 1, name: "Rajesh Sharma", relation: "Father of the Bride", photoUrl: "", instagramUrl: "", facebookUrl: "" }
@@ -100,33 +84,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [memInsta, setMemInsta] = useState("");
   const [memFb, setMemFb] = useState("");
 
-  // 8. Playlist
-  const [showPlaylist, setShowPlaylist] = useState(true);
-  const [playlist, setPlaylist] = useState<any[]>([]);
-
-  // Apply Presets
-  const applyPreset = (type: "WEDDING" | "CORPORATE" | "BIRTHDAY") => {
-    setEventType(type);
-    if (type === "WEDDING") {
-      setSubtitle("Forever Begins Today");
-      setCeremonyName("Wedding Reception");
-      setPhotoCategories(["Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"]);
-      setDecorationItems(["Wedding Stage", "Floral Decoration", "Lighting", "Entrance", "Dining", "Selfie Booth", "Reception Hall"]);
-    } else if (type === "CORPORATE") {
-      setSubtitle("Annual Tech & Leadership Summit 2027");
-      setCeremonyName("Keynote Presentation");
-      setPhotoCategories(["Keynote", "Workshops", "Panel Discussion", "Networking", "Awards", "Exhibition"]);
-      setDecorationItems(["Main Stage", "Entrance Arch", "Expo Booths", "VIP Lounge", "Dining Area"]);
-    } else if (type === "BIRTHDAY") {
-      setSubtitle("Cheers to 25 Wonderful Years!");
-      setCeremonyName("Grand Cake Cutting");
-      setPhotoCategories(["Arrivals", "Cake Cutting", "Dance & Music", "Party Moments", "Friends & Family"]);
-      setDecorationItems(["Theme Backdrop", "Balloon Setup", "Photo Booth", "Dining Setup", "Candy Bar"]);
-    }
-  };
-
   useEffect(() => {
-    async function loadEventData() {
+    async function loadData() {
       try {
         setLoading(true);
         const res = await fetch(`/api/events/${eventId}/configure`);
@@ -140,27 +99,31 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
           const cm = ev.customMap || {};
           if (cm.subtitle) setSubtitle(cm.subtitle);
-          if (cm.eventType) setEventType(cm.eventType as any);
           if (cm.scheduledPublishDate) setScheduledPublishDate(cm.scheduledPublishDate);
           if (cm.highlightType) setHighlightType(cm.highlightType as any);
           if (cm.highlightVideoUrl) setHighlightVideoUrl(cm.highlightVideoUrl);
           if (cm.ourStoryUrl) setOurStoryUrl(cm.ourStoryUrl);
           if (cm.ceremonyName) setCeremonyName(cm.ceremonyName);
 
+          // Invitation
+          if (cm.inviteBadge) setInviteBadge(cm.inviteBadge);
+          if (cm.inviteCoupleInitials) setInviteCoupleInitials(cm.inviteCoupleInitials);
+          if (cm.inviteTagline) setInviteTagline(cm.inviteTagline);
+          if (cm.inviteMessage) setInviteMessage(cm.inviteMessage);
+          if (cm.inviteDateText) setInviteDateText(cm.inviteDateText);
+          if (cm.inviteTimeText) setInviteTimeText(cm.inviteTimeText);
+          if (cm.inviteVenueText) setInviteVenueText(cm.inviteVenueText);
+
           try { if (cm.highlightPhotos) setHighlightPhotos(JSON.parse(cm.highlightPhotos)); } catch {}
-          try { if (cm.photoCategories) setPhotoCategories(JSON.parse(cm.photoCategories)); } catch {}
-          try { if (cm.videoCategories) setVideoCategories(JSON.parse(cm.videoCategories)); } catch {}
-          try { if (cm.decorationItems) setDecorationItems(JSON.parse(cm.decorationItems)); } catch {}
+          try { if (cm.photoCategories) setCommonCategories(JSON.parse(cm.photoCategories)); } catch {}
+          try { if (cm.decorationItems) setDecorationAlbums(JSON.parse(cm.decorationItems)); } catch {}
           try { if (cm.timelines) setTimelines(JSON.parse(cm.timelines)); } catch {}
           try { if (cm.foodItems) setFoodItems(JSON.parse(cm.foodItems)); } catch {}
           try { if (cm.familyMembers) setFamilyMembers(JSON.parse(cm.familyMembers)); } catch {}
-          try { if (cm.playlist) setPlaylist(JSON.parse(cm.playlist)); } catch {}
 
-          if (cm.showDecoration !== undefined) setShowDecoration(cm.showDecoration === "true");
           if (cm.showTimeline !== undefined) setShowTimeline(cm.showTimeline === "true");
           if (cm.showFoodMenu !== undefined) setShowFoodMenu(cm.showFoodMenu === "true");
           if (cm.showFamily !== undefined) setShowFamily(cm.showFamily === "true");
-          if (cm.showPlaylist !== undefined) setShowPlaylist(cm.showPlaylist === "true");
         }
       } catch (e) {
         console.error(e);
@@ -168,12 +131,11 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         setLoading(false);
       }
     }
-    loadEventData();
+    loadData();
   }, [eventId]);
 
   const handleFileUpload = async (file: File, category: string, cb: (url: string) => void) => {
     try {
-      setUploading(true);
       const fd = new FormData();
       fd.append("file", file);
       fd.append("eventId", eventId);
@@ -187,8 +149,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
       }
     } catch (e: any) {
       alert("Upload failed: " + e.message);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -201,25 +161,32 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         venueName,
         heroTag,
         subtitle,
-        eventType,
         scheduledPublishDate,
         highlightType,
         highlightVideoUrl,
         highlightPhotos,
         ourStoryUrl,
         ceremonyName,
-        photoCategories,
-        videoCategories,
-        showDecoration,
-        decorationItems,
+        // Invitation
+        inviteBadge,
+        inviteCoupleInitials,
+        inviteTagline,
+        inviteMessage,
+        inviteDateText,
+        inviteTimeText,
+        inviteVenueText,
+        // Categories & Decoration synced for both
+        photoCategories: commonCategories,
+        videoCategories: commonCategories,
+        decorationItems: decorationAlbums,
+        showDecoration: true,
+        // Timelines & Modules
         showTimeline,
         timelines,
         showFoodMenu,
         foodItems,
         showFamily,
         familyMembers,
-        showPlaylist,
-        playlist,
       };
 
       const res = await fetch(`/api/events/${eventId}/configure`, {
@@ -229,7 +196,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
       });
       const data = await res.json();
       if (data.success) {
-        setMsg("Everything saved and published directly to Viewer!");
+        setMsg("Configuration saved and published to Live Viewer!");
         setTimeout(() => setMsg(""), 5000);
       } else {
         setMsg("Save error: " + data.error);
@@ -250,11 +217,11 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-gray-900">
       <div className="max-w-5xl mx-auto space-y-6">
 
-        {/* Master Top Header */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* Master Header */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <Link href="/events" className="text-xs font-semibold text-gray-500 flex items-center gap-1 hover:underline mb-2">
               <ArrowLeft size={14} /> Back to Events
@@ -293,89 +260,59 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* Preset Selector */}
-        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 rounded-2xl border border-amber-200 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
-            ⚡ Quick Setup Template:
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => applyPreset("WEDDING")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${eventType === "WEDDING" ? "bg-amber-600 text-white shadow" : "bg-white text-gray-700 border"}`}
-            >
-              💍 Wedding Celebration
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("CORPORATE")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${eventType === "CORPORATE" ? "bg-amber-600 text-white shadow" : "bg-white text-gray-700 border"}`}
-            >
-              🏢 Corporate Summit
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("BIRTHDAY")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${eventType === "BIRTHDAY" ? "bg-amber-600 text-white shadow" : "bg-white text-gray-700 border"}`}
-            >
-              🎂 Birthday & Party
-            </button>
-          </div>
-        </div>
-
-        {/* 1. Basic Metadata & Heading */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        {/* 1. Basic Metadata */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2 border-b pb-3">
             <MapPin className="text-amber-500 h-5 w-5" /> 1. Event Headings, Venue & Publish Schedule
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Event Title</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Event Title</label>
               <input
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. A & S Wedding / Tech Con 2027"
-                className="mt-1 w-full border rounded-xl p-3 text-sm outline-none"
+                placeholder="e.g. A & S Wedding"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Subtitle</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Subtitle</label>
               <input
                 type="text"
                 value={subtitle}
                 onChange={e => setSubtitle(e.target.value)}
                 placeholder="e.g. Forever Begins Today"
-                className="mt-1 w-full border rounded-xl p-3 text-sm outline-none"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Venue / Location</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Venue / Location</label>
               <input
                 type="text"
                 value={venueName}
                 onChange={e => setVenueName(e.target.value)}
                 placeholder="e.g. Jaipur Palace, Rajasthan"
-                className="mt-1 w-full border rounded-xl p-3 text-sm outline-none"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Publish Date (Scheduled)</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Live Publish Date</label>
               <input
                 type="date"
                 value={scheduledPublishDate}
                 onChange={e => setScheduledPublishDate(e.target.value)}
-                className="mt-1 w-full border rounded-xl p-3 text-sm outline-none"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
           </div>
         </div>
 
-        {/* 2. Hero Highlights & Countdown Card */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        {/* 2. Hero Highlights & Ceremony Countdown */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Film className="text-amber-500 h-5 w-5" /> 2. Hero Banner, Countdown & Actions
+              <Film className="text-amber-500 h-5 w-5" /> 2. Hero Banner & Countdown Card
             </h2>
             <div className="flex items-center bg-gray-100 p-1 rounded-xl">
               <button
@@ -397,39 +334,39 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Ceremony / Stage Name (In Countdown Card)</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Ceremony Name (Inside Countdown Card)</label>
               <input
                 type="text"
                 value={ceremonyName}
                 onChange={e => setCeremonyName(e.target.value)}
-                placeholder="e.g. Wedding Reception / Keynote"
-                className="mt-1 w-full border rounded-xl p-2.5 text-sm outline-none"
+                placeholder="e.g. Wedding Reception"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Our Story / About Link</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Our Story / Info URL</label>
               <input
                 type="text"
                 value={ourStoryUrl}
                 onChange={e => setOurStoryUrl(e.target.value)}
                 placeholder="https://..."
-                className="mt-1 w-full border rounded-xl p-2.5 text-sm outline-none"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
           </div>
 
           {highlightType === "video" ? (
             <div className="space-y-2 pt-2">
-              <label className="text-xs font-bold text-gray-600 uppercase">Continuous Highlight Video Link (.mp4 or stream)</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Highlight Video Stream/MP4 Link</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={highlightVideoUrl}
                   onChange={e => setHighlightVideoUrl(e.target.value)}
                   placeholder="https://...mp4"
-                  className="flex-1 border rounded-xl p-2.5 text-sm outline-none"
+                  className="flex-1 border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
                 />
-                <label className="cursor-pointer bg-amber-50 border border-amber-300 text-amber-900 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                <label className="cursor-pointer bg-amber-50 border border-amber-300 text-amber-900 px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-amber-100">
                   <Upload size={14} /> Upload Video
                   <input
                     type="file"
@@ -447,8 +384,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           ) : (
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-gray-600 uppercase">Hero Slideshow Photos ({highlightPhotos.length})</label>
-                <label className="cursor-pointer bg-amber-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+                <label className="text-xs font-bold text-gray-700 uppercase">Hero Slideshow Photos ({highlightPhotos.length})</label>
+                <label className="cursor-pointer bg-amber-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-amber-600">
                   <Upload size={13} /> Add Slide Photo
                   <input
                     type="file"
@@ -480,93 +417,160 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
 
-        {/* 3. Photo & Video Categories */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        {/* 3. Invitation Card Customizer */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2 border-b pb-3">
-            <ImageIcon className="text-amber-500 h-5 w-5" /> 3. Gallery Category Filters
+            <Mail className="text-rose-500 h-5 w-5" /> 3. Digital Invitation Card Customizer
           </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase">Top Badge Title</label>
+              <input
+                type="text"
+                value={inviteBadge}
+                onChange={e => setInviteBadge(e.target.value)}
+                placeholder="WEDDING INVITATION"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase">Initials (Large Text)</label>
+              <input
+                type="text"
+                value={inviteCoupleInitials}
+                onChange={e => setInviteCoupleInitials(e.target.value)}
+                placeholder="A & S"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase">Tagline</label>
+              <input
+                type="text"
+                value={inviteTagline}
+                onChange={e => setInviteTagline(e.target.value)}
+                placeholder="Together Forever"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
           <div>
-            <span className="text-xs font-bold text-gray-600 uppercase">Categories Displayed in Viewer</span>
+            <label className="text-xs font-bold text-gray-700 uppercase">Invitation Message</label>
+            <textarea
+              rows={2}
+              value={inviteMessage}
+              onChange={e => setInviteMessage(e.target.value)}
+              placeholder="Together with our families we request..."
+              className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase">Event Date Text</label>
+              <input
+                type="text"
+                value={inviteDateText}
+                onChange={e => setInviteDateText(e.target.value)}
+                placeholder="15 February 2027"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase">Event Time Text</label>
+              <input
+                type="text"
+                value={inviteTimeText}
+                onChange={e => setInviteTimeText(e.target.value)}
+                placeholder="07:00 PM Onwards"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase">Venue Address Text</label>
+              <input
+                type="text"
+                value={inviteVenueText}
+                onChange={e => setInviteVenueText(e.target.value)}
+                placeholder="Jaipur Palace, Rajasthan"
+                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Unified Categories & Decoration Hub */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+          <div className="border-b pb-3">
+            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <ImageIcon className="text-amber-500 h-5 w-5" /> 4. Unified Categories & Decoration Hub
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">Changes made here automatically apply to both Photos and Videos sections.</p>
+          </div>
+
+          {/* Gallery Category Chips */}
+          <div>
+            <span className="text-xs font-bold text-gray-700 uppercase">Active Categories (Photos & Videos)</span>
             <div className="flex flex-wrap gap-2 mt-2">
-              {photoCategories.map((c, i) => (
-                <span key={i} className="bg-amber-50 border border-amber-200 text-amber-900 px-3 py-1.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+              {commonCategories.map((c, i) => (
+                <span key={i} className="bg-amber-50 border border-amber-200 text-amber-900 px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
                   {c}
-                  <button type="button" onClick={() => setPhotoCategories(photoCategories.filter((_, idx) => idx !== i))} className="hover:text-red-500 font-bold">×</button>
+                  <button type="button" onClick={() => setCommonCategories(commonCategories.filter((_, idx) => idx !== i))} className="hover:text-red-500 font-bold ml-1">×</button>
                 </span>
               ))}
             </div>
             <div className="flex gap-2 mt-3 max-w-md">
               <input
                 type="text"
-                value={newPhotoCat}
-                onChange={e => setNewPhotoCat(e.target.value)}
-                placeholder="Add new category tag..."
-                className="border rounded-xl p-2.5 text-xs outline-none flex-1"
+                value={newCategory}
+                onChange={e => setNewCategory(e.target.value)}
+                placeholder="Add category tag..."
+                className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none flex-1 focus:border-amber-500"
               />
               <button
                 type="button"
-                onClick={() => { if (newPhotoCat.trim()) { setPhotoCategories([...photoCategories, newPhotoCat.trim()]); setNewPhotoCat(""); } }}
+                onClick={() => { if (newCategory.trim()) { setCommonCategories([...commonCategories, newCategory.trim()]); setNewCategory(""); } }}
                 className="bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-700"
               >
                 + Add
               </button>
             </div>
           </div>
-        </div>
 
-        {/* 4. Decoration Section (Drawer Items) */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles className="text-rose-500 h-5 w-5" /> 4. Decoration Drawer Albums
-            </h2>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showDecoration}
-                onChange={e => setShowDecoration(e.target.checked)}
-                className="accent-amber-500 h-4 w-4"
-              />
-              Decoration Section ON
-            </label>
-          </div>
-
-          {showDecoration && (
-            <div>
-              <span className="text-xs font-bold text-gray-600 uppercase">Active Decoration Albums</span>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {decorationItems.map((item, i) => (
-                  <span key={i} className="bg-rose-50 border border-rose-200 text-rose-900 px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-                    🌸 {item}
-                    <button type="button" onClick={() => setDecorationItems(decorationItems.filter((_, idx) => idx !== i))} className="hover:text-red-500 font-bold">×</button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-3 max-w-md">
-                <input
-                  type="text"
-                  value={newDecorItem}
-                  onChange={e => setNewDecorItem(e.target.value)}
-                  placeholder="e.g. VIP Stage / Stage Lighting"
-                  className="border rounded-xl p-2.5 text-xs outline-none flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => { if (newDecorItem.trim()) { setDecorationItems([...decorationItems, newDecorItem.trim()]); setNewDecorItem(""); } }}
-                  className="bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-700"
-                >
-                  + Add Album
-                </button>
-              </div>
+          {/* Decoration Albums */}
+          <div className="pt-2 border-t">
+            <span className="text-xs font-bold text-gray-700 uppercase">Decoration Drawer Albums (Photos & Videos)</span>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {decorationAlbums.map((item, i) => (
+                <span key={i} className="bg-rose-50 border border-rose-200 text-rose-900 px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                  🌸 {item}
+                  <button type="button" onClick={() => setDecorationAlbums(decorationAlbums.filter((_, idx) => idx !== i))} className="hover:text-red-500 font-bold ml-1">×</button>
+                </span>
+              ))}
             </div>
-          )}
+            <div className="flex gap-2 mt-3 max-w-md">
+              <input
+                type="text"
+                value={newDecorItem}
+                onChange={e => setNewDecorItem(e.target.value)}
+                placeholder="e.g. Wedding Stage / Lighting"
+                className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none flex-1 focus:border-rose-500"
+              />
+              <button
+                type="button"
+                onClick={() => { if (newDecorItem.trim()) { setDecorationAlbums([...decorationAlbums, newDecorItem.trim()]); setNewDecorItem(""); } }}
+                className="bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-700"
+              >
+                + Add Album
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* 5. Schedule & Timings */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        {/* 5. Program Schedule */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Clock className="text-amber-500 h-5 w-5" /> 5. Program Schedule & Live Status
+              <Clock className="text-amber-500 h-5 w-5" /> 5. Program Schedule & Live Timelines
             </h2>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
               <input
@@ -575,7 +579,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 onChange={e => setShowTimeline(e.target.checked)}
                 className="accent-amber-500 h-4 w-4"
               />
-              Schedule Section ON
+              Timeline ON
             </label>
           </div>
 
@@ -584,22 +588,22 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-200">
                 <input
                   type="text"
-                  placeholder="Program (e.g. Ring Ceremony)"
+                  placeholder="Program (e.g. Reception)"
                   value={progTitle}
                   onChange={e => setProgTitle(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <input
                   type="text"
-                  placeholder="Time (e.g. 07:00 PM)"
+                  placeholder="Time (e.g. 06:00 PM)"
                   value={progTime}
                   onChange={e => setProgTime(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <select
                   value={progStatus}
                   onChange={e => setProgStatus(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white font-bold outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white font-bold outline-none"
                 >
                   <option value="UPCOMING">UPCOMING</option>
                   <option value="LIVE">🔴 LIVE NOW</option>
@@ -624,7 +628,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 {timelines.map(t => (
                   <div key={t.id} className="flex justify-between items-center p-3.5 border rounded-2xl bg-gray-50 text-xs">
                     <div className="flex items-center gap-3">
-                      <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${t.statusText === "LIVE" ? "bg-red-500 text-white animate-pulse" : t.statusText === "COMPLETED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${t.statusText === "LIVE" ? "bg-red-500 text-white" : t.statusText === "COMPLETED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
                         {t.statusText}
                       </span>
                       <span className="font-bold text-gray-900">{t.title}</span>
@@ -640,8 +644,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
 
-        {/* 6. Food & Drinks Menu (Veg, Non-Veg, Drink) */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        {/* 6. Food & Drinks Feast */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <Utensils className="text-amber-500 h-5 w-5" /> 6. Food & Drinks Feast
@@ -665,12 +669,12 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   placeholder="Dish / Drink Name"
                   value={dishName}
                   onChange={e => setDishName(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <select
                   value={dishCat}
                   onChange={e => setDishCat(e.target.value as any)}
-                  className="border rounded-xl p-2.5 text-xs bg-white font-bold outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white font-bold outline-none"
                 >
                   <option value="VEG">🌱 Veg Dish</option>
                   <option value="NON_VEG">🍗 Non-Veg</option>
@@ -681,9 +685,9 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   placeholder="Description"
                   value={dishDesc}
                   onChange={e => setDishDesc(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
-                <label className="cursor-pointer bg-white border text-gray-700 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
+                <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
                   <Upload size={14} /> {dishPhoto ? "Photo Ready" : "Upload Photo"}
                   <input
                     type="file"
@@ -733,8 +737,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
 
-        {/* 7. Family / VIPs (Single Luxury Card with Social Profiles) */}
-        <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        {/* 7. Family Members (Single Luxury Cards) */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <Users className="text-amber-500 h-5 w-5" /> 7. Family Members & Key People
@@ -758,30 +762,30 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   placeholder="Member Name"
                   value={memName}
                   onChange={e => setMemName(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <input
                   type="text"
-                  placeholder="Relation (e.g. Groom's Brother)"
+                  placeholder="Relation (e.g. Bride's Father)"
                   value={memRelation}
                   onChange={e => setMemRelation(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <input
                   type="text"
                   placeholder="Instagram Link"
                   value={memInsta}
                   onChange={e => setMemInsta(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <input
                   type="text"
                   placeholder="Facebook Link"
                   value={memFb}
                   onChange={e => setMemFb(e.target.value)}
-                  className="border rounded-xl p-2.5 text-xs bg-white outline-none"
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
-                <label className="cursor-pointer bg-white border text-gray-700 px-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
+                <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
                   <Upload size={14} /> {memPhoto ? "Photo Set" : "Upload Photo"}
                   <input
                     type="file"
@@ -819,8 +823,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                       {m.photoUrl && <img src={m.photoUrl} alt={m.name} className="h-9 w-9 rounded-full object-cover" />}
                       <span className="font-bold text-gray-900">{m.name}</span>
                       <span className="text-rose-700 font-semibold">({m.relation})</span>
-                      {m.instagramUrl && <span className="text-pink-600">Insta: {m.instagramUrl}</span>}
-                      {m.facebookUrl && <span className="text-blue-600">FB: {m.facebookUrl}</span>}
                     </div>
                     <button type="button" onClick={() => setFamilyMembers(familyMembers.filter(x => x.id !== m.id))} className="text-red-500 font-bold hover:underline">
                       Delete
