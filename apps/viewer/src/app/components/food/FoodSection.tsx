@@ -1,90 +1,106 @@
-"use client";
+﻿"use client";
 
+import { useState, useEffect } from "react";
 import FoodCategory from "./FoodCategory";
-import { foodData } from "./food-data";
+import { foodData, FoodItem } from "./food-data";
 
 export default function FoodSection() {
+  const [items, setItems] = useState<FoodItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Group Food By Category
+  useEffect(() => {
+    async function fetchRealAdminFood() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
 
-  const groupedFood = foodData.reduce((acc, item) => {
+        // Try local viewer API first, fallback to Admin live public API on Vercel
+        let res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+        let data = res ? await res.json().catch(() => null) : null;
 
+        if (!data || !data.success) {
+          res = await fetch(`https://eventqr-live-admin.vercel.app/api/public/event/${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+          data = res ? await res.json().catch(() => null) : null;
+        }
+
+        if (data?.success && Array.isArray(data?.event?.foodItems) && data.event.foodItems.length > 0) {
+          const mapped: FoodItem[] = data.event.foodItems.map((item: any, idx: number) => {
+            const rawCat = (item.category || "").toUpperCase();
+            let catTitle = item.category || "Special Menu";
+            
+            if (rawCat === "VEG") catTitle = "Vegetarian Delights";
+            else if (rawCat === "NON_VEG") catTitle = "Non-Vegetarian Specialties";
+            else if (rawCat === "DRINK" || rawCat === "BEVERAGE") catTitle = "Welcome Drinks & Beverages";
+
+            return {
+              id: item.id || idx + 1,
+              category: catTitle,
+              name: item.name || "Special Item",
+              description: item.description || "Prepared fresh for guests.",
+              image: item.photoUrl || item.image || "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=600&q=80",
+              type: rawCat === "NON_VEG" ? "Non Veg" : "Veg",
+              popular: true,
+              chefSpecial: true,
+              available: true,
+              likes: 18,
+              rating: 4.9,
+              spicyLevel: 1,
+            };
+          });
+          setItems(mapped);
+        } else {
+          setItems(foodData);
+        }
+      } catch (err) {
+        setItems(foodData);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRealAdminFood();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20 text-amber-800">
+        <p className="text-sm font-medium animate-pulse">Loading menu...</p>
+      </div>
+    );
+  }
+
+  const groupedFood = items.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
     }
-
     acc[item.category].push(item);
-
     return acc;
-
-  }, {} as Record<string, typeof foodData>);
-
-  // Category Icons
+  }, {} as Record<string, FoodItem[]>);
 
   const categoryIcons: Record<string, string> = {
-
-    "Welcome Drinks": "🥤",
-
-    "Starters": "🥗",
-
-    "Main Course": "🍛",
-
-    "Indian Bread": "🥖",
-
+    "Vegetarian Delights": "🌱",
+    "Non-Vegetarian Specialties": "🍗",
+    "Welcome Drinks & Beverages": "🍹",
+    "Welcome Drinks": "🍹",
+    "Starters": "🥟",
+    "Main Course": "🍲",
+    "Indian Bread": "🫓",
     "Rice": "🍚",
-
-    "Desserts": "🍰",
-
-    "Ice Cream": "🍨",
-
+    "Desserts": "🍨",
+    "Ice Cream": "🍦",
     "Beverages": "☕",
-
   };
 
   return (
-
-    <section className="mt-8 space-y-12 px-5 pb-20">
-
-      {Object.entries(groupedFood).map(([category, foods]) => (
-
+    <div id="food-categories-section" className="space-y-6 px-4 pb-24">
+      {Object.entries(groupedFood).map(([category, list]) => (
         <FoodCategory
           key={category}
           title={category}
-          emoji={categoryIcons[category] ?? "🍽️"}
-          foods={foods}
+          icon={categoryIcons[category] || "🍽️"}
+          foods={list}
+          items={list}
         />
-
       ))}
-
-      {/* Footer */}
-
-      <div className="overflow-hidden rounded-[32px] bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-8 text-center shadow-[0_15px_45px_rgba(0,0,0,.06)]">
-
-        <div className="text-5xl">
-          🍽️
-        </div>
-
-        <h2 className="mt-5 text-3xl font-black text-gray-900">
-          Enjoy Your Meal
-        </h2>
-
-        <p className="mx-auto mt-4 max-w-md leading-7 text-gray-600">
-
-          Every dish has been prepared with love and served with warmth.
-          We hope this celebration becomes unforgettable for you and
-          your family.
-
-        </p>
-
-        <div className="mt-8 inline-flex items-center rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg">
-
-          ❤️ Made With Love For Our Guests
-
-        </div>
-
-      </div>
-
-    </section>
-
+    </div>
   );
 }

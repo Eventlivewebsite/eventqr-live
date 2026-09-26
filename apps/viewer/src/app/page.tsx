@@ -1,171 +1,56 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect } from "react";
-import { Sparkles, Calendar, MapPin, Users, Utensils } from "lucide-react";
+import { useState } from "react";
 
-export default function ViewerHomePage() {
-  const [eventData, setEventData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+import GallerySection from "./components/home/GallerySection";
+import Header from "@/app/components/layout/Header";
+import HeroBanner from "@/app/components/home/HeroBanner";
+import MobileContainer from "@/app/components/layout/MobileContainer";
+import BottomNavigation from "@/app/components/navigation/BottomNavigation";
+import TrendingSection from "@/app/components/home/TrendingSection";
+import AlbumsSection from "./components/home/AlbumsSection";
+import CategoriesSection from "./components/home/CategoriesSection";
+import TimelineSection from "./components/home/TimelineSection";
 
-  useEffect(() => {
-    async function fetchEvent() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const querySlug = urlParams.get("event") || urlParams.get("slug");
-        const pathParts = window.location.pathname.split("/").filter(Boolean);
-        const pathSlug = pathParts[pathParts.length - 1];
+import MenuDrawer from "./components/layout/drawer/MenuDrawer";
 
-        const activeSlug = querySlug || (pathSlug && pathSlug !== "e" ? pathSlug : null) || "khan-1819";
-
-        const endpoints = [
-          `https://eventqr-live-admin.vercel.app/api/events/${encodeURIComponent(activeSlug)}/configure`,
-          `https://eventqr-live-admin-2mc76o3hm-new-4aa5.vercel.app/api/events/${encodeURIComponent(activeSlug)}/configure`
-        ];
-
-        for (const url of endpoints) {
-          try {
-            const res = await fetch(url, { cache: "no-store" });
-            const data = await res.json().catch(() => null);
-            if (res.ok && data?.success && data?.event) {
-              setEventData(data.event);
-              break;
-            }
-          } catch {}
-        }
-      } catch (err) {
-        console.error("Fetch failed:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchEvent();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center">
-        <Sparkles className="w-8 h-8 animate-spin text-pink-500" />
-      </div>
-    );
-  }
-
-  if (!eventData) {
-    return (
-      <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center p-6 text-center">
-        <h1 className="text-xl font-bold">Event not found or inactive.</h1>
-      </div>
-    );
-  }
-
-  const familyList = Array.isArray(eventData.familyMembers) ? eventData.familyMembers : [];
-  const foodList = Array.isArray(eventData.foodItems) ? eventData.foodItems : [];
-  const vegItems = foodList.filter((f: any) => f.category === "VEG");
-  const nonVegItems = foodList.filter((f: any) => f.category === "NON_VEG");
+export default function Home() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 p-4 md:p-8 space-y-8 max-w-4xl mx-auto font-sans">
-      <div className="p-8 bg-gradient-to-br from-[#080c14] to-[#030712] border border-slate-800 rounded-3xl text-center space-y-4 shadow-2xl relative overflow-hidden">
-        <span className="px-3 py-1 rounded-full text-[10px] font-black bg-pink-500/20 text-pink-400 border border-pink-500/30 uppercase tracking-widest">
-          {eventData.heroTag || "LIVE CELEBRATION"}
-        </span>
-        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight">{eventData.title}</h1>
-        <p className="text-sm text-slate-400 font-medium">{eventData.subtitle}</p>
-        <div className="flex flex-wrap justify-center items-center gap-4 pt-2 text-xs text-slate-300 font-mono">
-          <span className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-            <Calendar className="w-3.5 h-3.5 text-pink-400" /> {new Date(eventData.eventDate).toLocaleDateString()}
-          </span>
-          <span className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-            <MapPin className="w-3.5 h-3.5 text-pink-400" /> {eventData.venueName}
-          </span>
-        </div>
-      </div>
+    <MobileContainer>
+      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#fffdfb] via-[#fff8f2] to-[#fff4f6]">
 
-      {familyList.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-            <Users className="w-4 h-4 text-orange-400" /> Family Profiles
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {familyList.map((m: any, i: number) => (
-              <div key={i} className="p-4 bg-[#080c14] border border-slate-800 rounded-2xl flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
-                  {m.photoUrl ? (
-                    <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-slate-600">PHOTO</div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">{m.name}</h3>
-                  <p className="text-xs text-pink-400 font-medium">{m.role}</p>
-                  {m.bio && <p className="text-[11px] text-slate-400 mt-1">{m.bio}</p>}
-                </div>
-              </div>
-            ))}
+        {/* Soft Luxury Background */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-28 -left-24 h-72 w-72 rounded-full bg-[#F8DFA8]/20 blur-[120px]" />
+          <div className="absolute top-32 -right-20 h-64 w-64 rounded-full bg-[#FFDCCF]/20 blur-[120px]" />
+          <div className="absolute bottom-0 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-[#FFF3D6]/25 blur-[130px]" />
+        </div>
+
+        <div className="relative z-10">
+          <Header
+            onMenuClick={() => setDrawerOpen(true)}
+          />
+
+          <HeroBanner />
+
+          <div className="space-y-8 pb-28">
+            <GallerySection />
+            <TrendingSection />
+            <AlbumsSection />
+            <CategoriesSection />
+            <TimelineSection />
           </div>
         </div>
-      )}
+      </main>
 
-      {foodList.length > 0 && (
-        <div className="space-y-6">
-          <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-            <Utensils className="w-4 h-4 text-emerald-400" /> Food & Drinks Menu
-          </h2>
-          {vegItems.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                <span>Pure Veg Delicacies</span>
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {vegItems.map((f: any, i: number) => (
-                  <div key={i} className="p-3.5 bg-[#080c14] border border-slate-800 rounded-2xl flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
-                      {f.photoUrl ? (
-                        <img src={f.photoUrl} alt={f.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-600">DISH</div>
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-bold text-white text-xs block">{f.name}</span>
-                      <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 inline-block mt-1">
-                        VEG
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <BottomNavigation />
 
-          {nonVegItems.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <h3 className="text-xs font-bold text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
-                <span>Non-Veg Specialties</span>
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {nonVegItems.map((f: any, i: number) => (
-                  <div key={i} className="p-3.5 bg-[#080c14] border border-slate-800 rounded-2xl flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
-                      {f.photoUrl ? (
-                        <img src={f.photoUrl} alt={f.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-600">DISH</div>
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-bold text-white text-xs block">{f.name}</span>
-                      <span className="text-[10px] text-rose-400 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 inline-block mt-1">
-                        NON-VEG
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      <MenuDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
+    </MobileContainer>
   );
 }

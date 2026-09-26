@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -9,17 +9,17 @@ export async function GET(
 ) {
   try {
     const { slug } = await context.params;
+    const cleanSlug = String(slug || "").trim();
 
-    if (!slug) {
+    if (!cleanSlug) {
       return NextResponse.json({ success: false, error: "Identifier required" }, { status: 400 });
     }
 
-    // Slug aur ID dono se search karein
     const event: any = await prisma.event.findFirst({
       where: {
         OR: [
-          { slug: String(slug) },
-          { id: String(slug) },
+          { slug: cleanSlug },
+          { id: cleanSlug },
         ],
         isDeleted: false,
       },
@@ -42,44 +42,48 @@ export async function GET(
       });
     }
 
-    let familyMembers = [];
     let foodItems = [];
     try {
-      if (customMap["familyMembers"]) familyMembers = JSON.parse(customMap["familyMembers"]);
-      if (customMap["foodItems"]) foodItems = JSON.parse(customMap["foodItems"]);
-    } catch {
-      // safe fallback
-    }
+      if (customMap["foodItems"]) {
+        foodItems = JSON.parse(customMap["foodItems"]);
+      }
+    } catch {}
+
+    let familyMembers = [];
+    try {
+      if (customMap["familyMembers"]) {
+        familyMembers = JSON.parse(customMap["familyMembers"]);
+      }
+    } catch {}
 
     const response = NextResponse.json({
       success: true,
       event: {
         id: event.id,
-        slug: event.slug,
         title: event.title,
-        subtitle: event.settings?.subtitle || "Forever Begins Today",
-        venueName: event.location || "",
-        eventDate: event.eventDate ? event.eventDate.toISOString() : new Date().toISOString(),
-        accessMode: event.accessMode || "PUBLIC",
-        pinCode: event.pinCode || "",
-        heroTag: customMap["heroTag"] || "LIVE CELEBRATION",
-        familyMembers,
+        slug: event.slug,
+        type: event.type,
+        eventDate: event.eventDate,
+        isLive: event.isLive,
         foodItems,
-        timeline: Array.isArray(event.timelines)
-          ? event.timelines.map((t: any) => ({
-              title: t.title,
-              time: t.timeText || "TBD",
-              status: t.statusText || "UPCOMING",
-            }))
-          : [],
+        familyMembers,
+        settings: event.settings,
+        albums: event.albums,
+        timelines: event.timelines,
       },
     });
 
     response.headers.set("Access-Control-Allow-Origin", "*");
     response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
     return response;
-  } catch (error: any) {
-    console.error("Public API Error:", error);
-    return NextResponse.json({ success: false, error: "Internal Error" }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
+}
+
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 });
+  response.headers.set("Access-Control-Allow-Origin", "*");
+  response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  return response;
 }
