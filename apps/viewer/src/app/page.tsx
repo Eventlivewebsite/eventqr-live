@@ -1,1 +1,26 @@
-﻿
+﻿"use client";
+
+import MobileContainer from "./components/layout/MobileContainer";
+import Header from "./components/layout/Header";
+import HeroBanner from "./components/home/HeroBanner";
+import TrendingSection from "./components/home/TrendingSection";
+import CategoriesSection from "./components/home/CategoriesSection";
+import AlbumsSection from "./components/home/AlbumsSection";
+import PlaylistSection from "./components/home/PlaylistSection";
+import TimelineSection from "./components/home/TimelineSection";
+import BottomNavigation from "./components/navigation/BottomNavigation";
+
+export default function HomePage() {
+  return (
+    <MobileContainer>
+      <Header />
+      <HeroBanner />
+      <TrendingSection />
+      <CategoriesSection />
+      <AlbumsSection />
+      <PlaylistSection />
+      <TimelineSection />
+      <BottomNavigation />
+    </MobileContainer>
+  );
+}
