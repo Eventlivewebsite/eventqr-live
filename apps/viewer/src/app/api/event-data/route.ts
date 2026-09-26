@@ -3,35 +3,42 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+export const dynamic = "force-dynamic";
 
-function getPrismaClient(): PrismaClient {
+let cachedPrisma: PrismaClient | null = null;
+
+function getPrismaClient(): PrismaClient | null {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error("DATABASE_URL environment variable is missing.");
+    console.warn("DATABASE_URL is missing at evaluation.");
+    return null;
   }
-  const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-    max: 5,
-    idleTimeoutMillis: 20000,
-    connectionTimeoutMillis: 10000,
-  });
-  const adapter = new PrismaPg(pool);
-  return new PrismaClient({ adapter });
+  if (!cachedPrisma) {
+    const pool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 5,
+      idleTimeoutMillis: 20000,
+      connectionTimeoutMillis: 10000,
+    });
+    const adapter = new PrismaPg(pool);
+    cachedPrisma = new PrismaClient({ adapter });
+  }
+  return cachedPrisma;
 }
-
-const prisma = globalForPrisma.prisma ?? getPrismaClient();
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
-
-export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug") || searchParams.get("event") || "testing-nns3";
+
+    const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json({
+        success: false,
+        error: "Database configuration not available yet",
+      }, { status: 503 });
+    }
 
     const event: any = await prisma.event.findFirst({
       where: {
