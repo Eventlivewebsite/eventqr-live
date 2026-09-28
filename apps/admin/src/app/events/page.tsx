@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { 
@@ -350,6 +350,43 @@ export default function MyEventsPage() {
                       </span>
 
                       {isApproved ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <CheckCircle2 className="w-3 h-3" /> Approved
+                        </span>
+                      ) : isRejected ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                          <XCircle className="w-3 h-3" /> Rejected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <Clock className="w-3 h-3" /> Pending Approval
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className={`text-xl font-black mt-1 line-clamp-1 ${themeClasses.textPrimary}`}>
+                        {ev.title}
+                      </h3>
+                      <p className={`text-[11px] font-mono mt-0.5 ${themeClasses.textMuted}`}>
+                        /{ev.slug}
+                      </p>
+                    </div>
+
+                    <div className="text-xs text-slate-400 flex items-center justify-between pt-2 border-t border-slate-700/50">
+                      <span suppressHydrationWarning>
+                        Live: {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : "N/A"}
+                      </span>
+                      <span className="font-semibold text-slate-300 flex items-center gap-1">
+                        <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
+                        <span>{ev._count?.albums || 0} Album(s)</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2 pt-2 border-t border-slate-700/50">
+                    {isApproved ? (
                       <>
                         <Link
                           href={`/events/${ev.id}/setup`}
@@ -358,13 +395,6 @@ export default function MyEventsPage() {
                           <SlidersHorizontal className="w-4 h-4" />
                           <span>Complete Setup &amp; Launch Event</span>
                           <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                        </Link>
-
-                        <Link
-                          href={`/events/${ev.id}/report`}
-                          className="w-full py-2.5 px-3 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
-                        >
-                          <span>Executive Client Report ??</span>
                         </Link>
 
                         <a
