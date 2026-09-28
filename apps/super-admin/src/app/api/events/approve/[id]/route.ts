@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
@@ -17,20 +17,24 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => ({}));
-    const action = body.action === "REJECT" ? "REJECTED" : "APPROVED";
-    const isLive = action === "APPROVED";
+    const rawAction = String(body.action || "").trim().toUpperCase();
+
+    // Explicit check for reject vs accept/approve
+    const isReject = rawAction === "REJECT" || rawAction === "REJECTED";
+    const targetStatus = isReject ? "REJECTED" : "APPROVED";
+    const targetIsLive = !isReject;
 
     const updated = await (prisma.event as any).update({
       where: { id: cleanId },
       data: {
-        status: action,
-        isLive: isLive,
+        status: targetStatus,
+        isLive: targetIsLive,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: `Event successfully marked as ${action}`,
+      message: `Event successfully marked as ${targetStatus}`,
       event: {
         id: updated.id,
         status: updated.status,

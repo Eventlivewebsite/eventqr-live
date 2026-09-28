@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// Client-side auto compression returning lightweight Base64 string
 async function compressAndConvertToBase64(file: File): Promise<string> {
   if (file.type.startsWith("video/")) {
     return new Promise((resolve) => {
@@ -26,8 +25,8 @@ async function compressAndConvertToBase64(file: File): Promise<string> {
       img.src = e.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 900;
-        const MAX_HEIGHT = 900;
+        const MAX_WIDTH = 1000;
+        const MAX_HEIGHT = 1000;
         let width = img.width;
         let height = img.height;
 
@@ -48,7 +47,7 @@ async function compressAndConvertToBase64(file: File): Promise<string> {
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
         resolve(dataUrl);
       };
       img.onerror = () => resolve(reader.result as string);
@@ -66,47 +65,45 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
   const [slug, setSlug] = useState("");
+  const [lockedEventDate, setLockedEventDate] = useState("");
 
   // 1. Basic Metadata
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [venueName, setVenueName] = useState("");
   const [heroTag, setHeroTag] = useState("LIVE EVENT");
-  const [scheduledPublishDate, setScheduledPublishDate] = useState("");
 
-  // 2. Hero Highlights, Countdown & Buttons
+  // 2. Hero Highlights & Countdown
   const [highlightType, setHighlightType] = useState<"video" | "photos">("video");
   const [highlightVideoUrl, setHighlightVideoUrl] = useState("");
   const [highlightPhotos, setHighlightPhotos] = useState<string[]>([]);
   const [ourStoryUrl, setOurStoryUrl] = useState("");
-  const [ceremonyName, setCeremonyName] = useState("Wedding Reception");
+  const [ceremonyName, setCeremonyName] = useState("Main Ceremony");
 
   // 3. Invitation Card Customizer
-  const [inviteBadge, setInviteBadge] = useState("WEDDING INVITATION");
+  const [inviteBadge, setInviteBadge] = useState("OFFICIAL INVITATION");
   const [inviteCoupleInitials, setInviteCoupleInitials] = useState("A & S");
   const [inviteTagline, setInviteTagline] = useState("Together Forever");
-  const [inviteMessage, setInviteMessage] = useState("Together with our families we request the honour of your presence to celebrate our wedding ceremony and blessings.");
-  const [inviteDateText, setInviteDateText] = useState("15 February 2027");
-  const [inviteTimeText, setInviteTimeText] = useState("07:00 PM Onwards");
-  const [inviteVenueText, setInviteVenueText] = useState("Jaipur Palace, Rajasthan");
+  const [inviteMessage, setInviteMessage] = useState("We cordially invite you to celebrate this special occasion with us.");
+  const [inviteDateText, setInviteDateText] = useState("");
+  const [inviteTimeText, setInviteTimeText] = useState("06:00 PM Onwards");
+  const [inviteVenueText, setInviteVenueText] = useState("");
 
   // 4. Unified Categories & Decoration Hub
-  const [commonCategories, setCommonCategories] = useState<string[]>([
-    "Ceremony", "Haldi", "Mehendi", "Reception", "Family", "Party"
-  ]);
+  const [commonCategories, setCommonCategories] = useState<string[]>(["Ceremony", "Stage", "Celebrations", "Family", "Guests"]);
   const [newCategory, setNewCategory] = useState("");
 
   const [decorationAlbums, setDecorationAlbums] = useState<string[]>([
-    "Wedding Stage", "Floral Decoration", "Lighting", "Entrance", "Dining", "Selfie Booth", "Reception Hall"
+    "Main Stage", "Entrance Gate", "Floral Decor", "Lighting Setup", "VIP Lounge"
   ]);
   const [newDecorItem, setNewDecorItem] = useState("");
 
   // 5. Timelines
   const [showTimeline, setShowTimeline] = useState(true);
   const [timelines, setTimelines] = useState<any[]>([
-    { id: 1, title: "Wedding Reception", timeText: "06:00 PM", statusText: "LIVE" },
-    { id: 2, title: "Dinner", timeText: "08:00 PM", statusText: "UPCOMING" },
-    { id: 3, title: "Haldi Ceremony", timeText: "11:00 AM", statusText: "COMPLETED" },
+    { id: 1, title: "Grand Welcome & Arrival", timeText: "06:00 PM", statusText: "LIVE" },
+    { id: 2, title: "Main Event & Celebration", timeText: "07:30 PM", statusText: "UPCOMING" },
+    { id: 3, title: "Dinner & Refreshments", timeText: "09:00 PM", statusText: "UPCOMING" }
   ]);
   const [progTitle, setProgTitle] = useState("");
   const [progTime, setProgTime] = useState("");
@@ -115,18 +112,18 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   // 6. Food & Drinks Feast
   const [showFoodMenu, setShowFoodMenu] = useState(true);
   const [foodItems, setFoodItems] = useState<any[]>([
-    { id: 1, name: "Paneer Tikka Royale", category: "VEG", description: "Charcoal grilled cottage cheese with aromatic spices", photoUrl: "" },
-    { id: 2, name: "Royal Blue Lagoon", category: "DRINK", description: "Refreshing blue curaçao mocktail with citrus notes", photoUrl: "" }
+    { id: 1, name: "Special Appetizer", category: "VEG", description: "Delicious handcrafted starter with signature sauce", photoUrl: "" },
+    { id: 2, name: "Refreshing Mocktail", category: "DRINK", description: "Chilled tropical beverage with fresh citrus mint", photoUrl: "" }
   ]);
   const [dishName, setDishName] = useState("");
   const [dishCat, setDishCat] = useState<"VEG" | "NON_VEG" | "DRINK">("VEG");
   const [dishDesc, setDishDesc] = useState("");
   const [dishPhoto, setDishPhoto] = useState("");
 
-  // 7. Family Members
+  // 7. VIP & Key Members
   const [showFamily, setShowFamily] = useState(true);
   const [familyMembers, setFamilyMembers] = useState<any[]>([
-    { id: 1, name: "Rajesh Sharma", relation: "Father of the Bride", photoUrl: "", instagramUrl: "", facebookUrl: "" }
+    { id: 1, name: "Key Host", relation: "Host & Coordinator", photoUrl: "", instagramUrl: "", facebookUrl: "" }
   ]);
   const [memName, setMemName] = useState("");
   const [memRelation, setMemRelation] = useState("");
@@ -146,10 +143,14 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           setTitle(ev.title || "");
           setVenueName(ev.venueName || ev.location || "");
           setHeroTag(ev.heroTag || "LIVE EVENT");
+          
+          const rawDate = ev.eventDate ? new Date(ev.eventDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }) : "";
+          setLockedEventDate(rawDate);
+          setInviteDateText(rawDate || "Event Date");
+          setInviteVenueText(ev.venueName || ev.location || "Main Venue");
 
           const cm = ev.customMap || {};
           if (cm.subtitle) setSubtitle(cm.subtitle);
-          if (cm.scheduledPublishDate) setScheduledPublishDate(cm.scheduledPublishDate);
           if (cm.highlightType) setHighlightType(cm.highlightType as any);
           if (cm.highlightVideoUrl) setHighlightVideoUrl(cm.highlightVideoUrl);
           if (cm.ourStoryUrl) setOurStoryUrl(cm.ourStoryUrl);
@@ -204,7 +205,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         venueName,
         heroTag,
         subtitle,
-        scheduledPublishDate,
         highlightType,
         highlightVideoUrl,
         highlightPhotos,
@@ -306,12 +306,12 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* 1. Basic Metadata */}
+        {/* 1. Basic Metadata (Locked to Request Dates) */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2 border-b pb-3">
-            <MapPin className="text-amber-500 h-5 w-5" /> 1. Event Headings, Venue & Publish Schedule
+            <MapPin className="text-amber-500 h-5 w-5" /> 1. Event Headings & Venue Details
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-bold text-gray-700 uppercase">Event Title</label>
               <input
@@ -342,19 +342,15 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Live Publish Date</label>
-              <input
-                type="date"
-                value={scheduledPublishDate}
-                onChange={e => setScheduledPublishDate(e.target.value)}
-                className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
-              />
-            </div>
           </div>
+          {lockedEventDate && (
+            <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-xl font-semibold">
+              🔒 Event Scheduled Date: <span className="font-bold">{lockedEventDate}</span> (Locked directly from the approved event request)
+            </div>
+          )}
         </div>
 
-        {/* 2. Hero Highlights & Ceremony Countdown */}
+        {/* 2. Hero Highlights & Countdown Card */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -380,7 +376,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Ceremony Name (Inside Countdown Card)</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Ceremony / Stage Name (In Countdown Card)</label>
               <input
                 type="text"
                 value={ceremonyName}
@@ -480,7 +476,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Initials (Large Text)</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Initials / Names</label>
               <input
                 type="text"
                 value={inviteCoupleInitials}
@@ -506,13 +502,13 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
               rows={2}
               value={inviteMessage}
               onChange={e => setInviteMessage(e.target.value)}
-              placeholder="Together with our families we request..."
+              placeholder="We cordially invite you..."
               className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Event Date Text</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Display Date Text</label>
               <input
                 type="text"
                 value={inviteDateText}
@@ -522,7 +518,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Event Time Text</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Display Time Text</label>
               <input
                 type="text"
                 value={inviteTimeText}
@@ -532,7 +528,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Venue Address Text</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Display Venue Text</label>
               <input
                 type="text"
                 value={inviteVenueText}
@@ -550,7 +546,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <ImageIcon className="text-amber-500 h-5 w-5" /> 4. Unified Categories & Decoration Hub
             </h2>
-            <p className="text-xs text-gray-500 mt-1">Changes made here automatically apply to both Photos and Videos sections.</p>
+            <p className="text-xs text-gray-500 mt-1">Common apartment categories for both Photos & Videos.</p>
           </div>
 
           <div>
@@ -596,7 +592,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 type="text"
                 value={newDecorItem}
                 onChange={e => setNewDecorItem(e.target.value)}
-                placeholder="e.g. Wedding Stage / Lighting"
+                placeholder="e.g. Stage Decor / Floral Wall"
                 className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none flex-1 focus:border-rose-500"
               />
               <button
@@ -610,7 +606,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* 5. Program Schedule */}
+        {/* 5. Timelines */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -748,7 +744,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   type="button"
                   onClick={() => {
                     if (dishName.trim()) {
-                      setFoodItems([...foodItems, { id: Date.now(), name: dishName.trim(), category: dishCat, description: dishDesc.trim() || "Prepared with love", photoUrl: dishPhoto }]);
+                      setFoodItems([...foodItems, { id: Date.now(), name: dishName.trim(), category: dishCat, description: dishDesc.trim() || "Special Preparation", photoUrl: dishPhoto }]);
                       setDishName("");
                       setDishDesc("");
                       setDishPhoto("");
@@ -781,11 +777,11 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
 
-        {/* 7. Family Members (Single Luxury Cards) */}
+        {/* 7. Key Members & VIPs */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Users className="text-amber-500 h-5 w-5" /> 7. Family Members & Key People
+              <Users className="text-amber-500 h-5 w-5" /> 7. Key People & VIPs
             </h2>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
               <input
@@ -794,7 +790,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 onChange={e => setShowFamily(e.target.checked)}
                 className="accent-amber-500 h-4 w-4"
               />
-              Family Section ON
+              Team & Family ON
             </label>
           </div>
 
@@ -803,14 +799,14 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3 bg-rose-50/40 p-4 rounded-2xl border border-rose-200">
                 <input
                   type="text"
-                  placeholder="Member Name"
+                  placeholder="Person Name"
                   value={memName}
                   onChange={e => setMemName(e.target.value)}
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <input
                   type="text"
-                  placeholder="Relation (e.g. Bride's Father)"
+                  placeholder="Role / Relation"
                   value={memRelation}
                   onChange={e => setMemRelation(e.target.value)}
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
@@ -846,7 +842,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   type="button"
                   onClick={() => {
                     if (memName.trim()) {
-                      setFamilyMembers([...familyMembers, { id: Date.now(), name: memName.trim(), relation: memRelation.trim() || "Family", photoUrl: memPhoto, instagramUrl: memInsta.trim(), facebookUrl: memFb.trim() }]);
+                      setFamilyMembers([...familyMembers, { id: Date.now(), name: memName.trim(), relation: memRelation.trim() || "Host", photoUrl: memPhoto, instagramUrl: memInsta.trim(), facebookUrl: memFb.trim() }]);
                       setMemName("");
                       setMemRelation("");
                       setMemPhoto("");
