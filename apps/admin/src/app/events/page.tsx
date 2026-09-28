@@ -364,25 +364,9 @@ export default function MyEventsPage() {
                           href={`/events/${ev.id}/report`}
                           className="w-full py-2 px-3 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                         >
-                          <span>Executive Client Report ??</span>
-                        </Link>
-                    {isApproved ? (
-                      <>
-                        <Link
-                          href={`/events/${ev.id}/setup`}
-                          className="w-full py-3 px-4 bg-gradient-to-r from-pink-600 via-rose-600 to-pink-500 hover:opacity-95 text-white text-xs font-black rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-pink-500/25 group cursor-pointer"
-                        >
-                          <SlidersHorizontal className="w-4 h-4" />
-                          <span>Complete Setup &amp; Launch Event</span>
-                          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                          <span>Executive Client Report</span>
                         </Link>
 
-                        <Link
-                          href={`/events/${ev.id}/report`}
-                          className="w-full py-2 px-3 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
-                        >
-                          <span>Executive Client Report ??</span>
-                        </Link>
                         <a
                           href={`http://localhost:3000/e/${ev.slug}`}
                           target="_blank"
