@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { 
@@ -389,7 +389,8 @@ export default function MyEventsPage() {
                     {isApproved ? (
                       <>
                         <Link
-                          href={`/events/${ev.id}/setup`}
+                          href={/events/${ev.id}/setup}
+                        <Link href={/events/${ev.id}/report} className="text-xs font-bold text-slate-700 hover:text-black flex items-center gap-1 border border-slate-300 px-3 py-1.5 rounded-xl">Report 📄</Link>
                           className="w-full py-3 px-4 bg-gradient-to-r from-pink-600 via-rose-600 to-pink-500 hover:opacity-95 text-white text-xs font-black rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-pink-500/25 group cursor-pointer"
                         >
                           <SlidersHorizontal className="w-4 h-4" />
