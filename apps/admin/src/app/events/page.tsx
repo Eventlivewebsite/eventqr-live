@@ -362,9 +362,9 @@ export default function MyEventsPage() {
 
                         <Link
                           href={`/events/${ev.id}/report`}
-                          className="w-full py-2 px-3 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          className="w-full py-2.5 px-3 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                         >
-                          <span>Executive Client Report</span>
+                          <span>Executive Client Report ??</span>
                         </Link>
 
                         <a
