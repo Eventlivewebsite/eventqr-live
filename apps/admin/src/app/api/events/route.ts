@@ -1,95 +1,50 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { jwtVerify } from "jose";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const events = await (prisma.event as any).findMany({
+    const token = req.cookies.get("admin_token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "eventqr_super_secure_key_2026");
+    const { payload } = await jwtVerify(token, secretKey);
+
+    const userId = payload.userId as string;
+    const userRole = payload.role as string;
+    const { searchParams } = new URL(req.url);
+    const activeOnly = searchParams.get("activeOnly") === "true";
+
+    // Build Strict Ownership & Status Filter
+    const filter: any = {};
+
+    // If not Super Admin, show only this user's events
+    if (userRole !== "SUPER_ADMIN") {
+      filter.userId = userId;
+    }
+
+    // Strict Filter for Media Dropdowns: Exclude REJECTED events
+    if (activeOnly) {
+      filter.status = "ACTIVE";
+      filter.isApproved = true;
+    }
+
+    const events = await prisma.event.findMany({
+      where: filter,
       orderBy: { createdAt: "desc" },
-      include: { client: true },
+      include: {
+        _count: {
+          select: { photos: true }
+        }
+      }
     });
 
-    const formattedEvents = events.map((ev: any) => {
-      const currentStatus = String(ev.status || "PENDING").toUpperCase();
-      const isRejected = currentStatus === "REJECTED";
-      const isApprovedOrActive = (currentStatus === "ACTIVE" || currentStatus === "APPROVED") && !isRejected;
-
-      return {
-        id: String(ev.id),
-        title: ev.title || "Untitled Event",
-        type: ev.type || "WEDDING",
-        slug: ev.slug,
-        status: currentStatus,
-        eventDate: ev.eventDate ? new Date(ev.eventDate).toISOString() : new Date().toISOString(),
-        isLive: Boolean(isApprovedOrActive && ev.isLive !== false),
-        _count: { albums: 0 },
-      };
-    });
-
-    return NextResponse.json({ success: true, events: formattedEvents });
+    return NextResponse.json({ events });
   } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch events.", events: [] },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json().catch(() => null);
-    if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        { success: false, error: "Invalid request payload." },
-        { status: 400 }
-      );
-    }
-
-    const {
-      title,
-      type = "WEDDING",
-      eventDate,
-      slug,
-      pinCode,
-      brideName,
-      groomName,
-      clientName,
-    } = body;
-
-    const cleanTitle = typeof title === "string" ? title.trim().slice(0, 150) : "";
-    if (!cleanTitle) {
-      return NextResponse.json(
-        { success: false, error: "Event title is required." },
-        { status: 400 }
-      );
-    }
-
-    const finalSlug = slug || cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Math.random().toString(36).substring(2, 6);
-
-    const newEvent = await (prisma.event as any).create({
-      data: {
-        title: cleanTitle,
-        type: String(type || "WEDDING").toUpperCase(),
-        slug: finalSlug,
-        status: "PENDING",
-        isLive: false,
-        eventDate: eventDate ? new Date(eventDate) : new Date(),
-        customMap: {
-          pinCode: pinCode || "",
-          brideName: brideName || "",
-          groomName: groomName || "",
-          clientName: clientName || "",
-        },
-      },
-    });
-
-    return NextResponse.json({ success: true, event: newEvent });
-  } catch (err: any) {
-    console.error("Create event error:", err);
-    return NextResponse.json(
-      { success: false, error: err?.message || "Failed to create event." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to fetch events" }, { status: 500 });
   }
 }

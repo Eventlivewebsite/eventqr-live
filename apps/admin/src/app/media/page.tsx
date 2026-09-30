@@ -85,7 +85,7 @@ export default function PhotosAndMediaHub() {
     async function fetchEvents() {
       try {
         setLoadingEvents(true);
-        const res = await fetch("/api/events");
+        const res = await fetch("/api/events?activeOnly=true");
         const json = await res.json();
         if (json.success && Array.isArray(json.events) && json.events.length > 0) {
           setEvents(json.events);

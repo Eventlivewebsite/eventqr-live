@@ -7,43 +7,52 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get("eventId");
+    if (!eventId) return NextResponse.json({ error: "Missing eventId" }, { status: 400 });
 
-    if (!eventId) {
-      return NextResponse.json({ success: false, error: "eventId is required" }, { status: 400 });
-    }
-
-    const controls = await prisma.eventSettings.findFirst({
-      where: { eventId },
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        photos: {
+          orderBy: { createdAt: "desc" },
+          take: 50
+        }
+      }
     });
 
-    return NextResponse.json({ success: true, controls });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || "Internal error" }, { status: 500 });
+    return NextResponse.json({ event, photos: event?.photos || [] });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => null);
-    if (!body || !body.eventId) {
-      return NextResponse.json({ success: false, error: "eventId is required" }, { status: 400 });
+    const { photoId, action, eventId, liveFeedPaused } = await req.json();
+
+    if (eventId && typeof liveFeedPaused === "boolean") {
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { liveFeedPaused }
+      });
+      return NextResponse.json({ success: true, liveFeedPaused });
     }
 
-    const updated = await prisma.eventSettings.upsert({
-      where: { eventId: body.eventId },
-      update: {
-        allowDownloads: body.allowDownloads ?? true,
-        allowLikes: body.allowLikes ?? true,
-      },
-      create: {
-        eventId: body.eventId,
-        allowDownloads: body.allowDownloads ?? true,
-        allowLikes: body.allowLikes ?? true,
-      },
-    });
+    if (action === "TOGGLE_APPROVE" && photoId) {
+      const photo = await prisma.photo.findUnique({ where: { id: photoId } });
+      const updated = await prisma.photo.update({
+        where: { id: photoId },
+        data: { isApproved: !photo?.isApproved }
+      });
+      return NextResponse.json({ success: true, photo: updated });
+    }
 
-    return NextResponse.json({ success: true, updated });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || "Internal error" }, { status: 500 });
+    if (action === "DELETE" && photoId) {
+      await prisma.photo.delete({ where: { id: photoId } });
+      return NextResponse.json({ success: true, deleted: photoId });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
