@@ -204,7 +204,30 @@ export default function MyEventsPage() {
   };
 
   if (!mounted) {
-    return (
+    
+  const handleExtendGrace = async (eventId: string) => {
+    try {
+      setExtendingId(eventId);
+      const res = await fetch("/api/events/lifecycle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "EXTEND_GRACE", eventId })
+      });
+      if (res.ok) {
+        alert("48-Hour Grace Extension granted successfully!");
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to extend grace period.");
+      }
+    } catch (err) {
+      alert("Network error while extending grace period.");
+    } finally {
+      setExtendingId(null);
+    }
+  };
+
+  return (
       <div className="flex items-center justify-center min-h-screen bg-[#030712] text-slate-500 font-sans">
         <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
       </div>
