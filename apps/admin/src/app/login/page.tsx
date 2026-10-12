@@ -17,7 +17,9 @@ import {
 
 const LIVE_SUPER_ADMIN_URL =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
-  "https://eventqr-live-super-admin.vercel.app";
+  (typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://localhost:3001"
+    : "https://eventqr-live-super-admin.vercel.app");
 
 const SPRITE_URL =
   "https://raw.githubusercontent.com/nilbuild/page-mascot/main/characters/glasses/directions.png";
