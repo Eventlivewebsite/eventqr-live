@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
     const rawIdentifier = (body.email || body.loginId || "") as string;
     const password = body.password as string;
+    const requestedPortal = (body.portalRole || "").toUpperCase();
 
     if (typeof rawIdentifier !== "string" || typeof password !== "string") {
       return NextResponse.json({ error: "Invalid credentials format." }, { status: 400 });
@@ -41,8 +42,6 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    let isValid = false;
-
     if (!user) {
       await bcrypt.compare(cleanPassword, DUMMY_HASH);
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
@@ -55,6 +54,7 @@ export async function POST(req: NextRequest) {
     const storedHash = user.passwordHash || "";
     const isBcrypt = storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$");
 
+    let isValid = false;
     if (isBcrypt) {
       isValid = await bcrypt.compare(cleanPassword, storedHash);
     } else {
@@ -70,6 +70,25 @@ export async function POST(req: NextRequest) {
 
     if (!isValid) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+    }
+
+    const userRole = String(user.role || "").toUpperCase();
+
+    // STRICT PORTAL ISOLATION:
+    // 1. Agar Super Admin portal chuna hai aur user SUPER_ADMIN nahi hai -> Block!
+    if (requestedPortal === "SUPER_ADMIN" && userRole !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "Access Denied: This portal is exclusively for Super Admin." },
+        { status: 403 }
+      );
+    }
+
+    // 2. Agar Studio Partner portal chuna hai aur user SUPER_ADMIN hai -> Super Admin portal par bhejne ko bolo
+    if (requestedPortal === "STUDIO_CLIENT" && userRole === "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "Super Admin account detected. Please use the Super Admin portal tab." },
+        { status: 403 }
+      );
     }
 
     await prisma.user.update({
@@ -93,6 +112,7 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({
       success: true,
       token,
+      role: userRole,
       user: {
         id: user.id,
         email: user.email,
@@ -112,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     res.cookies.set("eventqr_session", token, cookieOptions);
     res.cookies.set("admin_token", token, cookieOptions);
-    res.cookies.set("eventqr_session_role", user.role, {
+    res.cookies.set("eventqr_session_role", userRole, {
       ...cookieOptions,
       httpOnly: false
     });
