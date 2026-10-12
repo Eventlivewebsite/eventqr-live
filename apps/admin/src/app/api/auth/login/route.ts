@@ -11,16 +11,18 @@ const DEFAULT_SECRET = "eventqr_super_secure_key_2026_production_safe_string_32"
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
-    if (!body || !body.email || !body.password) {
-      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+    if (!body || (!body.email && !body.loginId) || !body.password) {
+      return NextResponse.json({ error: "Email/Login ID and password are required." }, { status: 400 });
     }
 
-    const { email, password } = body;
-    if (typeof email !== "string" || typeof password !== "string") {
+    const rawIdentifier = (body.email || body.loginId || "") as string;
+    const password = body.password as string;
+
+    if (typeof rawIdentifier !== "string" || typeof password !== "string") {
       return NextResponse.json({ error: "Invalid credentials format." }, { status: 400 });
     }
 
-    const cleanEmail = email.normalize("NFC").trim().toLowerCase();
+    const cleanEmail = rawIdentifier.normalize("NFC").trim().toLowerCase();
     const cleanPassword = password.normalize("NFC");
 
     const user = await prisma.user.findFirst({
@@ -90,6 +92,7 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({
       success: true,
+      token,
       user: {
         id: user.id,
         email: user.email,
@@ -107,7 +110,6 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7
     };
 
-    // Set both cookies so middleware and frontend components both work seamlessly
     res.cookies.set("eventqr_session", token, cookieOptions);
     res.cookies.set("admin_token", token, cookieOptions);
     res.cookies.set("eventqr_session_role", user.role, {
