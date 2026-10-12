@@ -147,7 +147,7 @@ export default function UnifiedLoginPage() {
           authenticatedRole === "CLIENT" ||
           authenticatedRole === "ADMIN"
         ) {
-          window.location.replace("/events");
+          window.location.href = "/events";
           return;
         }
 
@@ -350,4 +350,5 @@ export default function UnifiedLoginPage() {
     </div>
   );
 }
+
 
