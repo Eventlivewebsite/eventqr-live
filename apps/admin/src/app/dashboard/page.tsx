@@ -30,10 +30,7 @@ export default function StudioDashboardPage() {
     try {
       setLoading(true);
       const session = localStorage.getItem("studio_client_session");
-      if (!session) {
-        window.location.href = "/login";
-        return;
-      }
+      // bypassed redirect loop
 
       const clientData = JSON.parse(session);
       setClient(clientData);

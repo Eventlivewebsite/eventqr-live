@@ -136,7 +136,10 @@ export default function UnifiedLoginPage() {
           }
         }
 
-        if (authenticatedRole === "SUPER_ADMIN") {
+        if (typeof window !== "undefined" && data.user) {
+            localStorage.setItem("studio_client_session", JSON.stringify(data.user));
+          }
+          if (authenticatedRole === "SUPER_ADMIN") {
           const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
           window.location.replace("/dashboard");
           return;
@@ -350,5 +353,6 @@ export default function UnifiedLoginPage() {
     </div>
   );
 }
+
 
 
