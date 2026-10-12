@@ -141,7 +141,7 @@ export default function UnifiedLoginPage() {
           }
           if (authenticatedRole === "SUPER_ADMIN") {
           const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
-          window.location.replace("/dashboard");
+          window.location.href = "/events";
           return;
         }
 
@@ -353,6 +353,7 @@ export default function UnifiedLoginPage() {
     </div>
   );
 }
+
 
 
 
