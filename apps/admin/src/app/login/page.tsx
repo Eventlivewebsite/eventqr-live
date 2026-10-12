@@ -138,7 +138,7 @@ export default function UnifiedLoginPage() {
 
         if (authenticatedRole === "SUPER_ADMIN") {
           const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
-          window.location.replace(`${targetBase}/?token=${encodeURIComponent(token)}`);
+          window.location.replace("/dashboard");
           return;
         }
 
@@ -350,3 +350,4 @@ export default function UnifiedLoginPage() {
     </div>
   );
 }
+
