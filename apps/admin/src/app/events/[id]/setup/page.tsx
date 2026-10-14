@@ -184,9 +184,31 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
     loadData();
   }, [eventId]);
 
-  const handleProcessMedia = async (rawFile: File, cb: (dataUrl: string) => void) => {
+  const handleProcessMedia = async (rawFile: File, cb: (mediaUrl: string) => void) => {
     try {
       setUploading(true);
+      // If it's a video file, upload via FormData to avoid 413 Request Entity Too Large
+      if (rawFile.type.startsWith("video/")) {
+        const formData = new FormData();
+        formData.append("file", rawFile);
+        formData.append("category", "highlight_video");
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json().catch(() => null);
+        if (data && data.url) {
+          cb(data.url);
+        } else {
+          // If server rejects huge file, notify user to provide direct streamable URL
+          alert("Video upload size exceeds serverless limits. Please provide a direct MP4/stream URL (e.g. Cloudinary, S3, or YouTube).");
+        }
+        return;
+      }
+
+      // For images, compress to lightweight Base64
       const dataUri = await compressAndConvertToBase64(rawFile);
       cb(dataUri);
     } catch (e: any) {
@@ -200,6 +222,14 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
     setSaving(true);
     setMsg("");
     try {
+      // Safety guard: Prevent submitting oversized Base64 video strings
+      let sanitizedVideoUrl = highlightVideoUrl;
+      if (sanitizedVideoUrl.startsWith("data:video/") && sanitizedVideoUrl.length > 2000000) {
+        alert("The uploaded video file is too large to save directly. Please paste a direct video MP4 URL or use a smaller clip under 2MB.");
+        setSaving(false);
+        return;
+      }
+
       const payload = {
         title,
         venueName,
