@@ -30,7 +30,15 @@ export default function FoodMenuPage() {
         
         console.log("API Response:", json);
 
-        const fetchedItems = json?.event?.foodItems || json?.event?.customFields?.foodItems;
+        let fetchedItems = json?.event?.foodItems || json?.event?.customFields?.foodItems;
+
+        if (typeof fetchedItems === "string") {
+          try {
+            fetchedItems = JSON.parse(fetchedItems);
+          } catch (e) {
+            console.error("Failed to parse foodItems string:", e);
+          }
+        }
 
         if (json?.success && Array.isArray(fetchedItems) && fetchedItems.length > 0) {
           setItems(fetchedItems);
