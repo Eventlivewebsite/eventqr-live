@@ -81,6 +81,17 @@ export async function POST(req: NextRequest) {
             isActive: true,
           },
         });
+      } else {
+        user = await tx.user.update({
+          where: { id: user.id },
+          data: {
+            userId: loginId,
+            passwordHash: passwordHash,
+            role: "ADMIN",
+            isActive: true,
+            isDeleted: false,
+          },
+        });
       }
 
       const client = await tx.client.create({

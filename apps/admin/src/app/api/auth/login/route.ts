@@ -12,23 +12,21 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
     if (!body || (!body.email && !body.loginId) || !body.password) {
-      return NextResponse.json({ error: "Email/Login ID and password are required." }, { status: 400 });
+      return NextResponse.json({ error: "Email or Login ID and password are required." }, { status: 400 });
     }
 
-    const rawIdentifier = (body.email || body.loginId || "") as string;
-    const password = body.password as string;
-    const requestedPortal = (body.portalRole || "").toUpperCase();
+    const rawIdentifier = String(body.email || body.loginId || "").trim();
+    const cleanPassword = String(body.password || "").normalize("NFC");
+    const requestedPortal = String(body.portalRole || "").toUpperCase();
+    const cleanIdentifier = rawIdentifier.normalize("NFC").toLowerCase();
 
-    if (typeof rawIdentifier !== "string" || typeof password !== "string") {
-      return NextResponse.json({ error: "Invalid credentials format." }, { status: 400 });
-    }
-
-    const cleanEmail = rawIdentifier.normalize("NFC").trim().toLowerCase();
-    const cleanPassword = password.normalize("NFC");
-
-    const user = await prisma.user.findFirst({
+    // 1. Search in User table (by email or userId)
+    let targetUser = await prisma.user.findFirst({
       where: {
-        email: { equals: cleanEmail, mode: "insensitive" }
+        OR: [
+          { email: { equals: cleanIdentifier, mode: "insensitive" } },
+          { userId: { equals: cleanIdentifier, mode: "insensitive" } },
+        ],
       },
       select: {
         id: true,
@@ -38,44 +36,72 @@ export async function POST(req: NextRequest) {
         role: true,
         name: true,
         isActive: true,
-        isDeleted: true
-      }
+        isDeleted: true,
+      },
     });
 
-    if (!user) {
+    let storedHash = targetUser?.passwordHash || "";
+
+    // 2. Agar User me nahi mila ya hash nahi mila, Client table check karein (Super Admin created)
+    if (!targetUser || !storedHash) {
+      const client = await prisma.client.findFirst({
+        where: {
+          OR: [
+            { email: { equals: cleanIdentifier, mode: "insensitive" } },
+            { loginId: { equals: cleanIdentifier, mode: "insensitive" } },
+          ],
+        },
+        include: { admin: true },
+      });
+
+      if (client) {
+        storedHash = client.passwordHash || client.admin?.passwordHash || "";
+        targetUser = {
+          id: client.admin?.id || client.id,
+          userId: client.loginId || client.admin?.userId || client.id,
+          email: client.email,
+          passwordHash: storedHash,
+          role: "ADMIN",
+          name: client.contactPerson || client.companyName || "Studio Partner",
+          isActive: client.isActive ?? true,
+          isDeleted: client.isDeleted ?? false,
+        };
+      }
+    }
+
+    if (!targetUser || !storedHash) {
       await bcrypt.compare(cleanPassword, DUMMY_HASH);
-      return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+      return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
     }
 
-    if (user.isDeleted || user.isActive === false) {
-      return NextResponse.json({ error: "Account is disabled or deactivated." }, { status: 403 });
+    if (targetUser.isDeleted || targetUser.isActive === false) {
+      return NextResponse.json({ error: "Account is deactivated. Contact Super Admin." }, { status: 403 });
     }
 
-    const storedHash = user.passwordHash || "";
+    // Password verification (Bcrypt check)
     const isBcrypt = storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$");
-
     let isValid = false;
+
     if (isBcrypt) {
       isValid = await bcrypt.compare(cleanPassword, storedHash);
     } else {
-      isValid = (cleanPassword === storedHash);
+      isValid = cleanPassword === storedHash;
       if (isValid) {
         const secureHash = await bcrypt.hash(cleanPassword, 12);
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { passwordHash: secureHash }
-        });
+        await prisma.user.updateMany({
+          where: { id: targetUser.id },
+          data: { passwordHash: secureHash },
+        }).catch(() => null);
       }
     }
 
     if (!isValid) {
-      return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+      return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
     }
 
-    const userRole = String(user.role || "").toUpperCase();
+    const userRole = String(targetUser.role || "ADMIN").toUpperCase();
 
-    // STRICT PORTAL ISOLATION:
-    // 1. Agar Super Admin portal chuna hai aur user SUPER_ADMIN nahi hai -> Block!
+    // Portal isolation
     if (requestedPortal === "SUPER_ADMIN" && userRole !== "SUPER_ADMIN") {
       return NextResponse.json(
         { error: "Access Denied: This portal is exclusively for Super Admin." },
@@ -83,63 +109,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Agar Studio Partner portal chuna hai aur user SUPER_ADMIN hai -> Super Admin portal par bhejne ko bolo
     if (requestedPortal === "STUDIO_CLIENT" && userRole === "SUPER_ADMIN") {
       return NextResponse.json(
-        { error: "Super Admin account detected. Please use the Super Admin portal tab." },
+        { error: "Super Admin account detected. Please use the Super Admin tab." },
         { status: 403 }
       );
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() }
-    }).catch(() => null);
-
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || DEFAULT_SECRET);
 
     const token = await new SignJWT({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name
+      userId: targetUser.id,
+      email: targetUser.email,
+      role: targetUser.role,
+      name: targetUser.name,
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("7d")
+      .setExpirationTime("24h")
       .sign(secretKey);
 
-    const res = NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       token,
-      role: userRole,
+      role: targetUser.role,
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        name: user.name
-      }
+        id: targetUser.id,
+        email: targetUser.email,
+        name: targetUser.name,
+        role: targetUser.role,
+      },
     });
 
-    const isProduction = process.env.NODE_ENV === "production";
-    const cookieOptions = {
+    response.cookies.set("eventqr_session", token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax" as const,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24,
       path: "/",
-      maxAge: 60 * 60 * 24 * 7
-    };
-
-    res.cookies.set("eventqr_session", token, cookieOptions);
-    res.cookies.set("admin_token", token, cookieOptions);
-    res.cookies.set("eventqr_session_role", userRole, {
-      ...cookieOptions,
-      httpOnly: false
     });
 
-    return res;
+    return response;
   } catch (error: any) {
-    console.error("Auth Exception:", error);
+    console.error("LOGIN API ERROR:", error);
     return NextResponse.json({ error: "Authentication service error." }, { status: 500 });
   }
 }
