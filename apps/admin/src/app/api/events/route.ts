@@ -11,66 +11,91 @@ export async function GET(req: NextRequest) {
       req.cookies.get("admin_token")?.value ||
       req.cookies.get("super_admin_session")?.value;
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let tokenUserId = "";
+    let userRole = "";
+
+    if (token) {
+      try {
+        const secretKey = new TextEncoder().encode(
+          process.env.JWT_SECRET || "eventqr_super_secure_key_2026_production_safe_string_32"
+        );
+        const { payload } = await jwtVerify(token, secretKey);
+        tokenUserId = (payload.userId as string) || "";
+        userRole = String(payload.role || "").toUpperCase();
+      } catch (err) {
+        console.warn("JWT verify warning:", err);
+      }
     }
 
-    const secretKey = new TextEncoder().encode(
-      process.env.JWT_SECRET || "eventqr_super_secure_key_2026_production_safe_string_32"
-    );
-    const { payload } = await jwtVerify(token, secretKey);
+    const { searchParams } = new URL(req.url);
+    const paramClientId = searchParams.get("clientId") || "";
 
-    const userId = payload.userId as string;
-    const userRole = String(payload.role || "").toUpperCase();
-
-    // Find linked client or user records
-    const client = await prisma.client.findFirst({
-      where: {
-        OR: [
-          { id: userId },
-          { adminId: userId },
-          { loginId: userId },
-        ],
-      },
-    });
-
-    const targetAdminIds = [userId];
-    const targetClientIds: string[] = [];
-
-    if (client) {
-      targetAdminIds.push(client.adminId);
-      targetClientIds.push(client.id);
+    const searchIds = new Set<string>();
+    if (tokenUserId) searchIds.add(tokenUserId);
+    if (paramClientId && paramClientId !== "undefined" && paramClientId !== "null") {
+      searchIds.add(paramClientId);
     }
 
-    const filter: any = {
+    if (searchIds.size > 0) {
+      const idArray = Array.from(searchIds);
+      const clients = await prisma.client.findMany({
+        where: {
+          OR: [
+            { id: { in: idArray } },
+            { adminId: { in: idArray } },
+            { loginId: { in: idArray } },
+          ],
+        },
+      });
+
+      for (const c of clients) {
+        searchIds.add(c.id);
+        if (c.adminId) searchIds.add(c.adminId);
+        if (c.loginId) searchIds.add(c.loginId);
+      }
+
+      const users = await prisma.user.findMany({
+        where: {
+          OR: [
+            { id: { in: idArray } },
+            { userId: { in: idArray } },
+          ],
+        },
+      });
+
+      for (const u of users) {
+        searchIds.add(u.id);
+        if (u.userId) searchIds.add(u.userId);
+      }
+    }
+
+    const matchedIds = Array.from(searchIds);
+
+    let whereClause: any = {
       isDeleted: false,
     };
 
     if (userRole !== "SUPER_ADMIN") {
-      filter.OR = [
-        { adminId: { in: targetAdminIds } },
-        ...(targetClientIds.length > 0 ? [{ clientId: { in: targetClientIds } }] : []),
-      ];
+      if (matchedIds.length > 0) {
+        whereClause.OR = [
+          { adminId: { in: matchedIds } },
+          { clientId: { in: matchedIds } },
+        ];
+      }
     }
 
     const events = await prisma.event.findMany({
-      where: filter,
+      where: whereClause,
       orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: { photos: true },
-        },
-      },
     });
 
-    // Frontend compatibility: Return both { events } and { success: true, events }
     return NextResponse.json({
       success: true,
       events: events,
       data: events,
     });
   } catch (err: any) {
-    console.error("GET_EVENTS_ERROR:", err);
-    return NextResponse.json({ error: err.message || "Failed to fetch events" }, { status: 500 });
+    console.error("GET_EVENTS_FATAL:", err);
+    return NextResponse.json({ success: false, events: [], error: err.message }, { status: 500 });
   }
 }
