@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
     if (!body || (!body.email && !body.loginId) || !body.password) {
-      return NextResponse.json({ error: "Email or Login ID and password are required." }, { status: 400 });
+      return NextResponse.json({ error: "Login ID and password are required." }, { status: 400 });
     }
 
     const rawIdentifier = String(body.email || body.loginId || "").trim();
@@ -20,36 +20,33 @@ export async function POST(req: NextRequest) {
     const requestedPortal = String(body.portalRole || "").toUpperCase();
     const cleanIdentifier = rawIdentifier.normalize("NFC").toLowerCase();
 
-    // 1. Search in User table (by email or userId)
-    let targetUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: { equals: cleanIdentifier, mode: "insensitive" } },
-          { userId: { equals: cleanIdentifier, mode: "insensitive" } },
-        ],
-      },
-      select: {
-        id: true,
-        userId: true,
-        email: true,
-        passwordHash: true,
-        role: true,
-        name: true,
-        isActive: true,
-        isDeleted: true,
-      },
-    });
+    let targetUser = null;
+    let storedHash = "";
 
-    let storedHash = targetUser?.passwordHash || "";
-
-    // 2. Agar User me nahi mila ya hash nahi mila, Client table check karein (Super Admin created)
-    if (!targetUser || !storedHash) {
+    if (requestedPortal === "SUPER_ADMIN") {
+      // Super Admin email se login karega
+      targetUser = await prisma.user.findFirst({
+        where: {
+          email: { equals: cleanIdentifier, mode: "insensitive" },
+          role: "SUPER_ADMIN",
+        },
+        select: {
+          id: true,
+          userId: true,
+          email: true,
+          passwordHash: true,
+          role: true,
+          name: true,
+          isActive: true,
+          isDeleted: true,
+        },
+      });
+      if (targetUser) storedHash = targetUser.passwordHash;
+    } else {
+      // STUDIO PARTNER: Pehle Client table me LOGIN ID (STUDIO USERNAME) dhundega
       const client = await prisma.client.findFirst({
         where: {
-          OR: [
-            { email: { equals: cleanIdentifier, mode: "insensitive" } },
-            { loginId: { equals: cleanIdentifier, mode: "insensitive" } },
-          ],
+          loginId: { equals: cleanIdentifier, mode: "insensitive" },
         },
         include: { admin: true },
       });
@@ -66,19 +63,38 @@ export async function POST(req: NextRequest) {
           isActive: client.isActive ?? true,
           isDeleted: client.isDeleted ?? false,
         };
+      } else {
+        // Fallback: Agar User table me userId match kare
+        targetUser = await prisma.user.findFirst({
+          where: {
+            userId: { equals: cleanIdentifier, mode: "insensitive" },
+            role: "ADMIN",
+          },
+          select: {
+            id: true,
+            userId: true,
+            email: true,
+            passwordHash: true,
+            role: true,
+            name: true,
+            isActive: true,
+            isDeleted: true,
+          },
+        });
+        if (targetUser) storedHash = targetUser.passwordHash;
       }
     }
 
     if (!targetUser || !storedHash) {
       await bcrypt.compare(cleanPassword, DUMMY_HASH);
-      return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
+      return NextResponse.json({ error: "Invalid Login ID or password." }, { status: 401 });
     }
 
     if (targetUser.isDeleted || targetUser.isActive === false) {
       return NextResponse.json({ error: "Account is deactivated. Contact Super Admin." }, { status: 403 });
     }
 
-    // Password verification (Bcrypt check)
+    // Password verification
     const isBcrypt = storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$");
     let isValid = false;
 
@@ -96,24 +112,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!isValid) {
-      return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
-    }
-
-    const userRole = String(targetUser.role || "ADMIN").toUpperCase();
-
-    // Portal isolation
-    if (requestedPortal === "SUPER_ADMIN" && userRole !== "SUPER_ADMIN") {
-      return NextResponse.json(
-        { error: "Access Denied: This portal is exclusively for Super Admin." },
-        { status: 403 }
-      );
-    }
-
-    if (requestedPortal === "STUDIO_CLIENT" && userRole === "SUPER_ADMIN") {
-      return NextResponse.json(
-        { error: "Super Admin account detected. Please use the Super Admin tab." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Invalid Login ID or password." }, { status: 401 });
     }
 
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || DEFAULT_SECRET);
