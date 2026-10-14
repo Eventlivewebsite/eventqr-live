@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    // 1. Session token read karein (support both cookie names)
     const token =
       req.cookies.get("eventqr_session")?.value ||
       req.cookies.get("admin_token")?.value ||
@@ -23,37 +22,35 @@ export async function GET(req: NextRequest) {
 
     const userId = payload.userId as string;
     const userRole = String(payload.role || "").toUpperCase();
-    const { searchParams } = new URL(req.url);
-    const activeOnly = searchParams.get("activeOnly") === "true";
 
-    // 2. Build filter according to exact Prisma schema fields
+    // Find linked client or user records
+    const client = await prisma.client.findFirst({
+      where: {
+        OR: [
+          { id: userId },
+          { adminId: userId },
+          { loginId: userId },
+        ],
+      },
+    });
+
+    const targetAdminIds = [userId];
+    const targetClientIds: string[] = [];
+
+    if (client) {
+      targetAdminIds.push(client.adminId);
+      targetClientIds.push(client.id);
+    }
+
     const filter: any = {
       isDeleted: false,
     };
 
     if (userRole !== "SUPER_ADMIN") {
-      // Find associated client record if userId is a client ID or admin ID
-      const client = await prisma.client.findFirst({
-        where: {
-          OR: [
-            { id: userId },
-            { adminId: userId },
-            { loginId: userId },
-          ],
-        },
-      });
-
-      const matchedClientIds = client ? [client.id] : [];
-      const matchedAdminIds = client ? [client.adminId, userId] : [userId];
-
       filter.OR = [
-        { adminId: { in: matchedAdminIds } },
-        ...(matchedClientIds.length > 0 ? [{ clientId: { in: matchedClientIds } }] : []),
+        { adminId: { in: targetAdminIds } },
+        ...(targetClientIds.length > 0 ? [{ clientId: { in: targetClientIds } }] : []),
       ];
-    }
-
-    if (activeOnly) {
-      filter.status = "ACTIVE";
     }
 
     const events = await prisma.event.findMany({
@@ -66,7 +63,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, events });
+    // Frontend compatibility: Return both { events } and { success: true, events }
+    return NextResponse.json({
+      success: true,
+      events: events,
+      data: events,
+    });
   } catch (err: any) {
     console.error("GET_EVENTS_ERROR:", err);
     return NextResponse.json({ error: err.message || "Failed to fetch events" }, { status: 500 });
