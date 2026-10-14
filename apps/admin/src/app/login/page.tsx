@@ -139,11 +139,11 @@ export default function UnifiedLoginPage() {
         if (typeof window !== "undefined" && data.user) {
             localStorage.setItem("studio_client_session", JSON.stringify(data.user));
           }
-          if (authenticatedRole === "SUPER_ADMIN") {
-          const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
-          window.location.href = "/events";
-          return;
-        }
+                    if (authenticatedRole === "SUPER_ADMIN") {
+            const targetBase = LIVE_SUPER_ADMIN_URL.replace(/\/$/, "");
+            window.location.href = token ? `${targetBase}?token=${encodeURIComponent(token)}` : targetBase;
+            return;
+          }
 
         if (
           authenticatedRole === "STUDIO_ADMIN" ||
