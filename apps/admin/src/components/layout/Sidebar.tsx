@@ -17,7 +17,7 @@ import {
 const navigation = [
   { name: "Live Dashboard", href: "/", icon: LayoutDashboard },
   { name: "My Events", href: "/events", icon: Calendar },
-  { name: "Viewer Feed Moderation", href: "/viewer-controls", icon: ShieldAlert },
+  { name: "Viewer Feed Moderation", href: "/feed", icon: ShieldAlert },
   { name: "Photos & Media", href: "/media", icon: ImageIcon },
   { name: "QR Standees & Sharing", href: "/qr-stands", icon: QrCode },
   { name: "Viewer Display Settings", href: "/viewer-controls", icon: SlidersHorizontal },
