@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +11,8 @@ export async function GET(req: NextRequest) {
     if (!slug) {
       return NextResponse.json({ success: false, error: "Event slug required" }, { status: 400 });
     }
+
+    const prisma = getPrisma();
 
     const event = await prisma.event.findFirst({
       where: {
