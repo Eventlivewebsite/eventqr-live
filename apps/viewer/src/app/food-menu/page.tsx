@@ -16,21 +16,30 @@ export default function FoodMenuPage() {
     async function loadMenu() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        let activeSlug = urlParams.get("event") || urlParams.get("slug");
+        
+        if (!activeSlug && typeof window !== "undefined") {
+          activeSlug = localStorage.getItem("current_event_slug") || "testing-nns3";
+        } else if (activeSlug) {
+          localStorage.setItem("current_event_slug", activeSlug);
+        }
+
+        console.log("Fetching food items for slug:", activeSlug);
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
         const json = await res.json();
-        if (json?.success && Array.isArray(json?.event?.foodItems) && json.event.foodItems.length > 0) {
-          setItems(json.event.foodItems);
+        
+        console.log("API Response:", json);
+
+        const fetchedItems = json?.event?.foodItems || json?.event?.customFields?.foodItems;
+
+        if (json?.success && Array.isArray(fetchedItems) && fetchedItems.length > 0) {
+          setItems(fetchedItems);
         } else {
-          setItems([
-            { id: 1, name: "Paneer Tikka Royale", category: "VEG", description: "Charcoal grilled cottage cheese with aromatic spices", photoUrl: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=500" },
-            { id: 2, name: "Dal Makhani Grandeur", category: "VEG", description: "Slow cooked black lentils with churned butter", photoUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500" },
-            { id: 3, name: "Mutton Rogan Josh", category: "NON_VEG", description: "Kashmiri delicacy cooked with tender meat & spices", photoUrl: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=500" },
-            { id: 4, name: "Royal Blue Lagoon", category: "DRINK", description: "Refreshing blue curaçao mocktail with citrus notes", photoUrl: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=500" },
-            { id: 5, name: "Signature Virgin Mojito", category: "DRINK", description: "Crushed mint, fresh lime and sparkling fizz", photoUrl: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500" }
-          ]);
+          console.warn("No custom food items found in DB, using fallback.");
         }
-      } catch {} finally {
+      } catch (err) {
+        console.error("Failed to load food menu:", err);
+      } finally {
         setLoading(false);
       }
     }
