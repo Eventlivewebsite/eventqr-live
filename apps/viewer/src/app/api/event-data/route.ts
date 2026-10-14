@@ -52,6 +52,22 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Parse food items & family members safely
+    let foodItems = customMap["foodItems"] || [];
+    if (typeof foodItems === "string") {
+      try { foodItems = JSON.parse(foodItems); } catch {}
+    }
+
+    let familyMembers = customMap["familyMembers"] || [];
+    if (typeof familyMembers === "string") {
+      try { familyMembers = JSON.parse(familyMembers); } catch {}
+    }
+
+    let highlightPhotos = customMap["highlightPhotos"] || [];
+    if (typeof highlightPhotos === "string") {
+      try { highlightPhotos = JSON.parse(highlightPhotos); } catch {}
+    }
+
     return NextResponse.json({
       success: true,
       event: {
@@ -62,6 +78,23 @@ export async function GET(req: NextRequest) {
         isLive: event.isLive,
         location: event.location,
         eventDate: event.eventDate,
+        venueName: event.location || customMap["venueName"] || "",
+        heroTag: customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION"),
+        subtitle: customMap["subtitle"] || "",
+        ceremonyName: customMap["ceremonyName"] || "Main Ceremony",
+        ourStoryUrl: customMap["ourStoryUrl"] || "",
+        highlightType: customMap["highlightType"] || "video",
+        highlightVideoUrl: customMap["highlightVideoUrl"] || "",
+        highlightPhotos,
+        foodItems,
+        familyMembers,
+        inviteBadge: customMap["inviteBadge"] || "",
+        inviteCoupleInitials: customMap["inviteCoupleInitials"] || "",
+        inviteTagline: customMap["inviteTagline"] || "",
+        inviteMessage: customMap["inviteMessage"] || "",
+        inviteDateText: customMap["inviteDateText"] || "",
+        inviteTimeText: customMap["inviteTimeText"] || "",
+        inviteVenueText: customMap["inviteVenueText"] || "",
         customFields: customMap,
         timelines: event.timelines,
         albums: event.albums,
