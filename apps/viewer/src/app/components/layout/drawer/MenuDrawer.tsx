@@ -22,10 +22,9 @@ export default function MenuDrawer({ open, onClose }: Props) {
 
   if (!open) return null;
 
-    const navigateTo = (path: string) => {
+  const navigateTo = (path: string) => {
     onClose();
-    const search = typeof window !== "undefined" ? window.location.search : "";
-    router.push(path + search);
+    router.push(path);
   };
 
   return (
