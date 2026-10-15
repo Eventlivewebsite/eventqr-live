@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Sparkles, Heart } from "lucide-react";
+import { ArrowLeft, Heart, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MobileContainer from "../components/layout/MobileContainer";
 import BottomNavigation from "../components/navigation/BottomNavigation";
@@ -27,6 +27,7 @@ function FacebookIcon({ size = 16 }: { size?: number }) {
 export default function FamilyPage() {
   const router = useRouter();
   const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadFamily() {
@@ -35,17 +36,15 @@ export default function FamilyPage() {
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
         const json = await res.json();
-        if (json?.success && Array.isArray(json?.event?.familyMembers) && json.event.familyMembers.length > 0) {
+        
+        if (json?.success && Array.isArray(json?.event?.familyMembers)) {
           setMembers(json.event.familyMembers);
-        } else {
-          setMembers([
-            { id: 1, name: "Rajesh Sharma", relation: "Father of the Bride", photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800", instagramUrl: "https://instagram.com" },
-            { id: 2, name: "Sunita Sharma", relation: "Mother of the Bride", photoUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800", instagramUrl: "https://instagram.com" },
-            { id: 3, name: "Aman Sharma", relation: "Brother", photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800", instagramUrl: "https://instagram.com", facebookUrl: "https://facebook.com" },
-            { id: 4, name: "Sneha Verma", relation: "Sister", photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800", instagramUrl: "https://instagram.com" }
-          ]);
         }
-      } catch {}
+      } catch (err) {
+        console.error("Family load error:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     loadFamily();
   }, []);
@@ -70,23 +69,33 @@ export default function FamilyPage() {
 
         {/* 1 Photo Per Card Luxury Layout */}
         <div className="p-4 space-y-4">
-          {members.map((member) => (
+          {!loading && members.length === 0 && (
+            <div className="text-center py-16 px-4 bg-white/80 rounded-[28px] border border-amber-100">
+              <Users className="mx-auto h-12 w-12 text-amber-400 mb-3" />
+              <h3 className="text-base font-bold text-gray-800">No Family Members Added Yet</h3>
+              <p className="text-xs text-gray-500 mt-1">Admin will upload family details soon.</p>
+            </div>
+          )}
+
+          {members.map((member, idx) => (
             <div
-              key={member.id}
+              key={member.id || idx}
               className="overflow-hidden rounded-[28px] border border-amber-100/80 bg-white shadow-[0_10px_25px_rgba(200,150,100,0.08)] transition hover:shadow-md"
             >
               <div className="relative h-64 w-full overflow-hidden bg-gray-100">
                 <img
-                  src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800"}
+                  src={member.photoUrl || member.photo || member.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800"}
                   alt={member.name}
                   className="h-full w-full object-cover object-top"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between text-white">
                   <div>
-                    <span className="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold tracking-wide uppercase">
-                      {member.relation}
-                    </span>
+                    {member.relation && (
+                      <span className="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold tracking-wide uppercase">
+                        {member.relation}
+                      </span>
+                    )}
                     <h3 className="text-xl font-bold mt-1 drop-shadow">{member.name}</h3>
                   </div>
                 </div>
@@ -96,7 +105,7 @@ export default function FamilyPage() {
               <div className="p-3.5 flex items-center justify-between bg-white">
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
                   <Heart size={14} className="text-rose-500 fill-rose-500" />
-                  <span>Blessing the Couple</span>
+                  <span>Blessing the Event</span>
                 </div>
 
                 <div className="flex items-center gap-2">

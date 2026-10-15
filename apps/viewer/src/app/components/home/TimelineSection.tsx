@@ -1,15 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import PremiumCard from "../ui/PremiumCard";
-import { CalendarDays, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 
 export default function TimelineSection() {
-  const [timelineEvents, setTimelineEvents] = useState<any[]>([
-    { id: 1, status: "LIVE", title: "Wedding Reception", time: "06:00 PM", color: "bg-red-500" },
-    { id: 2, status: "UPCOMING", title: "Dinner", time: "08:00 PM", color: "bg-orange-500" },
-    { id: 3, status: "COMPLETED", title: "Haldi Ceremony", time: "11:00 AM", color: "bg-green-500" },
-  ]);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadTimeline() {
@@ -18,6 +13,7 @@ export default function TimelineSection() {
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
+        
         if (json?.success && Array.isArray(json?.event?.timelines) && json.event.timelines.length > 0) {
           const mapped = json.event.timelines.map((item: any, idx: number) => {
             const status = (item.status || "UPCOMING").toUpperCase();
@@ -28,17 +24,21 @@ export default function TimelineSection() {
             return {
               id: item.id || idx + 1,
               status,
-              title: item.title || "Special Program",
+              title: item.title || "Program",
               time: item.time || (item.startTime ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "TBD"),
               color,
             };
           });
           setTimelineEvents(mapped);
         }
-      } catch {}
+      } catch (e) {
+        console.error("Timeline load error", e);
+      }
     }
     loadTimeline();
   }, []);
+
+  if (timelineEvents.length === 0) return null;
 
   return (
     <section className="mt-8 px-5">

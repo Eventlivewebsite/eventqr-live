@@ -1,59 +1,99 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Heart, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Heart, Send, Sparkles, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MobileContainer from "../components/layout/MobileContainer";
 import BottomNavigation from "../components/navigation/BottomNavigation";
 
 export default function GuestBookPage() {
   const router = useRouter();
-  const [messages, setMessages] = useState<any[]>([
-    {
-      id: 1,
-      name: "Aarav Sharma",
-      time: "Just now",
-      message: "May your married life always be filled with love, happiness and countless beautiful memories. Congratulations!",
-      likes: 24,
-    },
-    {
-      id: 2,
-      name: "Priya Verma",
-      time: "15 min ago",
-      message: "Wishing you both a lifetime of togetherness and pure joy!",
-      likes: 18,
-    }
-  ]);
+  const [slug, setSlug] = useState("testing-nns3");
+  const [messages, setMessages] = useState<any[]>([]);
   const [authorName, setAuthorName] = useState("");
   const [wishMsg, setWishMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const formatRelativeTime = (isoString?: string) => {
+    if (!isoString) return "Just now";
+    try {
+      const diff = Date.now() - new Date(isoString).getTime();
+      const mins = Math.floor(diff / (1000 * 60));
+      if (mins < 1) return "Just now";
+      if (mins < 60) return `${mins} min ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      return `${Math.floor(hrs / 24)}d ago`;
+    } catch {
+      return "Recently";
+    }
+  };
 
   useEffect(() => {
     async function loadGuestbook() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        setSlug(activeSlug);
+
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
-        if (json?.success && Array.isArray(json?.event?.guestWishes) && json.event.guestWishes.length > 0) {
-          setMessages(json.event.guestWishes);
+        
+        if (json?.success && Array.isArray(json?.event?.guestWishes)) {
+          const formatted = json.event.guestWishes.map((gw: any) => ({
+            id: gw.id,
+            name: gw.guestName || "Guest",
+            time: formatRelativeTime(gw.createdAt),
+            message: gw.message || "",
+            likes: gw.likesCount || 1,
+          }));
+          setMessages(formatted);
         }
-      } catch {}
+      } catch (e) {
+        console.error("Guestbook load error", e);
+      }
     }
     loadGuestbook();
   }, []);
 
-  const handlePostWish = () => {
-    if (!authorName.trim() || !wishMsg.trim()) return;
-    const newEntry = {
-      id: Date.now(),
-      name: authorName.trim(),
-      time: "Just now",
-      message: wishMsg.trim(),
-      likes: 1,
-    };
-    setMessages([newEntry, ...messages]);
-    setAuthorName("");
-    setWishMsg("");
+  const handlePostWish = async () => {
+    if (!authorName.trim() || !wishMsg.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const tempName = authorName.trim();
+    const tempMsg = wishMsg.trim();
+
+    try {
+      const res = await fetch("/api/event-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          name: tempName,
+          message: tempMsg,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.wish) {
+        const newEntry = {
+          id: data.wish.id || Date.now(),
+          name: data.wish.guestName,
+          time: "Just now",
+          message: data.wish.message,
+          likes: data.wish.likesCount || 1,
+        };
+        setMessages([newEntry, ...messages]);
+        setAuthorName("");
+        setWishMsg("");
+      } else {
+        alert(data.message || "Failed to post blessing");
+      }
+    } catch {
+      alert("Error submitting message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -93,14 +133,28 @@ export default function GuestBookPage() {
             />
             <button
               onClick={handlePostWish}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-95 active:scale-98 transition"
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-95 active:scale-98 transition disabled:opacity-60"
             >
-              <Send size={14} /> Post Blessing
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  <Send size={14} /> Post Blessing
+                </>
+              )}
             </button>
           </div>
 
           {/* Feed */}
           <div className="space-y-3">
+            {messages.length === 0 && (
+              <div className="rounded-[22px] border border-gray-100 bg-white p-8 text-center text-xs text-gray-500 shadow-sm">
+                No blessings posted yet. Be the first to bless!
+              </div>
+            )}
             {messages.map((item) => (
               <div
                 key={item.id}

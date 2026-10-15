@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import { Image as ImageIcon, ArrowRight, Download, Loader2, Check } from "lucide-react";
+import { Image as ImageIcon, ArrowRight, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 interface AlbumItem {
@@ -11,6 +11,7 @@ interface AlbumItem {
 }
 
 export default function AlbumsSection() {
+  const [slug, setSlug] = useState("testing-nns3");
   const [albums, setAlbums] = useState<AlbumItem[]>([]);
   const [downloadingAlbum, setDownloadingAlbum] = useState<string | null>(null);
 
@@ -19,42 +20,44 @@ export default function AlbumsSection() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        setSlug(activeSlug);
+
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
 
         if (json?.success && json?.event) {
-          const cm = json.event.customMap || {};
-          let vault: any[] = [];
-          try {
-            if (cm.mediaVault) vault = JSON.parse(cm.mediaVault);
-          } catch {}
+          const ev = json.event;
+          const photoList: any[] = Array.isArray(ev.photos) ? ev.photos : [];
+          
+          let categories: string[] = Array.isArray(ev.photoCategories) && ev.photoCategories.length > 0 
+            ? ev.photoCategories 
+            : [];
 
-          let categoryNames: string[] = [];
-          try {
-            if (cm.photoCategories) categoryNames = JSON.parse(cm.photoCategories);
-          } catch {}
-
-          if (categoryNames.length === 0) {
-            categoryNames = ["Ceremony", "Celebrations", "Family", "Candid"];
+          if (categories.length === 0 && photoList.length > 0) {
+            categories = Array.from(new Set(photoList.map(p => p.category).filter(Boolean)));
           }
 
-          const mapped: AlbumItem[] = categoryNames.slice(0, 6).map((cat) => {
-            const catPhotos = vault.filter((v: any) => v.category === cat && v.type === "photo").map((v: any) => v.url);
+          const mapped: AlbumItem[] = categories.slice(0, 6).map((cat) => {
+            const catPhotos = photoList
+              .filter((p: any) => (p.category || "").toLowerCase() === cat.toLowerCase())
+              .map((p: any) => p.url);
+
             return {
               title: cat,
-              countText: catPhotos.length > 0 ? `${catPhotos.length} Photos` : "Special Moments",
+              countText: catPhotos.length > 0 ? `${catPhotos.length} Photos` : "0 Photos",
               photos: catPhotos,
             };
           });
 
           setAlbums(mapped);
         }
-      } catch {}
+      } catch (e) {
+        console.error("Albums load error", e);
+      }
     }
     loadAlbums();
   }, []);
 
-  // 1-Click Instant Bulk Album Downloader
   const handleBulkAlbumDownload = async (e: React.MouseEvent, alb: AlbumItem) => {
     e.preventDefault();
     e.stopPropagation();
@@ -67,7 +70,6 @@ export default function AlbumsSection() {
     setDownloadingAlbum(alb.title);
 
     try {
-      // Trigger download for each photo sequentially
       for (let i = 0; i < alb.photos.length; i++) {
         const a = document.createElement("a");
         a.href = alb.photos[i];
@@ -75,7 +77,7 @@ export default function AlbumsSection() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        await new Promise((r) => setTimeout(r, 250)); // Small interval for browser queue
+        await new Promise((r) => setTimeout(r, 250));
       }
     } catch (err: any) {
       alert("Album download failed: " + err.message);
@@ -83,6 +85,8 @@ export default function AlbumsSection() {
       setTimeout(() => setDownloadingAlbum(null), 1000);
     }
   };
+
+  if (albums.length === 0) return null;
 
   return (
     <section className="mt-8 px-5">
@@ -93,7 +97,10 @@ export default function AlbumsSection() {
           </h2>
           <p className="text-[11px] text-gray-500 font-medium">Browse or download complete sets</p>
         </div>
-        <Link href="/gallery" className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-0.5">
+        <Link 
+          href={`/gallery?event=${encodeURIComponent(slug)}`} 
+          className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-0.5"
+        >
           View All <ArrowRight size={13} />
         </Link>
       </div>
@@ -112,7 +119,6 @@ export default function AlbumsSection() {
                   <ImageIcon size={18} />
                 </div>
 
-                {/* 1-Click Album Download Button */}
                 <button
                   type="button"
                   onClick={(e) => handleBulkAlbumDownload(e, alb)}

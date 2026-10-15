@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, Calendar, Clock, MapPin, Heart } from "lucide-react";
@@ -9,13 +9,13 @@ import BottomNavigation from "../components/navigation/BottomNavigation";
 export default function InvitationPage() {
   const router = useRouter();
   const [data, setData] = useState({
-    badge: "WEDDING INVITATION",
-    initials: "A & S",
+    badge: "EVENT INVITATION",
+    initials: "CELEBRATION",
     tagline: "Together Forever",
-    message: "Together with our families we request the honour of your presence to celebrate our wedding ceremony and blessings.",
-    dateText: "15 February 2027",
-    timeText: "07:00 PM Onwards",
-    venueText: "Jaipur Palace, Rajasthan"
+    message: "Together with our families we request the honour of your presence to celebrate with us.",
+    dateText: "Upcoming Date",
+    timeText: "Time TBD",
+    venueText: "Venue Location"
   });
 
   useEffect(() => {
@@ -25,19 +25,48 @@ export default function InvitationPage() {
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
         const json = await res.json();
+        
         if (json?.success && json?.event) {
           const ev = json.event;
+
+          // Format readable date from eventDate if available
+          let formattedDate = "Special Occasion";
+          let formattedTime = "07:00 PM Onwards";
+          if (ev.eventDate) {
+            try {
+              const d = new Date(ev.eventDate);
+              formattedDate = d.toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+              });
+              formattedTime = d.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true
+              }) + " Onwards";
+            } catch {}
+          }
+
+          // If timelines exist, take the first timeline time
+          if (Array.isArray(ev.timelines) && ev.timelines.length > 0) {
+            const firstT = ev.timelines[0];
+            if (firstT.time) formattedTime = firstT.time;
+          }
+
           setData({
-            badge: ev.inviteBadge || "WEDDING INVITATION",
-            initials: ev.inviteCoupleInitials || ev.title || "A & S",
-            tagline: ev.inviteTagline || ev.subtitle || "Together Forever",
-            message: ev.inviteMessage || "Together with our families we request the honour of your presence to celebrate our wedding ceremony and blessings.",
-            dateText: ev.inviteDateText || "15 February 2027",
-            timeText: ev.inviteTimeText || "07:00 PM Onwards",
-            venueText: ev.inviteVenueText || ev.location || "Jaipur Palace, Rajasthan"
+            badge: ev.inviteBadge || "OFFICIAL INVITATION",
+            initials: ev.title || "A & S",
+            tagline: ev.subtitle || "Together Forever",
+            message: ev.inviteMessage || "Together with our families we request the honour of your presence to celebrate our special day and blessings.",
+            dateText: ev.inviteDateText || formattedDate,
+            timeText: ev.inviteTimeText || formattedTime,
+            venueText: ev.location || "Venue Location"
           });
         }
-      } catch {}
+      } catch (err) {
+        console.error("Invitation load error:", err);
+      }
     }
     loadData();
   }, []);

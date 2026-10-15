@@ -1,13 +1,18 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import { Heart, Flame, Download, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { Heart, Flame, Download } from "lucide-react";
 
 export default function TrendingSection() {
-  const [subtitles, setSubtitles] = useState({
-    loved: "Wedding Highlights",
-    viewed: "Haldi Moments",
-    downloaded: "Reception Album",
+  const [slug, setSlug] = useState("testing-nns3");
+  const [trendingData, setTrendingData] = useState({
+    loved: "Highlights",
+    viewed: "Moments",
+    downloaded: "Albums",
+    lovedCategory: "",
+    viewedCategory: "",
+    downloadedCategory: "",
   });
 
   useEffect(() => {
@@ -15,16 +20,38 @@ export default function TrendingSection() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        setSlug(activeSlug);
+
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
+        
         if (json?.success && json?.event) {
-          setSubtitles({
-            loved: json.event.trendingLoved || "Highlights",
-            viewed: json.event.trendingViewed || "Moments",
-            downloaded: json.event.trendingDownloaded || "Album",
+          const photos = Array.isArray(json.event.photos) ? json.event.photos : [];
+          
+          // Find most liked
+          const sortedByLikes = [...photos].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
+          const mostLoved = sortedByLikes[0];
+
+          // Find most viewed
+          const sortedByViews = [...photos].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0));
+          const mostViewed = sortedByViews[0];
+
+          // Find most downloaded
+          const sortedByDownloads = [...photos].sort((a, b) => (b.downloadsCount || 0) - (a.downloadsCount || 0));
+          const mostDownloaded = sortedByDownloads[0];
+
+          setTrendingData({
+            loved: mostLoved?.caption || mostLoved?.category || "Highlights",
+            viewed: mostViewed?.caption || mostViewed?.category || "Moments",
+            downloaded: mostDownloaded?.caption || mostDownloaded?.category || "Albums",
+            lovedCategory: mostLoved?.category || "",
+            viewedCategory: mostViewed?.category || "",
+            downloadedCategory: mostDownloaded?.category || "",
           });
         }
-      } catch {}
+      } catch (err) {
+        console.error("Trending load error:", err);
+      }
     }
     loadTrending();
   }, []);
@@ -32,19 +59,22 @@ export default function TrendingSection() {
   const items = [
     {
       title: "Most Loved",
-      subtitle: subtitles.loved,
+      subtitle: trendingData.loved,
+      category: trendingData.lovedCategory,
       icon: Heart,
       color: "from-pink-500 to-rose-400",
     },
     {
       title: "Most Viewed",
-      subtitle: subtitles.viewed,
+      subtitle: trendingData.viewed,
+      category: trendingData.viewedCategory,
       icon: Flame,
       color: "from-orange-500 to-amber-400",
     },
     {
       title: "Most Downloaded",
-      subtitle: subtitles.downloaded,
+      subtitle: trendingData.downloaded,
+      category: trendingData.downloadedCategory,
       icon: Download,
       color: "from-blue-500 to-cyan-400",
     },
@@ -59,15 +89,20 @@ export default function TrendingSection() {
       <div className="mt-4 grid grid-cols-3 gap-3">
         {items.map((item, idx) => {
           const Icon = item.icon;
+          const targetUrl = item.category
+            ? `/gallery?category=${encodeURIComponent(item.category.toLowerCase())}&event=${encodeURIComponent(slug)}`
+            : `/gallery?event=${encodeURIComponent(slug)}`;
+
           return (
-            <div
+            <Link
               key={idx}
-              className={`rounded-2xl bg-gradient-to-br ${item.color} p-3 text-white shadow-md transition hover:scale-105`}
+              href={targetUrl}
+              className={`rounded-2xl bg-gradient-to-br ${item.color} p-3 text-white shadow-md transition hover:scale-105 block`}
             >
               <Icon size={20} />
               <p className="mt-2 text-xs font-semibold">{item.title}</p>
               <p className="text-[10px] text-white/80 truncate">{item.subtitle}</p>
-            </div>
+            </Link>
           );
         })}
       </div>
