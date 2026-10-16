@@ -36,12 +36,7 @@ export async function GET(request: Request) {
 
     const slug = rawSlug.trim().replace(/[^a-zA-Z0-9-_]/g, "");
 
-    if (!slug) {
-      return NextResponse.json(
-        { success: false, message: "Valid event slug is required" },
-        { status: 400 }
-      );
-    }
+    // Fallback to latest active event if slug is missing
 
     const prisma = getPrisma();
 
