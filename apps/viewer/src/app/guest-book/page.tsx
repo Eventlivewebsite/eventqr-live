@@ -8,7 +8,7 @@ import BottomNavigation from "../components/navigation/BottomNavigation";
 
 export default function GuestBookPage() {
   const router = useRouter();
-  const [slug, setSlug] = useState("testing-nns3");
+  const [slug, setSlug] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [authorName, setAuthorName] = useState("");
   const [wishMsg, setWishMsg] = useState("");
@@ -33,7 +33,7 @@ export default function GuestBookPage() {
     async function loadGuestbook() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);

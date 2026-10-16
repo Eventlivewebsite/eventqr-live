@@ -11,7 +11,7 @@ interface AlbumItem {
 }
 
 export default function AlbumsSection() {
-  const [slug, setSlug] = useState("testing-nns3");
+  const [slug, setSlug] = useState("");
   const [albums, setAlbums] = useState<AlbumItem[]>([]);
   const [downloadingAlbum, setDownloadingAlbum] = useState<string | null>(null);
 
@@ -19,7 +19,7 @@ export default function AlbumsSection() {
     async function loadAlbums() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);

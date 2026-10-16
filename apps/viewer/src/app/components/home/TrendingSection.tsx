@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Heart, Flame, Download } from "lucide-react";
 
 export default function TrendingSection() {
-  const [slug, setSlug] = useState("testing-nns3");
+  const [slug, setSlug] = useState("");
   const [trendingData, setTrendingData] = useState({
     loved: "Highlights",
     viewed: "Moments",
@@ -19,7 +19,7 @@ export default function TrendingSection() {
     async function loadTrending() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);

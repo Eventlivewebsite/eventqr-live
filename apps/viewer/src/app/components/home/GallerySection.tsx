@@ -6,7 +6,7 @@ import PremiumCard from "../ui/PremiumCard";
 import Link from "next/link";
 
 export default function GallerySection() {
-  const [slug, setSlug] = useState("testing-nns3");
+  const [slug, setSlug] = useState("");
   const [photoCount, setPhotoCount] = useState("Explore");
   const [videoCount, setVideoCount] = useState("Explore");
 
@@ -14,7 +14,7 @@ export default function GallerySection() {
     async function loadCounts() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);

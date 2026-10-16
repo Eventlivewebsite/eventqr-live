@@ -12,7 +12,7 @@ export default function FoodSection() {
     async function fetchRealAdminFood() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
 
         // Try local viewer API first, fallback to Admin live public API on Vercel
         let res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);

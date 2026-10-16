@@ -31,7 +31,7 @@ export default function GalleryGrid({
     async function loadGalleryData() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         const catParam = urlParams.get("category");
         if (catParam) {
           setCategory(catParam.charAt(0).toUpperCase() + catParam.slice(1));

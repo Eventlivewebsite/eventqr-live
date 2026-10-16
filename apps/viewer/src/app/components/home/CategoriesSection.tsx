@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
 export default function CategoriesSection() {
-  const [slug, setSlug] = useState("testing-nns3");
+  const [slug, setSlug] = useState("");
   const [categories, setCategories] = useState<string[]>([
     "Ceremony",
     "Haldi",
@@ -19,7 +19,7 @@ export default function CategoriesSection() {
     async function loadCategories() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
+        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
