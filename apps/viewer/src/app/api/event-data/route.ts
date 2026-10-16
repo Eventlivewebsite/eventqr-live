@@ -3,6 +3,8 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
 function getPrisma(): PrismaClient {
@@ -33,16 +35,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const rawSlug = searchParams.get("slug") || searchParams.get("event") || "";
-
     const slug = rawSlug.trim().replace(/[^a-zA-Z0-9-_]/g, "");
-
-    // Fallback to latest active event if slug is missing
 
     const prisma = getPrisma();
 
     const whereClause = slug
       ? { OR: [{ slug }, { id: slug }], isDeleted: false }
-      : { isDeleted: false, status: { in: ["APPROVED", "ACTIVE"] } };
+      : { isDeleted: false };
 
     const event = await prisma.event.findFirst({
       where: whereClause,
@@ -51,11 +50,16 @@ export async function GET(request: Request) {
         id: true,
         slug: true,
         title: true,
-        subtitle: true,
         location: true,
         eventDate: true,
         photoCategories: true,
         videoCategories: true,
+        settings: {
+          select: {
+            subtitle: true,
+            coverImage: true,
+          },
+        },
         timelines: {
           select: {
             id: true,
@@ -148,14 +152,25 @@ export async function GET(request: Request) {
     const decorationZones = safeParseArray(customMap["decorationZones"]);
     const highlightPhotos = safeParseArray(customMap["highlightPhotos"]);
 
+    const resolvedSubtitle =
+      event.settings?.subtitle ||
+      customMap["subtitle"] ||
+      "";
+
+    const resolvedLocation =
+      event.location ||
+      customMap["venueName"] ||
+      customMap["venueLocation"] ||
+      "";
+
     return NextResponse.json({
       success: true,
       event: {
         id: event.id,
         slug: event.slug,
         title: event.title,
-        subtitle: event.subtitle || customMap["subtitle"] || "",
-        location: event.location || customMap["venueName"] || "",
+        subtitle: resolvedSubtitle,
+        location: resolvedLocation,
         eventDate: event.eventDate,
         photoCategories: event.photoCategories || [],
         videoCategories: event.videoCategories || [],
@@ -198,7 +213,7 @@ export async function POST(request: Request) {
     const prisma = getPrisma();
     const event = await prisma.event.findFirst({
       where: { OR: [{ slug: cleanSlug }, { id: cleanSlug }] },
-      select: { id: true }
+      select: { id: true },
     });
 
     if (!event) {
@@ -212,7 +227,7 @@ export async function POST(request: Request) {
         message: cleanMessage,
         isApproved: true,
         likesCount: 1,
-      }
+      },
     });
 
     return NextResponse.json({ success: true, wish: createdWish });
