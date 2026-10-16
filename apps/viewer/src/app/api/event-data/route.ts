@@ -40,10 +40,13 @@ export async function GET(request: Request) {
 
     const prisma = getPrisma();
 
+    const whereClause = slug
+      ? { OR: [{ slug }, { id: slug }], isDeleted: false }
+      : { isDeleted: false, status: { in: ["APPROVED", "ACTIVE"] } };
+
     const event = await prisma.event.findFirst({
-      where: {
-        OR: [{ slug }, { id: slug }],
-      },
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
         slug: true,
