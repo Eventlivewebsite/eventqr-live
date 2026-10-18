@@ -36,10 +36,10 @@ export async function GET(request: Request) {
         where: { OR: [{ slug }, { id: slug }], isDeleted: false },
         include: {
           settings: true,
-          timelines: { orderBy: { time: "asc" } },
-          photos: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
-          videos: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
-          guestWishes: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
+          timelines: true,
+          photos: { where: { isApproved: true } },
+          videos: { where: { isApproved: true } },
+          guestWishes: { where: { isApproved: true } },
           customFields: true,
         },
       });
@@ -51,10 +51,10 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           settings: true,
-          timelines: { orderBy: { time: "asc" } },
-          photos: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
-          videos: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
-          guestWishes: { where: { isApproved: true }, orderBy: { createdAt: "desc" } },
+          timelines: true,
+          photos: { where: { isApproved: true } },
+          videos: { where: { isApproved: true } },
+          guestWishes: { where: { isApproved: true } },
           customFields: true,
         },
       });
