@@ -66,21 +66,18 @@ export async function GET(request: Request) {
 
     const customMap: Record<string, any> = {};
     for (const cf of event.customFields || []) {
-      try {
-        customMap[cf.fieldName] = JSON.parse(cf.fieldValue);
-      } catch {
-        customMap[cf.fieldName] = cf.fieldValue;
+      let val: any = cf.fieldValue;
+      while (typeof val === "string") {
+        try {
+          val = JSON.parse(val);
+        } catch {
+          break;
+        }
       }
+      customMap[cf.fieldName] = val;
     }
 
-    const safeParse = (val: any) => {
-      let curr = val || [];
-      while (typeof curr === "string") {
-        try { curr = JSON.parse(curr); } catch { break; }
-      }
-      return Array.isArray(curr) ? curr : [];
-    };
-
+    const foodItems = Array.isArray(customMap["foodItems"]) ? customMap["foodItems"] : [];
     const finalSubtitle = event.settings?.subtitle || customMap["subtitle"] || "";
     const finalLocation = event.location || customMap["venueName"] || customMap["venueLocation"] || "";
 
@@ -95,10 +92,7 @@ export async function GET(request: Request) {
         eventDate: event.eventDate,
         photoCategories: event.photoCategories || [],
         videoCategories: event.videoCategories || [],
-        foodItems: safeParse(customMap["foodItems"]),
-        familyMembers: safeParse(customMap["familyMembers"]),
-        decorationZones: safeParse(customMap["decorationZones"]),
-        highlightPhotos: safeParse(customMap["highlightPhotos"]),
+        foodItems,
         timelines: event.timelines || [],
         photos: event.photos || [],
         videos: event.videos || [],
