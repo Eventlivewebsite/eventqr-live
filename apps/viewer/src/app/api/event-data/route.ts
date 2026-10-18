@@ -30,7 +30,6 @@ export async function GET(request: Request) {
 
     const prisma = getPrisma();
 
-    // Dhoondo slug se, ya agar slug empty hai toh database ka latest active event
     let event = null;
     if (slug) {
       event = await prisma.event.findFirst({
