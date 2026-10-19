@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import MobileContainer from "./components/layout/MobileContainer";
@@ -22,16 +22,20 @@ export default function HomePage() {
         <Header onMenuClick={() => setDrawerOpen(true)} />
         <MenuDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-        {/* Clean, compact native spacing */}
         <main className="space-y-4 pb-28">
           <HeroBanner />
           <GallerySection />
           <TrendingSection />
           <CategoriesSection />
+          
+          {/* Albums Section pehle aayega */}
+          <AlbumsSection />
+
+          {/* Schedule & Timings ab Albums ke bilkul niche */}
           <div id="timeline-section">
             <TimelineSection />
           </div>
-          <AlbumsSection />
+
           <PlaylistSection />
         </main>
 

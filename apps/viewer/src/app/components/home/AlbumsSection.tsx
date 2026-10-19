@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
-import { Image as ImageIcon, ArrowRight, Download, Loader2 } from "lucide-react";
+import { Image as ImageIcon, ArrowRight, Download, Loader2, FolderArchive } from "lucide-react";
 import Link from "next/link";
 
 interface AlbumItem {
@@ -34,10 +34,11 @@ export default function AlbumsSection() {
             : [];
 
           if (categories.length === 0 && photoList.length > 0) {
-            categories = Array.from(new Set(photoList.map(p => p.category).filter(Boolean)));
+            categories = Array.from(new Set(photoList.map((p: any) => p.category).filter(Boolean)));
           }
 
-          const mapped: AlbumItem[] = categories.slice(0, 6).map((cat) => {
+          // Exact 4 albums on home view (2x2 grid)
+          const mapped: AlbumItem[] = categories.slice(0, 4).map((cat) => {
             const catPhotos = photoList
               .filter((p: any) => (p.category || "").toLowerCase() === cat.toLowerCase())
               .map((p: any) => p.url);
@@ -89,34 +90,37 @@ export default function AlbumsSection() {
   if (albums.length === 0) return null;
 
   return (
-    <section className="mt-8 px-5">
-      <div className="mb-4 flex items-center justify-between">
+    <section className="px-3.5 mt-3">
+      <div className="mb-2.5 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-black text-gray-900 flex items-center gap-1.5">
-            📚 Event Albums
+          <h2 className="text-xs font-black uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
+            <FolderArchive className="h-4 w-4 text-emerald-600" />
+            Event Albums
           </h2>
-          <p className="text-[11px] text-gray-500 font-medium">Browse or download complete sets</p>
+          <p className="text-[10px] text-stone-500 font-medium">Browse or download complete sets</p>
         </div>
         <Link 
           href={`/gallery?event=${encodeURIComponent(slug)}`} 
-          className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-0.5"
+          className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-0.5 active:scale-95 transition"
         >
-          View All <ArrowRight size={13} />
+          View All <ArrowRight size={12} />
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-3.5">
+      {/* Clean 2x2 Grid with exact 4 cards */}
+      <div className="grid grid-cols-2 gap-2.5">
         {albums.map((alb, i) => {
           const isDownloading = downloadingAlbum === alb.title;
 
           return (
-            <div
+            <Link
               key={i}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col justify-between space-y-3 hover:shadow-md transition"
+              href={`/gallery?category=${encodeURIComponent(alb.title.toLowerCase())}&event=${encodeURIComponent(slug)}`}
+              className="bg-white rounded-2xl border border-stone-200/80 shadow-xs p-3 flex flex-col justify-between space-y-2.5 hover:border-amber-300 hover:shadow-sm transition-all duration-200 active:scale-95 block"
             >
               <div className="flex items-start justify-between">
-                <div className="h-9 w-9 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600">
-                  <ImageIcon size={18} />
+                <div className="h-8 w-8 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600">
+                  <ImageIcon size={16} />
                 </div>
 
                 <button
@@ -124,16 +128,16 @@ export default function AlbumsSection() {
                   onClick={(e) => handleBulkAlbumDownload(e, alb)}
                   disabled={Boolean(downloadingAlbum)}
                   title="Download all photos from this album"
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95"
+                  className="px-2 py-1 rounded-lg bg-stone-900 hover:bg-black text-white text-[9px] font-bold flex items-center gap-1 shadow-xs transition active:scale-90"
                 >
                   {isDownloading ? (
                     <>
-                      <Loader2 size={11} className="animate-spin" />
+                      <Loader2 size={10} className="animate-spin" />
                       <span>Saving...</span>
                     </>
                   ) : (
                     <>
-                      <Download size={11} />
+                      <Download size={10} />
                       <span>Album</span>
                     </>
                   )}
@@ -141,10 +145,10 @@ export default function AlbumsSection() {
               </div>
 
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900 truncate">{alb.title}</h3>
-                <span className="text-[11px] font-medium text-gray-500">{alb.countText}</span>
+                <h3 className="font-bold text-xs text-stone-900 truncate">{alb.title}</h3>
+                <span className="text-[10px] font-medium text-stone-500">{alb.countText}</span>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
