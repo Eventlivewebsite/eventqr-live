@@ -2,39 +2,39 @@
 
 import { Home, Image, Video, Mail } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function BottomNavigation() {
   const router = useRouter();
   const pathname = usePathname();
+  const [slug, setSlug] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
+      setSlug(s);
+    }
+  }, []);
 
   const menus = [
-    {
-      title: "Home",
-      icon: Home,
-      path: "/",
-    },
-    {
-      title: "Gallery",
-      icon: Image,
-      path: "/gallery",
-    },
-    {
-      title: "Videos",
-      icon: Video,
-      path: "/videos",
-    },
-    {
-      title: "Invite",
-      icon: Mail,
-      path: "/invitation",
-    },
+    { title: "Home", icon: Home, path: "/" },
+    { title: "Gallery", icon: Image, path: "/gallery" },
+    { title: "Videos", icon: Video, path: "/videos" },
+    { title: "Invite", icon: Mail, path: "/invitation" },
   ];
 
+  const handleNav = (targetPath: string) => {
+    if (slug) {
+      router.push(`${targetPath}?slug=${encodeURIComponent(slug)}`);
+    } else {
+      router.push(targetPath);
+    }
+  };
+
   return (
-    <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[430px] -translate-x-1/2 rounded-t-[30px] border border-white/30 bg-gradient-to-r from-white/85 via-pink-50/90 to-rose-100/85 backdrop-blur-3xl shadow-[0_-15px_50px_rgba(236,72,153,0.25)]">
-
-      <div className="flex items-center justify-around px-3 py-4">
-
+    <div className="fixed bottom-3 left-1/2 z-50 w-[92%] max-w-[400px] -translate-x-1/2">
+      <div className="flex items-center justify-around rounded-2xl border border-stone-200/70 bg-white/90 px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl">
         {menus.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.path;
@@ -42,24 +42,21 @@ export default function BottomNavigation() {
           return (
             <button
               key={item.title}
-              onClick={() => router.push(item.path)}
-              className={`flex flex-col items-center gap-1 transition ${
+              onClick={() => handleNav(item.path)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-all duration-200 active:scale-90 ${
                 active
-                  ? "text-pink-600"
-                  : "text-gray-500 hover:text-pink-500"
+                  ? "text-amber-600 font-bold"
+                  : "text-stone-400 hover:text-stone-700 font-medium"
               }`}
             >
-              <Icon size={22} />
-
-              <span className="text-xs font-medium">
+              <Icon size={20} className={active ? "stroke-[2.4]" : "stroke-[1.8]"} />
+              <span className="text-[10px] tracking-tight">
                 {item.title}
               </span>
             </button>
           );
         })}
-
       </div>
-
     </div>
   );
 }

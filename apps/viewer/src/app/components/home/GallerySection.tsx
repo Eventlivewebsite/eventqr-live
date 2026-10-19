@@ -1,14 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Camera, Video } from "lucide-react";
+import { ArrowRight, Camera, Video, Images } from "lucide-react";
 import PremiumCard from "../ui/PremiumCard";
 import Link from "next/link";
 
 export default function GallerySection() {
   const [slug, setSlug] = useState("");
-  const [photoCount, setPhotoCount] = useState("Explore");
-  const [videoCount, setVideoCount] = useState("Explore");
+  const [photoCount, setPhotoCount] = useState("View Gallery");
+  const [videoCount, setVideoCount] = useState("All Videos");
 
   useEffect(() => {
     async function loadCounts() {
@@ -17,7 +17,7 @@ export default function GallerySection() {
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
         if (json?.success && json?.event) {
           const photos = Array.isArray(json.event.photos) ? json.event.photos : [];
@@ -34,76 +34,71 @@ export default function GallerySection() {
   }, []);
 
   return (
-    <section className="p-5">
-      <h2 className="mb-4 text-xl font-bold">
-        📸 Gallery
-      </h2>
+    <section className="px-3.5 pt-1">
+      <div className="mb-2 flex items-center gap-1.5">
+        <Images className="h-4 w-4 text-amber-600" />
+        <h2 className="text-xs font-bold uppercase tracking-wider text-stone-800">
+          Gallery
+        </h2>
+      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Photos Card */}
+      <div className="grid grid-cols-2 gap-2.5">
         <Link href={`/gallery?event=${encodeURIComponent(slug)}`}>
-          <PremiumCard className="group relative cursor-pointer overflow-hidden rounded-[28px] border border-white/80 bg-gradient-to-br from-[#fffdf9] via-[#fff5eb] to-[#ffe6cf] shadow-[0_10px_18px_rgba(255,175,100,0.12),0_28px_60px_rgba(255,175,100,0.20),inset_0_2px_0_rgba(255,255,255,0.95)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_16px_28px_rgba(255,175,100,0.20),0_35px_70px_rgba(255,175,100,0.30),inset_0_2px_0_rgba(255,255,255,1)]">
-            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-200/30 blur-3xl" />
-            <div className="absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-pink-200/20 blur-3xl" />
-
-            <div className="relative flex items-start justify-between">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-orange-500 shadow-lg backdrop-blur-xl">
-                <Camera size={28} />
+          <PremiumCard className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br from-[#fffdf9] via-[#fff5eb] to-[#ffe6cf] p-3.5 shadow-sm transition-all duration-300 active:scale-95">
+            <div className="relative flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 text-orange-500 shadow-xs backdrop-blur-md">
+                <Camera size={20} />
               </div>
               <ArrowRight
-                size={20}
-                className="text-gray-400 transition-all duration-300 group-hover:translate-x-1"
+                size={16}
+                className="text-stone-400 transition-transform group-hover:translate-x-0.5"
               />
             </div>
 
-            <h3 className="relative mt-5 text-lg font-bold text-gray-900">
+            <h3 className="mt-2.5 text-sm font-bold text-stone-900 leading-tight">
               Photos
             </h3>
 
-            <p className="relative mt-1 text-sm text-gray-600">
+            <p className="mt-0.5 text-[11px] font-medium text-stone-500">
               {photoCount}
             </p>
 
-            <div className="relative mt-5 flex items-center justify-between">
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+            <div className="mt-2.5 flex items-center justify-between pt-1">
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
                 Live
               </span>
-              <span className="text-sm font-semibold text-orange-500">
+              <span className="text-[11px] font-bold text-orange-600">
                 Explore
               </span>
             </div>
           </PremiumCard>
         </Link>
 
-        {/* Videos Card */}
         <Link href={`/videos?event=${encodeURIComponent(slug)}`}>
-          <PremiumCard className="group relative cursor-pointer overflow-hidden rounded-[28px] border border-white/80 bg-gradient-to-br from-[#faf8ff] via-[#f1ecff] to-[#e5dcff] shadow-[0_10px_18px_rgba(145,120,255,0.12),0_28px_60px_rgba(145,120,255,0.20),inset_0_2px_0_rgba(255,255,255,0.95)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_16px_28px_rgba(145,120,255,0.20),0_35px_70px_rgba(145,120,255,0.30),inset_0_2px_0_rgba(255,255,255,1)]">
-            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-violet-200/30 blur-3xl" />
-            <div className="absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-pink-200/20 blur-3xl" />
-
-            <div className="relative flex items-start justify-between">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-violet-500 shadow-lg backdrop-blur-xl">
-                <Video size={28} />
+          <PremiumCard className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br from-[#faf8ff] via-[#f1ecff] to-[#e5dcff] p-3.5 shadow-sm transition-all duration-300 active:scale-95">
+            <div className="relative flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 text-violet-500 shadow-xs backdrop-blur-md">
+                <Video size={20} />
               </div>
               <ArrowRight
-                size={20}
-                className="text-gray-400 transition-all duration-300 group-hover:translate-x-1"
+                size={16}
+                className="text-stone-400 transition-transform group-hover:translate-x-0.5"
               />
             </div>
 
-            <h3 className="relative mt-5 text-lg font-bold text-gray-900">
+            <h3 className="mt-2.5 text-sm font-bold text-stone-900 leading-tight">
               Videos
             </h3>
 
-            <p className="relative mt-1 text-sm text-gray-600">
+            <p className="mt-0.5 text-[11px] font-medium text-stone-500">
               {videoCount}
             </p>
 
-            <div className="relative mt-5 flex items-center justify-between">
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+            <div className="mt-2.5 flex items-center justify-between pt-1">
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
                 Live
               </span>
-              <span className="text-sm font-semibold text-violet-500">
+              <span className="text-[11px] font-bold text-violet-600">
                 Explore
               </span>
             </div>
