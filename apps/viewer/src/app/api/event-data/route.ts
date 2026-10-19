@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -78,6 +78,36 @@ export async function GET(request: Request) {
       }
     }
 
+    // Unified Categories extraction from custom fields
+    let categoriesList: string[] = [];
+    const possibleCategoryKeys = [
+      "photoCategories",
+      "categories",
+      "activeCategories",
+      "unifiedCategories",
+      "categoriesList",
+      "eventCategories"
+    ];
+
+    for (const key of possibleCategoryKeys) {
+      const candidate = customMap[key];
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        categoriesList = candidate.map(c => typeof c === "string" ? c : c?.name || "").filter(Boolean);
+        break;
+      } else if (typeof candidate === "string" && candidate.trim()) {
+        try {
+          const parsed = JSON.parse(candidate);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            categoriesList = parsed.map(c => typeof c === "string" ? c : c?.name || "").filter(Boolean);
+            break;
+          }
+        } catch {
+          categoriesList = candidate.split(",").map(c => c.trim()).filter(Boolean);
+          if (categoriesList.length > 0) break;
+        }
+      }
+    }
+
     const res = NextResponse.json({
       success: true,
       event: {
@@ -89,11 +119,12 @@ export async function GET(request: Request) {
         eventDate: event.eventDate,
         foodItems: Array.isArray(foodItems) ? foodItems : [],
         timelines: customMap["timelines"] || event.timelines || [],
+        photoCategories: categoriesList,
+        categoriesList,
         customMap,
       },
     });
 
-    // 60s Edge cache taaki repeated clicks par 0ms response mile
     res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
     return res;
   } catch (err: any) {

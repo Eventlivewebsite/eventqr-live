@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -6,14 +6,7 @@ import { Sparkles } from "lucide-react";
 
 export default function CategoriesSection() {
   const [slug, setSlug] = useState("");
-  const [categories, setCategories] = useState<string[]>([
-    "Ceremony",
-    "Haldi",
-    "Mehendi",
-    "Reception",
-    "Family",
-    "Party",
-  ]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     async function loadCategories() {
@@ -22,18 +15,34 @@ export default function CategoriesSection() {
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
         setSlug(activeSlug);
 
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
-        const json = res ? await res.json().catch(() => null) : null;
+        // Check local session cache first
+        try {
+          const cached = sessionStorage.getItem("cached_event_data_" + activeSlug);
+          if (cached) {
+            const p = JSON.parse(cached);
+            const cats = p.categoriesList || p.photoCategories || p.customMap?.photoCategories || p.customMap?.activeCategories;
+            if (Array.isArray(cats) && cats.length > 0) {
+              setCategories(cats.map((c: any) => typeof c === "string" ? c : c?.name || "").filter(Boolean));
+            }
+          }
+        } catch {}
+
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`);
+        const json = await res.json();
         
         if (json?.success && json?.event) {
-          const fetchedCats = Array.isArray(json.event.photoCategories) && json.event.photoCategories.length > 0
-            ? json.event.photoCategories
-            : (Array.isArray(json.event.categoriesList) && json.event.categoriesList.length > 0
-                ? json.event.categoriesList
-                : null);
+          const ev = json.event;
+          const fetchedCats = (Array.isArray(ev.categoriesList) && ev.categoriesList.length > 0)
+            ? ev.categoriesList
+            : ((Array.isArray(ev.photoCategories) && ev.photoCategories.length > 0)
+                ? ev.photoCategories
+                : (Array.isArray(ev.customMap?.photoCategories) ? ev.customMap.photoCategories : null));
 
-          if (fetchedCats) {
-            setCategories(fetchedCats);
+          if (Array.isArray(fetchedCats) && fetchedCats.length > 0) {
+            const cleaned = fetchedCats.map((c: any) => typeof c === "string" ? c : c?.name || "").filter(Boolean);
+            if (cleaned.length > 0) {
+              setCategories(cleaned);
+            }
           }
         }
       } catch (err) {
@@ -43,19 +52,25 @@ export default function CategoriesSection() {
     loadCategories();
   }, []);
 
+  if (categories.length === 0) return null;
+
   return (
-    <section className="px-5 pt-3">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles size={20} className="text-[#c68936]" />
-        <h2 className="text-xl font-bold text-gray-900">Categories</h2>
+    <section className="px-3.5 mt-2">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Sparkles size={14} className="text-amber-500 fill-amber-400" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-stone-800">
+            Categories
+          </h2>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2.5">
+      <div className="flex flex-wrap gap-2">
         {categories.map((cat) => (
           <Link
             key={cat}
             href={`/gallery?category=${encodeURIComponent(cat.toLowerCase())}&event=${encodeURIComponent(slug)}`}
-            className="rounded-full border border-amber-200/80 bg-white/90 px-4 py-2 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100/70 hover:scale-105 active:scale-95"
+            className="rounded-full border border-amber-200/90 bg-white/95 px-3.5 py-1.5 text-[11px] font-bold text-amber-950 shadow-[0_2px_8px_rgba(245,158,11,0.08)] transition-all duration-200 hover:border-amber-400 hover:bg-amber-50/80 active:scale-95"
           >
             {cat}
           </Link>
