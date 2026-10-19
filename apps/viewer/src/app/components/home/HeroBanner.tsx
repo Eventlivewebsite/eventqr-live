@@ -80,9 +80,29 @@ export default function HeroBanner() {
   const padZero = (n: number) => n.toString().padStart(2, "0");
 
   return (
-    <div className="relative mx-3.5 mt-2 mb-3">
-      {/* 315px balanced height */}
-      <div className="relative h-[315px] w-full overflow-hidden rounded-[1.8rem] shadow-md ring-1 ring-black/5">
+    <div className="relative w-full mb-3">
+      {/* Inline styles for continuous smooth ambient color cycling */}
+      <style jsx>{`
+        @keyframes subtleGlow {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+        .animated-timing-box {
+          background: linear-gradient(135deg, rgba(244, 63, 94, 0.35), rgba(245, 158, 11, 0.35), rgba(139, 92, 246, 0.35), rgba(14, 165, 233, 0.35));
+          background-size: 300% 300%;
+          animation: subtleGlow 8s ease infinite;
+        }
+      `}</style>
+
+      {/* Full width edge-to-edge container (Left/Right se pura bahar nikal diya) */}
+      <div className="relative h-[325px] w-full overflow-hidden rounded-b-[2rem] shadow-lg">
         {data.bannerPhotos.map((photo, idx) => (
           <img
             key={idx}
@@ -94,7 +114,7 @@ export default function HeroBanner() {
           />
         ))}
 
-        {/* Soft Contrast Gradient */}
+        {/* Ambient Dark Gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/25" />
 
         <div className="relative flex h-full flex-col justify-between p-4 text-white">
@@ -107,7 +127,7 @@ export default function HeroBanner() {
           </div>
 
           <div className="space-y-3">
-            {/* Title aur Location wapis title ke niche */}
+            {/* Title & Location */}
             <div className="space-y-1">
               <h2 className="text-2xl font-black tracking-tight text-white capitalize leading-tight drop-shadow-md">
                 {data.title}
@@ -120,7 +140,7 @@ export default function HeroBanner() {
               )}
             </div>
 
-            {/* Bada & Premium Action Buttons */}
+            {/* Bada & Prominent Buttons */}
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => {
@@ -144,14 +164,11 @@ export default function HeroBanner() {
               </button>
             </div>
 
-            {/* Timing Card with Soft Animated Ambient Glow Effect */}
-            <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-black/60 p-[1px] shadow-sm backdrop-blur-md">
-              {/* Soft Animated Gradient Strip in Background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/25 via-rose-500/25 to-violet-500/25 opacity-70 animate-pulse" />
-              
-              <div className="relative flex items-center justify-between rounded-2xl bg-black/75 px-4 py-2.5 backdrop-blur-md">
+            {/* Changing Soft Animated Color Timing Card */}
+            <div className="animated-timing-box rounded-2xl border border-white/20 p-[1.5px] shadow-lg backdrop-blur-md">
+              <div className="flex items-center justify-between rounded-2xl bg-black/65 px-4 py-2.5 backdrop-blur-md">
                 <div>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-stone-300">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-amber-300">
                     CEREMONY
                   </p>
                   <p className="text-[13px] font-bold text-white leading-tight mt-0.5">
@@ -159,7 +176,7 @@ export default function HeroBanner() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-stone-300">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-amber-300">
                     STARTS IN
                   </p>
                   <p className="font-mono text-sm font-black tracking-widest text-white leading-tight mt-0.5">
