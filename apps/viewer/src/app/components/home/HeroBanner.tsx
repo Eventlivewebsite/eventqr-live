@@ -5,20 +5,19 @@ import { Play, Heart, MapPin, X } from "lucide-react";
 
 export default function HeroBanner() {
   const [data, setData] = useState({
-    title: "Event Celebration",
-    location: "Venue Location",
+    title: "",
+    location: "",
     heroTag: "LIVE EVENT",
+    ceremonyName: "Main Ceremony",
     bannerPhotos: [
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"
     ],
     highlightVideoUrl: "",
-    ourStoryText: "",
-    ceremonyName: "Main Ceremony",
     targetDate: null as Date | null,
   });
 
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
-  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
@@ -26,46 +25,27 @@ export default function HeroBanner() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
         
         if (json?.success && json?.event) {
-          try {
-            sessionStorage.setItem("cached_event_data_" + activeSlug, JSON.stringify(json.event));
-          } catch {}
           const ev = json.event;
-          const photos = Array.isArray(ev.highlightPhotos) && ev.highlightPhotos.length > 0
-            ? ev.highlightPhotos
-            : (ev.photos && ev.photos.length > 0 ? ev.photos.slice(0, 5).map((p: any) => p.url) : [
-                "https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"
-              ]);
-
-          // Next upcoming timeline or main event date
-          let upcomingName = "Main Celebration";
-          let target = ev.eventDate ? new Date(ev.eventDate) : null;
-
-          if (Array.isArray(ev.timelines) && ev.timelines.length > 0) {
-            const liveItem = ev.timelines.find((t: any) => t.status === "LIVE");
-            const upcomingItem = ev.timelines.find((t: any) => t.status === "UPCOMING");
-            const activeItem = liveItem || upcomingItem || ev.timelines[0];
-            if (activeItem) {
-              upcomingName = activeItem.title;
-            }
-          }
+          const photos = (ev.photos && ev.photos.length > 0)
+            ? ev.photos.map((p: any) => p.url)
+            : ["https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"];
 
           setData({
             title: ev.title || "Event Celebration",
             location: ev.location || "Venue Location",
-            heroTag: "LIVE EVENT",
+            heroTag: ev.customMap?.heroTag || "LIVE EVENT",
+            ceremonyName: "Main Ceremony",
             bannerPhotos: photos,
             highlightVideoUrl: (ev.videos && ev.videos[0]?.url) || "",
-            ourStoryText: ev.subtitle || "Welcome to our special day! Thank you for joining our celebration.",
-            ceremonyName: upcomingName,
-            targetDate: target,
+            targetDate: ev.eventDate ? new Date(ev.eventDate) : null,
           });
         }
       } catch (e) {
-        console.error("Failed to load hero banner data", e);
+        console.error("Failed to load hero banner", e);
       }
     }
     loadHero();
@@ -88,127 +68,135 @@ export default function HeroBanner() {
         return;
       }
       const now = new Date().getTime();
-      const diff = data.targetDate.getTime() - now;
-      if (diff <= 0) {
+      const difference = data.targetDate.getTime() - now;
+      if (difference > 0) {
+        const hours = Math.floor(difference / (1000 * 60 * 60));
+        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+        setTimeLeft({ hours, minutes, seconds });
+      } else {
         setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
-        return;
       }
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      setTimeLeft({ hours, minutes, seconds });
     };
 
     updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
-    return () => clearInterval(timer);
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
   }, [data.targetDate]);
 
-  const formatNum = (n: number) => String(n).padStart(2, "0");
+  const padZero = (n: number) => n.toString().padStart(2, "0");
 
   return (
-    <>
-      <section className="relative h-80 overflow-hidden rounded-[28px] m-4">
-        {/* Dynamic Background Slideshow */}
-        {data.bannerPhotos.map((url, idx) => (
+    <div className="relative mx-4 mt-3">
+      {/* Background Slideshow Image with Rounded Corners */}
+      <div className="relative h-[410px] w-full overflow-hidden rounded-[2.2rem] shadow-xl">
+        {data.bannerPhotos.map((photo, idx) => (
           <img
-            key={url + idx}
-            src={url}
-            alt="Event Highlight"
+            key={idx}
+            src={photo}
+            alt="Event Cover"
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
               idx === activePhotoIdx ? "opacity-100" : "opacity-0"
             }`}
           />
         ))}
 
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/30" />
 
-        {/* LIVE Badge */}
-        <div className="absolute left-5 top-5 flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-lg">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-          {data.heroTag || "LIVE EVENT"}
-        </div>
-
-        {/* Content */}
-        <div className="absolute bottom-6 left-5 right-5">
-          <h1 className="mt-1 text-2xl font-bold text-white drop-shadow">
-            {data.title}
-          </h1>
-
-          <div className="mt-3 flex items-center gap-2 text-sm text-white/80">
-            <MapPin size={16} />
-            {data.location}
+        {/* Content Container */}
+        <div className="relative flex h-full flex-col justify-between p-5 text-white">
+          {/* Top Live Badge */}
+          <div className="flex items-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-md">
+              <span className="h-1.5 w-1.5 animate-ping rounded-full bg-white" />
+              {data.heroTag}
+            </span>
           </div>
 
-          <div className="mt-5 flex gap-3">
+          {/* Center Titles */}
+          <div className="mt-auto mb-3 space-y-1">
+            <h2 className="text-2xl font-black tracking-tight text-white capitalize drop-shadow-md">
+              {data.title}
+            </h2>
+            {data.location && (
+              <p className="flex items-center gap-1.5 text-xs font-medium text-stone-200 capitalize drop-shadow">
+                <MapPin className="h-3.5 w-3.5 text-amber-400" />
+                {data.location}
+              </p>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="mb-3.5 flex items-center gap-2.5">
             <button
               onClick={() => {
                 if (data.highlightVideoUrl) {
-                  window.open(data.highlightVideoUrl, "_blank");
+                  setShowVideoModal(true);
                 } else {
-                  const galleryEl = document.getElementById("gallery-section");
-                  if (galleryEl) galleryEl.scrollIntoView({ behavior: "smooth" });
+                  alert("Live video broadcast will begin shortly!");
                 }
               }}
-              className="flex items-center gap-2 rounded-full bg-white px-5 py-3 font-semibold text-black transition hover:scale-105"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white py-2.5 px-4 text-xs font-bold text-stone-900 shadow-lg transition hover:bg-stone-100 active:scale-95"
             >
-              <Play size={18} fill="black" />
+              <Play className="h-3.5 w-3.5 fill-stone-900" />
               Watch Highlights
             </button>
-
             <button
-              onClick={() => setShowStoryModal(true)}
-              className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-3 text-white backdrop-blur-md transition hover:bg-white/20"
+              onClick={() => {
+                const el = document.getElementById("timeline-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/25 bg-black/35 py-2.5 px-4 text-xs font-bold text-white backdrop-blur-md transition hover:bg-black/50 active:scale-95"
             >
-              <Heart size={18} />
+              <Heart className="h-3.5 w-3.5" />
               Our Story
             </button>
           </div>
 
-          {/* Ceremony Countdown Box */}
-          <div className="mt-5 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-white/70">
-                  Ceremony
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-white">
-                  {data.ceremonyName}
-                </h3>
-              </div>
-
-              <div className="text-right">
-                <p className="text-xs text-white/70">Starts In</p>
-                <h2 className="text-xl font-bold text-white">
-                  {formatNum(timeLeft.hours)} : {formatNum(timeLeft.minutes)} : {formatNum(timeLeft.seconds)}
-                </h2>
-              </div>
+          {/* Bottom Countdown Card (Original 2-Column Grid) */}
+          <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/55 px-4 py-2.5 backdrop-blur-md">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                CEREMONY
+              </p>
+              <p className="text-xs font-extrabold text-white">
+                {data.ceremonyName}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                Starts In
+              </p>
+              <p className="font-mono text-sm font-black tracking-widest text-white">
+                {padZero(timeLeft.hours)} : {padZero(timeLeft.minutes)} : {padZero(timeLeft.seconds)}
+              </p>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Our Story Modal */}
-      {showStoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+      {/* Video Modal */}
+      {showVideoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-black">
             <button
-              onClick={() => setShowStoryModal(false)}
-              className="absolute right-4 top-4 rounded-full bg-stone-100 p-2 text-stone-500 hover:bg-stone-200"
+              onClick={() => setShowVideoModal(false)}
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/40"
             >
-              <X size={18} />
+              <X className="h-4 w-4" />
             </button>
-            <div className="flex items-center gap-2 text-rose-500">
-              <Heart size={20} fill="currentColor" />
-              <h3 className="text-lg font-bold text-stone-900">Our Story</h3>
+            <div className="aspect-video w-full">
+              <iframe
+                src={data.highlightVideoUrl}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-stone-600 whitespace-pre-wrap">
-              {data.ourStoryText}
-            </p>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
