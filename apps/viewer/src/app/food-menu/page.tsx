@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, UtensilsCrossed, Wine, Sparkles } from "lucide-react";
+import { ArrowLeft, UtensilsCrossed, Wine, Sparkles, Leaf, Flame, MapPin, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MobileContainer from "../components/layout/MobileContainer";
 
@@ -9,6 +9,17 @@ export default function FoodMenuPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"ALL" | "VEG" | "NON_VEG" | "DRINK">("ALL");
   const [items, setItems] = useState<any[]>([]);
+  const [eventData, setEventData] = useState<{
+    title: string;
+    subtitle: string;
+    location: string;
+    dateText: string;
+  }>({
+    title: "Royal Feast",
+    subtitle: "Carefully crafted dishes and refreshing beverages prepared with love to make every guest feel special.",
+    location: "",
+    dateText: "",
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,39 +47,54 @@ export default function FoodMenuPage() {
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
         const json = await res.json();
 
-        let rawList: any[] = [];
         if (json?.success && json?.event) {
           const ev = json.event;
+          
+          let dateStr = "";
+          if (ev.eventDate) {
+            try {
+              dateStr = new Date(ev.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            } catch {}
+          }
+
+          setEventData({
+            title: ev.title || "Royal Feast",
+            subtitle: ev.subtitle || "Carefully crafted dishes and refreshing beverages prepared with love to make every guest feel special.",
+            location: ev.location || "",
+            dateText: dateStr,
+          });
+
+          let rawList: any[] = [];
           if (Array.isArray(ev.foodItems) && ev.foodItems.length > 0) {
             rawList = ev.foodItems;
           } else if (ev.customMap?.foodItems) {
             rawList = Array.isArray(ev.customMap.foodItems) ? ev.customMap.foodItems : [];
           }
-        }
 
-        if (rawList.length > 0) {
-          const mapped = rawList.map((it: any, idx: number) => {
-            let cat: "VEG" | "NON_VEG" | "DRINK" = "VEG";
-            const rawType = String(it.type || it.dishType || it.category || "").toUpperCase();
-            if (rawType.includes("NON") || rawType.includes("MEAT")) {
-              cat = "NON_VEG";
-            } else if (rawType.includes("DRINK") || rawType.includes("BEVERAGE")) {
-              cat = "DRINK";
-            } else {
-              cat = "VEG";
-            }
+          if (rawList.length > 0) {
+            const mapped = rawList.map((it: any, idx: number) => {
+              let cat: "VEG" | "NON_VEG" | "DRINK" = "VEG";
+              const rawType = String(it.category || it.dishType || it.type || "").toUpperCase();
+              if (rawType.includes("NON") || rawType.includes("MEAT")) {
+                cat = "NON_VEG";
+              } else if (rawType.includes("DRINK") || rawType.includes("BEVERAGE")) {
+                cat = "DRINK";
+              } else {
+                cat = "VEG";
+              }
 
-            return {
-              id: it.id || idx + 1,
-              name: it.dishName || it.name || it.title || "Special Item",
-              category: cat,
-              description: it.description || it.desc || "",
-              photoUrl: it.photoUrl || it.image || it.photo || ""
-            };
-          });
-          setItems(mapped);
-        } else {
-          setItems([]);
+              return {
+                id: it.id || idx + 1,
+                name: it.name || it.dishName || it.title || "Special Item",
+                category: cat,
+                description: it.description || it.desc || "",
+                photoUrl: it.photoUrl || it.image || it.photo || ""
+              };
+            });
+            setItems(mapped);
+          } else {
+            setItems([]);
+          }
         }
       } catch (err) {
         console.error("Failed to load menu", err);
@@ -107,34 +133,55 @@ export default function FoodMenuPage() {
         </header>
 
         <main className="p-4 space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-medium text-amber-600 uppercase tracking-wider">
-              <Sparkles className="h-3.5 w-3.5" />
-              Gourmet Selection
+          {/* Premium Event Card */}
+          <div className="relative overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-500/10 via-white to-amber-50 p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-600/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Live Event Menu
+              </span>
+              {eventData.dateText && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500">
+                  <Calendar className="h-3 w-3" />
+                  {eventData.dateText}
+                </span>
+              )}
             </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-stone-900">
-              Royal Feast
-            </h1>
-            <p className="mt-1 text-xs text-stone-500">
-              Carefully crafted dishes and refreshing beverages prepared with love to make every guest feel special.
-            </p>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-stone-100 pt-3">
-              <div className="rounded-xl bg-amber-50/50 p-2 text-center">
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-stone-900 capitalize">
+              {eventData.title}
+            </h1>
+            
+            {eventData.subtitle && (
+              <p className="mt-1 text-xs text-stone-600 font-medium leading-relaxed">
+                {eventData.subtitle}
+              </p>
+            )}
+
+            {eventData.location && (
+              <div className="mt-2.5 flex items-center gap-1 text-xs font-medium text-amber-800">
+                <MapPin className="h-3.5 w-3.5 text-amber-600" />
+                <span className="capitalize">{eventData.location}</span>
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-amber-200/50 pt-3">
+              <div className="rounded-xl bg-white/80 p-2 text-center shadow-xs">
                 <p className="text-lg font-bold text-amber-700">{items.length}</p>
                 <p className="text-[10px] font-medium text-stone-500 uppercase">Total Items</p>
               </div>
-              <div className="rounded-xl bg-emerald-50/50 p-2 text-center">
+              <div className="rounded-xl bg-white/80 p-2 text-center shadow-xs">
                 <p className="text-lg font-bold text-emerald-700">{vegCount + nonVegCount}</p>
-                <p className="text-[10px] font-medium text-stone-500 uppercase">Categories</p>
+                <p className="text-[10px] font-medium text-stone-500 uppercase">Dishes</p>
               </div>
-              <div className="rounded-xl bg-blue-50/50 p-2 text-center">
+              <div className="rounded-xl bg-white/80 p-2 text-center shadow-xs">
                 <p className="text-lg font-bold text-blue-700">{drinkCount}</p>
                 <p className="text-[10px] font-medium text-stone-500 uppercase">Beverages</p>
               </div>
             </div>
           </div>
 
+          {/* Clean Category Tabs (No ?? marks) */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setActiveTab("ALL")}
@@ -154,7 +201,8 @@ export default function FoodMenuPage() {
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
               }`}
             >
-              ?? Veg
+              <Leaf className="h-3.5 w-3.5 text-emerald-500" />
+              Veg
             </button>
             <button
               onClick={() => setActiveTab("NON_VEG")}
@@ -164,7 +212,8 @@ export default function FoodMenuPage() {
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
               }`}
             >
-              ?? Non-Veg
+              <Flame className="h-3.5 w-3.5 text-rose-500" />
+              Non-Veg
             </button>
             <button
               onClick={() => setActiveTab("DRINK")}
@@ -174,10 +223,12 @@ export default function FoodMenuPage() {
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-50"
               }`}
             >
-              ?? Drinks
+              <Wine className="h-3.5 w-3.5 text-blue-500" />
+              Drinks
             </button>
           </div>
 
+          {/* Item Cards List */}
           <div className="space-y-3">
             {loading ? (
               <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
