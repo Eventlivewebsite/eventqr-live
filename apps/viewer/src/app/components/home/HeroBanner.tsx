@@ -18,7 +18,7 @@ export default function HeroBanner() {
 
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 14, seconds: 36 });
 
   useEffect(() => {
     async function loadHero() {
@@ -35,10 +35,10 @@ export default function HeroBanner() {
             : ["https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"];
 
           setData({
-            title: ev.title || "Event Celebration",
-            location: ev.location || "Venue Location",
+            title: ev.title || "A & S Wedding",
+            location: ev.location || "Jaipur Palace",
             heroTag: ev.customMap?.heroTag || "LIVE EVENT",
-            ceremonyName: "Main Ceremony",
+            ceremonyName: "Wedding Reception",
             bannerPhotos: photos,
             highlightVideoUrl: (ev.videos && ev.videos[0]?.url) || "",
             targetDate: ev.eventDate ? new Date(ev.eventDate) : null,
@@ -51,7 +51,6 @@ export default function HeroBanner() {
     loadHero();
   }, []);
 
-  // Background slideshow effect
   useEffect(() => {
     if (data.bannerPhotos.length <= 1) return;
     const slideTimer = setInterval(() => {
@@ -60,13 +59,9 @@ export default function HeroBanner() {
     return () => clearInterval(slideTimer);
   }, [data.bannerPhotos]);
 
-  // Real Countdown calculation
   useEffect(() => {
     const updateCountdown = () => {
-      if (!data.targetDate || isNaN(data.targetDate.getTime())) {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
-        return;
-      }
+      if (!data.targetDate || isNaN(data.targetDate.getTime())) return;
       const now = new Date().getTime();
       const difference = data.targetDate.getTime() - now;
       if (difference > 0) {
@@ -74,8 +69,6 @@ export default function HeroBanner() {
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
         setTimeLeft({ hours, minutes, seconds });
-      } else {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
       }
     };
 
@@ -87,60 +80,57 @@ export default function HeroBanner() {
   const padZero = (n: number) => n.toString().padStart(2, "0");
 
   return (
-    <div className="relative mx-4 mt-2">
-      {/* Sleek Compact Height (320px) */}
-      <div className="relative h-[320px] w-full overflow-hidden rounded-[1.8rem] shadow-lg">
+    <div className="relative mx-3.5 mt-2">
+      {/* Exact First Image Card Structure */}
+      <div className="relative h-[360px] w-full overflow-hidden rounded-[2rem] shadow-xl">
         {data.bannerPhotos.map((photo, idx) => (
           <img
             key={idx}
             src={photo}
-            alt="Event Cover"
+            alt="Cover"
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
               idx === activePhotoIdx ? "opacity-100" : "opacity-0"
             }`}
           />
         ))}
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/25" />
+        {/* Soft Radial & Linear Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/20" />
 
-        {/* Content Container */}
-        <div className="relative flex h-full flex-col justify-between p-4 text-white">
+        {/* Inner Padding & Content */}
+        <div className="relative flex h-full flex-col justify-between p-5 text-white">
           {/* Top Live Badge */}
-          <div className="flex items-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow">
-              <span className="h-1.5 w-1.5 animate-ping rounded-full bg-white" />
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-white" />
               {data.heroTag}
             </span>
           </div>
 
-          {/* Titles & Buttons */}
-          <div className="mt-auto space-y-2">
-            <div>
-              <h2 className="text-xl font-extrabold tracking-tight text-white capitalize drop-shadow">
+          <div className="space-y-3">
+            {/* Title & Location */}
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold tracking-tight text-white capitalize drop-shadow">
                 {data.title}
               </h2>
               {data.location && (
-                <p className="flex items-center gap-1 text-[11px] font-medium text-stone-200 capitalize drop-shadow">
-                  <MapPin className="h-3 w-3 text-amber-400" />
+                <p className="flex items-center gap-1.5 text-xs font-medium text-stone-200 capitalize">
+                  <MapPin className="h-3.5 w-3.5 text-stone-300" />
                   {data.location}
                 </p>
               )}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={() => {
-                  if (data.highlightVideoUrl) {
-                    setShowVideoModal(true);
-                  } else {
-                    alert("Live video broadcast will begin shortly!");
-                  }
+                  if (data.highlightVideoUrl) setShowVideoModal(true);
+                  else alert("Live highlights will begin shortly!");
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-2 px-3 text-[11px] font-bold text-stone-900 shadow transition hover:bg-stone-100 active:scale-95"
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white py-2.5 px-4 text-xs font-bold text-stone-900 shadow transition hover:bg-stone-100 active:scale-95"
               >
-                <Play className="h-3 w-3 fill-stone-900" />
+                <Play className="h-3.5 w-3.5 fill-stone-900" />
                 Watch Highlights
               </button>
               <button
@@ -148,28 +138,28 @@ export default function HeroBanner() {
                   const el = document.getElementById("timeline-section");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/40 py-2 px-3 text-[11px] font-bold text-white backdrop-blur-md transition hover:bg-black/55 active:scale-95"
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 bg-black/30 py-2.5 px-4 text-xs font-bold text-white backdrop-blur-md transition hover:bg-black/50 active:scale-95"
               >
-                <Heart className="h-3 w-3" />
+                <Heart className="h-3.5 w-3.5" />
                 Our Story
               </button>
             </div>
 
-            {/* Bottom Countdown Strip */}
-            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 backdrop-blur-md">
+            {/* Bottom Ceremony & Countdown Strip (Exact Structure) */}
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/60 px-4 py-2.5 backdrop-blur-md">
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                   CEREMONY
                 </p>
-                <p className="text-[11px] font-bold text-white leading-tight">
+                <p className="text-sm font-bold text-white">
                   {data.ceremonyName}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                   Starts In
                 </p>
-                <p className="font-mono text-xs font-black tracking-wider text-white">
+                <p className="font-mono text-base font-bold tracking-wider text-white">
                   {padZero(timeLeft.hours)} : {padZero(timeLeft.minutes)} : {padZero(timeLeft.seconds)}
                 </p>
               </div>
