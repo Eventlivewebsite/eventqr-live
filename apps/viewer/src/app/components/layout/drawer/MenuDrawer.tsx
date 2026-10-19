@@ -114,7 +114,11 @@ export default function MenuDrawer({ open, onClose }: Props) {
 
           {/* 4. Food Menu */}
           <div
-            onClick={() => navigateTo("/food-menu")}
+            onClick={() => {
+      const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const s = sp ? (sp.get("slug") || sp.get("event") || "") : "";
+      navigateTo(s ? `/food-menu?slug=${encodeURIComponent(s)}` : "/food-menu");
+    }}
             className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
           >
             <div className="flex items-center gap-3.5">

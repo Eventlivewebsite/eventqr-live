@@ -15,7 +15,12 @@ export default function FoodMenuPage() {
     async function loadMenu() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug");
+        let activeSlug = urlParams.get("event") || urlParams.get("slug");
+        if (activeSlug) {
+          try { sessionStorage.setItem("active_event_slug", activeSlug); } catch (e) {}
+        } else {
+          try { activeSlug = sessionStorage.getItem("active_event_slug"); } catch (e) {}
+        }
 
         if (!activeSlug) {
           setItems([
