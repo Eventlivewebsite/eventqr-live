@@ -80,29 +80,22 @@ export default function HeroBanner() {
   const padZero = (n: number) => n.toString().padStart(2, "0");
 
   return (
-    <div className="relative w-full mb-3">
-      {/* Inline styles for continuous smooth ambient color cycling */}
+    <div className="relative mx-3.5 mt-2 mb-3.5">
       <style jsx>{`
-        @keyframes subtleGlow {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
+        @keyframes timingAura {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
-        .animated-timing-box {
-          background: linear-gradient(135deg, rgba(244, 63, 94, 0.35), rgba(245, 158, 11, 0.35), rgba(139, 92, 246, 0.35), rgba(14, 165, 233, 0.35));
+        .timing-aura {
+          background: linear-gradient(135deg, rgba(236,72,153,0.35), rgba(245,158,11,0.35), rgba(139,92,246,0.35), rgba(6,182,212,0.35));
           background-size: 300% 300%;
-          animation: subtleGlow 8s ease infinite;
+          animation: timingAura 6s ease infinite;
         }
       `}</style>
 
-      {/* Full width edge-to-edge container (Left/Right se pura bahar nikal diya) */}
-      <div className="relative h-[325px] w-full overflow-hidden rounded-b-[2rem] shadow-lg">
+      {/* Classic Luxury Rounded Card */}
+      <div className="relative h-[325px] w-full overflow-hidden rounded-[2rem] shadow-xl ring-1 ring-black/10">
         {data.bannerPhotos.map((photo, idx) => (
           <img
             key={idx}
@@ -114,11 +107,9 @@ export default function HeroBanner() {
           />
         ))}
 
-        {/* Ambient Dark Gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/25" />
 
         <div className="relative flex h-full flex-col justify-between p-4 text-white">
-          {/* Top Live Badge */}
           <div className="flex items-center">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase text-white shadow-xs">
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
@@ -127,7 +118,6 @@ export default function HeroBanner() {
           </div>
 
           <div className="space-y-3">
-            {/* Title & Location */}
             <div className="space-y-1">
               <h2 className="text-2xl font-black tracking-tight text-white capitalize leading-tight drop-shadow-md">
                 {data.title}
@@ -140,7 +130,6 @@ export default function HeroBanner() {
               )}
             </div>
 
-            {/* Bada & Prominent Buttons */}
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => {
@@ -164,9 +153,9 @@ export default function HeroBanner() {
               </button>
             </div>
 
-            {/* Changing Soft Animated Color Timing Card */}
-            <div className="animated-timing-box rounded-2xl border border-white/20 p-[1.5px] shadow-lg backdrop-blur-md">
-              <div className="flex items-center justify-between rounded-2xl bg-black/65 px-4 py-2.5 backdrop-blur-md">
+            {/* Timing Box with Soft Aura */}
+            <div className="timing-aura rounded-2xl border border-white/20 p-[1.5px] shadow-lg backdrop-blur-md">
+              <div className="flex items-center justify-between rounded-2xl bg-black/75 px-4 py-2.5 backdrop-blur-md">
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-wider text-amber-300">
                     CEREMONY
