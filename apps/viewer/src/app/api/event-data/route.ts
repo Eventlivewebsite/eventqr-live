@@ -4,13 +4,7 @@ import { PrismaClient } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
-
-const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ["error"],
-  });
-
+const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export async function GET(request: Request) {
@@ -20,6 +14,7 @@ export async function GET(request: Request) {
     const slug = rawSlug.trim().replace(/[^a-zA-Z0-9-_]/g, "");
 
     let event = null;
+
     if (slug) {
       event = await prisma.event.findFirst({
         where: { OR: [{ slug }, { id: slug }], isDeleted: false },
@@ -50,7 +45,7 @@ export async function GET(request: Request) {
     }
 
     if (!event) {
-      return NextResponse.json({ success: false, message: "No event found" }, { status: 404 });
+      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 });
     }
 
     const customMap: Record<string, any> = {};
@@ -66,9 +61,14 @@ export async function GET(request: Request) {
       customMap[cf.fieldName] = val;
     }
 
-    const foodItems = Array.isArray(customMap["foodItems"]) ? customMap["foodItems"] : [];
-    const finalSubtitle = event.settings?.subtitle || customMap["subtitle"] || "";
-    const finalLocation = event.location || customMap["venueName"] || customMap["venueLocation"] || "";
+    let foodItems = customMap["foodItems"] || [];
+    while (typeof foodItems === "string") {
+      try {
+        foodItems = JSON.parse(foodItems);
+      } catch {
+        break;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -76,12 +76,10 @@ export async function GET(request: Request) {
         id: event.id,
         slug: event.slug,
         title: event.title,
-        subtitle: finalSubtitle,
-        location: finalLocation,
+        subtitle: event.settings?.subtitle || customMap["subtitle"] || "",
+        location: event.location || customMap["venueName"] || "",
         eventDate: event.eventDate,
-        photoCategories: event.photoCategories || [],
-        videoCategories: event.videoCategories || [],
-        foodItems,
+        foodItems: Array.isArray(foodItems) ? foodItems : [],
         timelines: event.timelines || [],
         photos: event.photos || [],
         videos: event.videos || [],
@@ -89,8 +87,8 @@ export async function GET(request: Request) {
         customMap,
       },
     });
-  } catch (error: any) {
-    console.error("FATAL_EVENT_DATA_API:", error);
-    return NextResponse.json({ success: false, message: error?.message || "Internal error" }, { status: 500 });
+  } catch (err: any) {
+    console.error("EVENT_DATA_API_ERROR:", err);
+    return NextResponse.json({ success: false, message: err?.message || "Internal Error" }, { status: 500 });
   }
 }
