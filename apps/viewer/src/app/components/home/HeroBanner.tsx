@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Play, Heart, MapPin, X } from "lucide-react";
@@ -80,9 +80,9 @@ export default function HeroBanner() {
   const padZero = (n: number) => n.toString().padStart(2, "0");
 
   return (
-    <div className="relative mx-3.5 mt-2">
-      {/* 290px Native App Hero Card */}
-      <div className="relative h-[290px] w-full overflow-hidden rounded-[1.6rem] shadow-md ring-1 ring-black/5">
+    // mb-3.5 se Hero aur Gallery ke beech clean gap aayega
+    <div className="relative mx-3.5 mt-2 mb-3.5">
+      <div className="relative h-[255px] w-full overflow-hidden rounded-[1.5rem] shadow-sm ring-1 ring-black/5">
         {data.bannerPhotos.map((photo, idx) => (
           <img
             key={idx}
@@ -94,36 +94,38 @@ export default function HeroBanner() {
           />
         ))}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/25" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/25" />
 
-        <div className="relative flex h-full flex-col justify-between p-4 text-white">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600/95 px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase shadow">
+        <div className="relative flex h-full flex-col justify-between p-3.5 text-white">
+          {/* Top Live Tag */}
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-600/90 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase text-white shadow-xs">
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
               {data.heroTag}
             </span>
+            {data.location && (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-stone-200 capitalize">
+                <MapPin className="h-3 w-3 text-amber-400" />
+                {data.location}
+              </span>
+            )}
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-white capitalize drop-shadow-sm">
+              <h2 className="text-lg font-bold tracking-tight text-white capitalize leading-snug drop-shadow-sm">
                 {data.title}
               </h2>
-              {data.location && (
-                <p className="flex items-center gap-1 text-[11px] font-medium text-stone-200 capitalize">
-                  <MapPin className="h-3 w-3 text-stone-300" />
-                  {data.location}
-                </p>
-              )}
             </div>
 
+            {/* Action Buttons (Compact text & padding) */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
                   if (data.highlightVideoUrl) setShowVideoModal(true);
                   else alert("Live highlights will begin shortly!");
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-2 px-3 text-[11px] font-bold text-stone-900 shadow-sm transition hover:bg-stone-100 active:scale-95"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-1.5 px-3 text-[10px] font-bold text-stone-900 shadow-xs transition active:scale-95"
               >
                 <Play className="h-3 w-3 fill-stone-900" />
                 Watch Highlights
@@ -133,28 +135,22 @@ export default function HeroBanner() {
                   const el = document.getElementById("timeline-section");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/35 py-2 px-3 text-[11px] font-bold text-white backdrop-blur-md transition hover:bg-black/50 active:scale-95"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/40 py-1.5 px-3 text-[10px] font-bold text-white backdrop-blur-md transition active:scale-95"
               >
                 <Heart className="h-3 w-3" />
                 Our Story
               </button>
             </div>
 
-            {/* Compact Bottom Strip */}
-            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/65 px-3 py-1.5 backdrop-blur-md">
+            {/* Ceremony & Countdown Box */}
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 backdrop-blur-md">
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
-                  CEREMONY
-                </p>
-                <p className="text-[12px] font-bold text-white leading-tight">
-                  {data.ceremonyName}
-                </p>
+                <p className="text-[8px] font-semibold uppercase tracking-wider text-stone-400">CEREMONY</p>
+                <p className="text-[11px] font-bold text-white leading-tight mt-0.5">{data.ceremonyName}</p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
-                  STARTS IN
-                </p>
-                <p className="font-mono text-xs font-bold tracking-wide text-white">
+                <p className="text-[8px] font-semibold uppercase tracking-wider text-stone-400">STARTS IN</p>
+                <p className="font-mono text-[11px] font-bold tracking-wider text-white leading-tight mt-0.5">
                   {padZero(timeLeft.hours)} : {padZero(timeLeft.minutes)} : {padZero(timeLeft.seconds)}
                 </p>
               </div>
