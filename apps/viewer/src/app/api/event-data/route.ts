@@ -61,22 +61,23 @@ export async function GET(request: Request) {
     const customMap: Record<string, any> = {};
     for (const cf of event.customFields || []) {
       let val: any = cf.fieldValue;
-      while (typeof val === "string") {
+      if (typeof val === "string") {
         try {
           val = JSON.parse(val);
         } catch {
-          break;
+          // keep as string
         }
       }
       customMap[cf.fieldName] = val;
     }
 
+    // Direct extract foodItems
     let foodItems = customMap["foodItems"] || [];
-    while (typeof foodItems === "string") {
+    if (typeof foodItems === "string") {
       try {
         foodItems = JSON.parse(foodItems);
       } catch {
-        break;
+        foodItems = [];
       }
     }
 
@@ -90,10 +91,7 @@ export async function GET(request: Request) {
         location: event.location || customMap["venueName"] || "",
         eventDate: event.eventDate,
         foodItems: Array.isArray(foodItems) ? foodItems : [],
-        timelines: event.timelines || [],
-        photos: [],
-        videos: [],
-        guestWishes: [],
+        timelines: customMap["timelines"] || event.timelines || [],
         customMap,
       },
     });
