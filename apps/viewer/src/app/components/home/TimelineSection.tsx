@@ -4,18 +4,59 @@ import { useEffect, useState } from "react";
 import { Clock, Calendar } from "lucide-react";
 
 export default function TimelineSection() {
-  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        const s = sp.get("event") || sp.get("slug") || "";
+        const c = sessionStorage.getItem("cached_event_data_" + s);
+        if (c) {
+          const p = JSON.parse(c);
+          const raw = p.timelines || p.customMap?.timelines;
+          if (Array.isArray(raw) && raw.length > 0) {
+            return raw.map((item: any, idx: number) => {
+              const rawStatus = (item.statusText || item.status || "UPCOMING").toUpperCase();
+              let status = "UPCOMING";
+              let color = "bg-amber-500";
+              let badgeBg = "bg-amber-50 text-amber-700 border-amber-200";
+
+              if (rawStatus.includes("LIVE")) {
+                status = "LIVE";
+                color = "bg-rose-500 animate-pulse";
+                badgeBg = "bg-rose-50 text-rose-700 border-rose-200";
+              } else if (rawStatus.includes("COMPLET")) {
+                status = "COMPLETED";
+                color = "bg-emerald-500";
+                badgeBg = "bg-emerald-50 text-emerald-700 border-emerald-200";
+              }
+
+              return {
+                id: item.id || idx + 1,
+                status,
+                title: item.title || "Program",
+                time: item.timeText || item.time || "TBD",
+                color,
+                badgeBg,
+              };
+            });
+          }
+        }
+      } catch {}
+    }
+    return [];
+  });
 
   useEffect(() => {
     async function loadTimeline() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`).catch(() => null);
-        const json = res ? await res.json().catch(() => null) : null;
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`);
+        const json = await res.json();
         
-        if (json?.success && Array.isArray(json?.event?.timelines) && json.event.timelines.length > 0) {
-          const mapped = json.event.timelines.map((item: any, idx: number) => {
+        const raw = json?.event?.timelines || json?.event?.customMap?.timelines;
+        if (json?.success && Array.isArray(raw) && raw.length > 0) {
+          const mapped = raw.map((item: any, idx: number) => {
             const rawStatus = (item.statusText || item.status || "UPCOMING").toUpperCase();
             let status = "UPCOMING";
             let color = "bg-amber-500";

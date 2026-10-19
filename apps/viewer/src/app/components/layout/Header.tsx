@@ -9,7 +9,20 @@ type Props = {
 
 export default function Header({ onMenuClick }: Props) {
   const [title, setTitle] = useState("");
-  const [subtitle, setSubtitle] = useState("");
+  const [subtitle, setSubtitle] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        const s = sp.get("event") || sp.get("slug") || "";
+        const c = sessionStorage.getItem("cached_event_data_" + s);
+        if (c) {
+          const p = JSON.parse(c);
+          return p.subtitle || p.customMap?.subtitle || "";
+        }
+      } catch {}
+    }
+    return "";
+  });
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);

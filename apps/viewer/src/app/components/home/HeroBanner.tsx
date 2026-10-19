@@ -30,6 +30,9 @@ export default function HeroBanner() {
         const json = res ? await res.json().catch(() => null) : null;
         
         if (json?.success && json?.event) {
+          try {
+            sessionStorage.setItem("cached_event_data_" + activeSlug, JSON.stringify(json.event));
+          } catch {}
           const ev = json.event;
           const photos = Array.isArray(ev.highlightPhotos) && ev.highlightPhotos.length > 0
             ? ev.highlightPhotos
