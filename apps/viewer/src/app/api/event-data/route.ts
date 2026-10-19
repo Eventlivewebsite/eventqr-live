@@ -37,9 +37,6 @@ export async function GET(request: Request) {
         include: {
           settings: true,
           timelines: true,
-          photos: { where: { isApproved: true } },
-          videos: { where: { isApproved: true } },
-          guestWishes: { where: { isApproved: true } },
           customFields: true,
         },
       });
@@ -52,9 +49,6 @@ export async function GET(request: Request) {
         include: {
           settings: true,
           timelines: true,
-          photos: { where: { isApproved: true } },
-          videos: { where: { isApproved: true } },
-          guestWishes: { where: { isApproved: true } },
           customFields: true,
         },
       });
@@ -97,9 +91,9 @@ export async function GET(request: Request) {
         eventDate: event.eventDate,
         foodItems: Array.isArray(foodItems) ? foodItems : [],
         timelines: event.timelines || [],
-        photos: event.photos || [],
-        videos: event.videos || [],
-        guestWishes: event.guestWishes || [],
+        photos: [],
+        videos: [],
+        guestWishes: [],
         customMap,
       },
     });
