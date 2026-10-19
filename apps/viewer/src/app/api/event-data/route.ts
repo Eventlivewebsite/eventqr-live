@@ -64,14 +64,11 @@ export async function GET(request: Request) {
       if (typeof val === "string") {
         try {
           val = JSON.parse(val);
-        } catch {
-          // keep as string
-        }
+        } catch {}
       }
       customMap[cf.fieldName] = val;
     }
 
-    // Direct extract foodItems
     let foodItems = customMap["foodItems"] || [];
     if (typeof foodItems === "string") {
       try {
@@ -81,7 +78,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       event: {
         id: event.id,
@@ -95,6 +92,10 @@ export async function GET(request: Request) {
         customMap,
       },
     });
+
+    // 60s Edge cache taaki repeated clicks par 0ms response mile
+    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
+    return res;
   } catch (err: any) {
     console.error("EVENT_DATA_API_ERROR:", err);
     return NextResponse.json({ success: false, message: err?.message || "Internal Error" }, { status: 500 });
