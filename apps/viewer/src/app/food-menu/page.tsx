@@ -14,24 +14,66 @@ export default function FoodMenuPage() {
 
   useEffect(() => {
     async function loadMenu() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "testing-nns3";
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
-        const json = await res.json();
-        if (json?.success && Array.isArray(json?.event?.foodItems) && json.event.foodItems.length > 0) {
-          setItems(json.event.foodItems);
-        } else {
-          setItems([
-            { id: 1, name: "Paneer Tikka Royale", category: "VEG", description: "Charcoal grilled cottage cheese with aromatic spices", photoUrl: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=500" },
-            { id: 2, name: "Dal Makhani Grandeur", category: "VEG", description: "Slow cooked black lentils with churned butter", photoUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500" },
-            { id: 3, name: "Mutton Rogan Josh", category: "NON_VEG", description: "Kashmiri delicacy cooked with tender meat & spices", photoUrl: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=500" },
-            { id: 4, name: "Royal Blue Lagoon", category: "DRINK", description: "Refreshing blue curaçao mocktail with citrus notes", photoUrl: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=500" },
-            { id: 5, name: "Signature Virgin Mojito", category: "DRINK", description: "Crushed mint, fresh lime and sparkling fizz", photoUrl: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500" }
-          ]);
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const activeSlug = urlParams.get("event") || urlParams.get("slug");
+          
+          if (!activeSlug) {
+            // Normal visitor without slug -> show demo dummy
+            setItems([
+              { id: 1, name: "Paneer Tikka Royale", category: "VEG", description: "Charcoal grilled cottage cheese with aromatic spices", photoUrl: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=500" },
+              { id: 2, name: "Dal Makhani Grandeur", category: "VEG", description: "Slow cooked black lentils with churned butter", photoUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500" },
+              { id: 3, name: "Mutton Rogan Josh", category: "NON_VEG", description: "Kashmiri delicacy cooked with tender meat & spices", photoUrl: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=500" },
+              { id: 4, name: "Royal Blue Lagoon", category: "DRINK", description: "Refreshing blue curacao mocktail with citrus notes", photoUrl: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=500" }
+            ]);
+            setLoading(false);
+            return;
+          }
+
+          const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
+          const json = await res.json();
+          
+          let rawList: any[] = [];
+          if (json?.success && json?.event) {
+            const ev = json.event;
+            if (Array.isArray(ev.foodItems) && ev.foodItems.length > 0) {
+              rawList = ev.foodItems;
+            } else if (ev.customMap?.foodItems) {
+              rawList = Array.isArray(ev.customMap.foodItems) ? ev.customMap.foodItems : [];
+            }
+          }
+
+          if (rawList.length > 0) {
+            const mapped = rawList.map((it: any, idx: number) => {
+              // Handle category types
+              let cat: "VEG" | "NON_VEG" | "DRINK" = "VEG";
+              const rawType = String(it.type || it.dishType || it.category || "").toUpperCase();
+              if (rawType.includes("NON") || rawType.includes("MEAT")) {
+                cat = "NON_VEG";
+              } else if (rawType.includes("DRINK") || rawType.includes("BEVERAGE")) {
+                cat = "DRINK";
+              } else {
+                cat = "VEG";
+              }
+
+              return {
+                id: it.id || idx + 1,
+                name: it.dishName || it.name || it.title || "Special Item",
+                category: cat,
+                description: it.description || it.desc || "",
+                photoUrl: it.photoUrl || it.image || it.photo || ""
+              };
+            });
+            setItems(mapped);
+          } else {
+            // Slug exists but admin has 0 items
+            setItems([]);
+          }
+        } catch (err) {
+          console.error("Failed to load menu", err);
+        } finally {
+          setLoading(false);
         }
-      } catch {} finally {
-        setLoading(false);
       }
     }
     loadMenu();
