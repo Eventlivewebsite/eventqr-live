@@ -35,8 +35,8 @@ export default function HeroBanner() {
             : ["https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"];
 
           setData({
-            title: ev.title || "A & S Wedding",
-            location: ev.location || "Jaipur Palace",
+            title: ev.title || "Event Celebration",
+            location: ev.location || "Venue Location",
             heroTag: ev.customMap?.heroTag || "LIVE EVENT",
             ceremonyName: "Wedding Reception",
             bannerPhotos: photos,
@@ -81,8 +81,8 @@ export default function HeroBanner() {
 
   return (
     <div className="relative mx-3.5 mt-2">
-      {/* Exact First Image Card Structure */}
-      <div className="relative h-[360px] w-full overflow-hidden rounded-[2rem] shadow-xl">
+      {/* 290px Native App Hero Card */}
+      <div className="relative h-[290px] w-full overflow-hidden rounded-[1.6rem] shadow-md ring-1 ring-black/5">
         {data.bannerPhotos.map((photo, idx) => (
           <img
             key={idx}
@@ -94,43 +94,38 @@ export default function HeroBanner() {
           />
         ))}
 
-        {/* Soft Radial & Linear Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/25" />
 
-        {/* Inner Padding & Content */}
-        <div className="relative flex h-full flex-col justify-between p-5 text-white">
-          {/* Top Live Badge */}
+        <div className="relative flex h-full flex-col justify-between p-4 text-white">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-white" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600/95 px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase shadow">
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
               {data.heroTag}
             </span>
           </div>
 
-          <div className="space-y-3">
-            {/* Title & Location */}
-            <div className="space-y-1">
-              <h2 className="text-2xl font-bold tracking-tight text-white capitalize drop-shadow">
+          <div className="space-y-2.5">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-white capitalize drop-shadow-sm">
                 {data.title}
               </h2>
               {data.location && (
-                <p className="flex items-center gap-1.5 text-xs font-medium text-stone-200 capitalize">
-                  <MapPin className="h-3.5 w-3.5 text-stone-300" />
+                <p className="flex items-center gap-1 text-[11px] font-medium text-stone-200 capitalize">
+                  <MapPin className="h-3 w-3 text-stone-300" />
                   {data.location}
                 </p>
               )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => {
                   if (data.highlightVideoUrl) setShowVideoModal(true);
                   else alert("Live highlights will begin shortly!");
                 }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white py-2.5 px-4 text-xs font-bold text-stone-900 shadow transition hover:bg-stone-100 active:scale-95"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white py-2 px-3 text-[11px] font-bold text-stone-900 shadow-sm transition hover:bg-stone-100 active:scale-95"
               >
-                <Play className="h-3.5 w-3.5 fill-stone-900" />
+                <Play className="h-3 w-3 fill-stone-900" />
                 Watch Highlights
               </button>
               <button
@@ -138,28 +133,28 @@ export default function HeroBanner() {
                   const el = document.getElementById("timeline-section");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 bg-black/30 py-2.5 px-4 text-xs font-bold text-white backdrop-blur-md transition hover:bg-black/50 active:scale-95"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/35 py-2 px-3 text-[11px] font-bold text-white backdrop-blur-md transition hover:bg-black/50 active:scale-95"
               >
-                <Heart className="h-3.5 w-3.5" />
+                <Heart className="h-3 w-3" />
                 Our Story
               </button>
             </div>
 
-            {/* Bottom Ceremony & Countdown Strip (Exact Structure) */}
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/60 px-4 py-2.5 backdrop-blur-md">
+            {/* Compact Bottom Strip */}
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/65 px-3 py-1.5 backdrop-blur-md">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
                   CEREMONY
                 </p>
-                <p className="text-sm font-bold text-white">
+                <p className="text-[12px] font-bold text-white leading-tight">
                   {data.ceremonyName}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                  Starts In
+                <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
+                  STARTS IN
                 </p>
-                <p className="font-mono text-base font-bold tracking-wider text-white">
+                <p className="font-mono text-xs font-bold tracking-wide text-white">
                   {padZero(timeLeft.hours)} : {padZero(timeLeft.minutes)} : {padZero(timeLeft.seconds)}
                 </p>
               </div>
@@ -168,7 +163,6 @@ export default function HeroBanner() {
         </div>
       </div>
 
-      {/* Video Modal */}
       {showVideoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-black">
