@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import MobileContainer from "../components/layout/MobileContainer";
 
 export default function FoodMenuPage() {
+  const [foodLikes, setFoodLikes] = useState<Record<string | number, number>>({});
+  const [userLikedItems, setUserLikedItems] = useState<Record<string | number, boolean>>({});
+
+  const handleToggleFoodLike = (id: string | number) => {
+    if (userLikedItems[id]) return;
+    setUserLikedItems(prev => ({ ...prev, [id]: true }));
+    setFoodLikes(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  };
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"ALL" | "VEG" | "NON_VEG" | "DRINK">("ALL");
   const [items, setItems] = useState<any[]>([]);

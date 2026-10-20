@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, Crown, CheckCircle2, Heart, ExternalLink, MessageCircle, Send, Sparkles } from "lucide-react";
@@ -45,7 +45,8 @@ function FacebookIcon({ size = 13 }: { size?: number }) {
 export default function FamilyPage() {
   const router = useRouter();
   const [slug, setSlug] = useState("");
-  const [eventName, setEventName] = useState("Wasim");
+  const [eventName, setEventName] = useState("");
+  const [familyPrefix, setFamilyPrefix] = useState("The Family Of");
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,24 +61,35 @@ export default function FamilyPage() {
   useEffect(() => {
     async function fetchFamilyData() {
       try {
+        setLoading(true);
         const sp = new URLSearchParams(window.location.search);
         let s = sp.get("slug") || sp.get("event") || "";
         if (!s && typeof window !== "undefined") {
           s = sessionStorage.getItem("active_event_slug") || "";
         }
+
+        // Purane event ka naam flash na ho isliye turant reset
+        setEventName("");
+        setMembers([]);
+
         if (s) {
           setSlug(s);
-          sessionStorage.setItem("active_event_slug", s);
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("active_event_slug", s);
+          }
         }
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(s)}&_t=${Date.now()}`, { cache: "no-store" });
         const json = await res.json();
 
         if (json?.success && json?.event) {
-          const name = json.event.name || json.event.title || json.event.groomBride || "Wasim";
+          const name = json.event.name || json.event.title || json.event.groomBride || "";
           setEventName(name);
 
-          // Direct Admin Real Data from DB
+          if (json.event.customMap?.familyPrefixTitle) {
+            setFamilyPrefix(json.event.customMap.familyPrefixTitle);
+          }
+
           if (Array.isArray(json.event.familyMembers)) {
             setMembers(json.event.familyMembers);
           }
@@ -146,6 +158,8 @@ export default function FamilyPage() {
       ...prev,
       [id]: [...(prev[id] || []), optimistic]
     }));
+    
+    // Comment submit hone ke baad input clear aur auto-close
     setCommentInput("");
     setOpenCommentId(null);
 
@@ -203,11 +217,15 @@ export default function FamilyPage() {
           
           <div className="text-center px-2 flex-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-amber-700/80 block">
-              The Family Of
+              {familyPrefix}
             </span>
-            <h1 className="animated-event-heading text-lg font-black tracking-tight leading-tight capitalize">
-              {eventName}
-            </h1>
+            {eventName ? (
+              <h1 className="animated-event-heading text-lg font-black tracking-tight leading-tight capitalize">
+                {eventName}
+              </h1>
+            ) : (
+              <div className="mx-auto my-1 h-5 w-28 animate-pulse rounded-md bg-amber-200/60" />
+            )}
             <p className="text-[10px] font-semibold text-stone-500 tracking-wide mt-0.5">
               Family Members • Pillars of Love & Blessings
             </p>
