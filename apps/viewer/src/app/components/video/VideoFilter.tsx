@@ -1,26 +1,14 @@
-import { useState, useEffect } from "react";
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
-const filters = [
-  "All",
-  "Wedding",
-  "Haldi",
-  "Mehendi",
-  "Reception",
-    "Decoration",
-];
+interface VideoFilterProps {
+  activeCategory?: string;
+  onSelectCategory?: (cat: string) => void;
+}
 
-type Props = {
-  active: string;
-  onChange: (value: string) => void;
-  videoType?: string;
-};
-
-export default function VideoFilter({
-
+export default function VideoFilter({ activeCategory = "All", onSelectCategory }: VideoFilterProps) {
+  const [selected, setSelected] = useState(activeCategory);
   const [categories, setCategories] = useState<string[]>(["All", "Ceremony", "Stage", "Celebrations", "Family"]);
 
   useEffect(() => {
@@ -29,10 +17,10 @@ export default function VideoFilter({
       const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
       if (s) {
         fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
-          .then(r => r.json())
-          .then(d => {
+          .then((r) => r.json())
+          .then((d) => {
             const list = d?.event?.videoCategories || d?.event?.photoCategories;
-            if (list && Array.isArray(list) && list.length > 0) {
+            if (Array.isArray(list) && list.length > 0) {
               setCategories(["All", ...list]);
             }
           })
@@ -41,60 +29,29 @@ export default function VideoFilter({
     }
   }, []);
 
-  active,
-  onChange,
-  videoType = "default",
-}: Props) {
-  const router = useRouter();
+  const handleClick = (cat: string) => {
+    setSelected(cat);
+    if (onSelectCategory) onSelectCategory(cat);
+  };
 
-  // Category Page
-  if (videoType !== "default") {
-    return (
-      <div className="mb-6 flex gap-3 overflow-x-auto no-scrollbar">
-
-        <button
-          onClick={() => router.push("/videos")}
-          className="flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
-        >
-          <ArrowLeft size={16} />
-          Back Videos
-        </button>
-
-        <button className="rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg">
-          {videoType
-            .split("-")
-            .map(
-              (word) =>
-                word.charAt(0).toUpperCase() +
-                word.slice(1)
-            )
-            .join(" ")}
-        </button>
-
-      </div>
-    );
-  }
-
-  // Main Videos Page
   return (
-    <div className="mb-6 flex gap-3 overflow-x-auto no-scrollbar">
-
-      {filters.map((filter) => (
-
-        <button
-          key={filter}
-          onClick={() => onChange(filter)}
-          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-            active === filter
-              ? "bg-red-500 text-white shadow-lg"
-              : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          {filter}
-        </button>
-
-      ))}
-
+    <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-2">
+      {categories.map((cat) => {
+        const isActive = (activeCategory || selected) === cat;
+        return (
+          <button
+            key={cat}
+            onClick={() => handleClick(cat)}
+            className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition active:scale-95 ${
+              isActive
+                ? "bg-amber-600 text-white shadow-xs"
+                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+            }`}
+          >
+            {cat}
+          </button>
+        );
+      })}
     </div>
   );
 }
