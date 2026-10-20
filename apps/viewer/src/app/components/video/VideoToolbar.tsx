@@ -25,7 +25,7 @@ export default function VideoToolbar({
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "A & S Wedding",
+          title: (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("event")) || "WASIM",
           text: "Watch our beautiful wedding memories ❤️",
           url: window.location.href,
         });

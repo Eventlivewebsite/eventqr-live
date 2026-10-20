@@ -8,6 +8,23 @@ import GalleryGrid from "../components/gallery/GalleryGrid";
 import GalleryDrawer from "../components/gallery/GalleryDrawer";
 
 export default function GalleryPage() {
+
+  useEffect(() => {
+    // Zero-reload instant sync across tabs/devices
+    if (typeof window !== "undefined") {
+      const channel = new BroadcastChannel("event_media_sync");
+      channel.onmessage = (event) => {
+        if (event.data?.type === "MEDIA_UPLOADED") {
+          // Instant silent state refresh without full page reload
+          if (typeof fetchPhotos === "function") {
+            fetchPhotos();
+          }
+        }
+      };
+      return () => channel.close();
+    }
+  }, []);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (

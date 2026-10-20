@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 "use client";
 
 import { ArrowLeft } from "lucide-react";
@@ -21,6 +22,26 @@ type Props = {
 };
 
 export default function FilterChips({
+
+  const [categories, setCategories] = useState<string[]>(["All", "Ceremony", "Stage", "Celebrations", "Family"]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
+      if (s) {
+        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.event?.photoCategories && Array.isArray(d.event.photoCategories) && d.event.photoCategories.length > 0) {
+              setCategories(["All", ...d.event.photoCategories]);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, []);
+
   active,
   onChange,
   counts,
