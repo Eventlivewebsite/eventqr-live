@@ -28,10 +28,10 @@ export default function HomePage() {
           <TrendingSection />
           <CategoriesSection />
           
-          {/* Albums Section pehle aayega */}
+          {/* 1. Event Albums pehle aayega */}
           <AlbumsSection />
 
-          {/* Schedule & Timings ab Albums ke bilkul niche */}
+          {/* 2. Schedule & Timings ab Albums ke bilkul niche aayega */}
           <div id="timeline-section">
             <TimelineSection />
           </div>

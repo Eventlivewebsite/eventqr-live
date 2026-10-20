@@ -31,13 +31,13 @@ export default function AlbumsSection() {
           
           let categories: string[] = Array.isArray(ev.photoCategories) && ev.photoCategories.length > 0 
             ? ev.photoCategories 
-            : [];
+            : (Array.isArray(ev.categoriesList) && ev.categoriesList.length > 0 ? ev.categoriesList : []);
 
           if (categories.length === 0 && photoList.length > 0) {
             categories = Array.from(new Set(photoList.map((p: any) => p.category).filter(Boolean)));
           }
 
-          // Exact 4 albums on home view (2x2 grid)
+          // Exact 4 albums home screen par render honge
           const mapped: AlbumItem[] = categories.slice(0, 4).map((cat) => {
             const catPhotos = photoList
               .filter((p: any) => (p.category || "").toLowerCase() === cat.toLowerCase())
@@ -107,7 +107,7 @@ export default function AlbumsSection() {
         </Link>
       </div>
 
-      {/* Clean 2x2 Grid with exact 4 cards */}
+      {/* Exact 4 Cards in 2x2 Grid */}
       <div className="grid grid-cols-2 gap-2.5">
         {albums.map((alb, i) => {
           const isDownloading = downloadingAlbum === alb.title;
