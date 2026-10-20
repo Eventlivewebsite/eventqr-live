@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { Image as ImageIcon, ArrowRight, Download, Loader2, FolderArchive } from "lucide-react";
+import { Image as ImageIcon, ArrowRight, Download, Loader2, FolderArchive, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 interface AlbumItem {
@@ -37,7 +37,7 @@ export default function AlbumsSection() {
             categories = Array.from(new Set(photoList.map((p: any) => p.category).filter(Boolean)));
           }
 
-          // Exact 4 albums home screen par render honge
+          // Exact 4 albums home view par limit
           const mapped: AlbumItem[] = categories.slice(0, 4).map((cat) => {
             const catPhotos = photoList
               .filter((p: any) => (p.category || "").toLowerCase() === cat.toLowerCase())
@@ -91,23 +91,35 @@ export default function AlbumsSection() {
 
   return (
     <section className="px-3.5 mt-3">
-      <div className="mb-2.5 flex items-center justify-between">
-        <div>
-          <h2 className="text-xs font-black uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
-            <FolderArchive className="h-4 w-4 text-emerald-600" />
-            Event Albums
-          </h2>
-          <p className="text-[10px] text-stone-500 font-medium">Browse or download complete sets</p>
+      {/* Left-to-Right Full Highlighted Header Bar */}
+      <div className="mb-3 flex items-center justify-between rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/5 p-2.5 px-3.5 shadow-xs backdrop-blur-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white shadow-xs">
+            <FolderArchive className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-xs font-black uppercase tracking-wider text-stone-900 leading-tight">
+                Event Albums
+              </h2>
+              <Sparkles size={11} className="text-amber-500 fill-amber-400" />
+            </div>
+            <p className="text-[10px] font-semibold text-stone-500 leading-tight">
+              Browse or download complete sets
+            </p>
+          </div>
         </div>
+
+        {/* Polished View All Button */}
         <Link 
           href={`/gallery?event=${encodeURIComponent(slug)}`} 
-          className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-0.5 active:scale-95 transition"
+          className="flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold text-amber-900 shadow-xs border border-amber-200 hover:bg-amber-50 active:scale-95 transition-all duration-200"
         >
-          View All <ArrowRight size={12} />
+          View All <ArrowRight size={12} className="text-amber-600" />
         </Link>
       </div>
 
-      {/* Exact 4 Cards in 2x2 Grid */}
+      {/* Clean 2x2 Grid with exact 4 cards */}
       <div className="grid grid-cols-2 gap-2.5">
         {albums.map((alb, i) => {
           const isDownloading = downloadingAlbum === alb.title;
