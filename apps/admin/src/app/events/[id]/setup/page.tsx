@@ -1,12 +1,24 @@
 ﻿"use client";
 
 import React, { useState, useEffect, use } from "react";
-import { 
-  ArrowLeft, CheckCircle2, Loader2, Sparkles, MapPin, 
-  Image as ImageIcon, Utensils, Users, Clock, Film, 
-  Upload, Trash2, Mail
-} from "lucide-react";
 import Link from "next/link";
+import { 
+  Music,
+  Disc3,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Sparkles,
+  MapPin, 
+  Image as ImageIcon,
+  Utensils,
+  Users,
+  Clock,
+  Film, 
+  Upload,
+  Trash2,
+  Mail
+} from "lucide-react";
 
 async function compressAndConvertToBase64(file: File): Promise<string> {
   if (file.type.startsWith("video/")) {
@@ -326,7 +338,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 rel="noreferrer"
                 className="text-xs font-bold px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition shadow-sm"
               >
-                Open Live Viewer ↗
+                Open Live Viewer ?
               </a>
             )}
             <button
@@ -391,7 +403,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           </div>
           {lockedEventDate && (
             <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-xl font-semibold">
-              🔒 Event Scheduled Date: <span className="font-bold">{lockedEventDate}</span> (Locked directly from the approved event request)
+              ?? Event Scheduled Date: <span className="font-bold">{lockedEventDate}</span> (Locked directly from the approved event request)
             </div>
           )}
         </div>
@@ -628,7 +640,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             <div className="flex flex-wrap gap-2 mt-2">
               {decorationAlbums.map((item, i) => (
                 <span key={i} className="bg-rose-50 border border-rose-200 text-rose-900 px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-                  🌸 {item}
+                  ?? {item}
                   <button type="button" onClick={() => setDecorationAlbums(decorationAlbums.filter((_, idx) => idx !== i))} className="hover:text-red-500 font-bold ml-1">×</button>
                 </span>
               ))}
@@ -692,8 +704,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white font-bold outline-none"
                 >
                   <option value="UPCOMING">UPCOMING</option>
-                  <option value="LIVE">🔴 LIVE NOW</option>
-                  <option value="COMPLETED">🟢 COMPLETED</option>
+                  <option value="LIVE">?? LIVE NOW</option>
+                  <option value="COMPLETED">?? COMPLETED</option>
                 </select>
                 <button
                   type="button"
@@ -762,9 +774,9 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   onChange={e => setDishCat(e.target.value as any)}
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white font-bold outline-none"
                 >
-                  <option value="VEG">🌱 Veg Dish</option>
-                  <option value="NON_VEG">🍗 Non-Veg</option>
-                  <option value="DRINK">🍹 Beverage / Drink</option>
+                  <option value="VEG">?? Veg Dish</option>
+                  <option value="NON_VEG">?? Non-Veg</option>
+                  <option value="DRINK">?? Beverage / Drink</option>
                 </select>
                 <input
                   type="text"
@@ -774,7 +786,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {dishPhoto ? "✓ Photo Ready" : "Upload Photo"}
+                  <Upload size={14} /> {dishPhoto ? "? Photo Ready" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"
@@ -950,7 +962,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {memPhoto ? "✓ Photo Set" : "Upload Photo"}
+                  <Upload size={14} /> {memPhoto ? "? Photo Set" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"

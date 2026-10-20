@@ -1,84 +1,72 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Heart, Users, Instagram, Facebook, Crown, Sparkles, ExternalLink } from "lucide-react";
+import { ArrowLeft, Crown, CheckCircle2, Heart, ExternalLink, MessageCircle, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import MobileContainer from "../components/layout/MobileContainer";
 import BottomNavigation from "../components/navigation/BottomNavigation";
 
-interface Member {
-  name?: string;
-  personName?: string;
-  role?: string;
-  relation?: string;
-  photo?: string;
+interface FamilyMember {
+  id: string | number;
+  name: string;
+  relation: string;
   photoUrl?: string;
-  avatar?: string;
-  image?: string;
-  instagram?: string;
-  instagramLink?: string;
-  insta?: string;
-  facebook?: string;
-  facebookLink?: string;
-  fb?: string;
-  description?: string;
-  note?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
   isVip?: boolean;
-  vip?: boolean;
+  description?: string;
 }
 
-// Relation ke hisaab se default rich blessings
-function getRelationBlessing(role: string, customDesc?: string): string {
-  if (customDesc && customDesc.trim()) return customDesc.trim();
-  const lower = (role || "").toLowerCase();
-  if (lower.includes("father") || lower.includes("dad") || lower.includes("papa")) {
-    return "Pillar of strength, wisdom, and guiding light of the family.";
-  }
-  if (lower.includes("mother") || lower.includes("mom") || lower.includes("maa")) {
-    return "Heart of unconditional warmth, boundless love, and gentle blessings.";
-  }
-  if (lower.includes("brother") || lower.includes("bhai")) {
-    return "Everlasting support, energy, and festive celebrations.";
-  }
-  if (lower.includes("sister") || lower.includes("didi") || lower.includes("behan")) {
-    return "Spreading joy, sweetness, and cherished shared memories.";
-  }
-  if (lower.includes("host") || lower.includes("coordinator")) {
-    return "Bringing the entire family together to create timeless memories.";
-  }
-  if (lower.includes("grandfather") || lower.includes("grandmother") || lower.includes("dada") || lower.includes("dadi") || lower.includes("nana") || lower.includes("nani")) {
-    return "The roots of tradition, rich heritage, and enduring eternal blessings.";
-  }
-  return "Blessing the auspicious celebration with immense joy and love.";
+interface MemberComment {
+  name: string;
+  text: string;
+  time: string;
 }
 
-function normalizeUrl(url?: string, platform?: "insta" | "fb"): string | null {
-  if (!url || !url.trim()) return null;
-  let clean = url.trim();
-  if (clean.startsWith("@")) clean = clean.substring(1);
-  if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
-    if (platform === "insta") return `https://instagram.com/${clean}`;
-    if (platform === "fb") return `https://facebook.com/${clean}`;
-    return `https://${clean}`;
-  }
-  return clean;
+function InstagramIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
 }
 
 export default function FamilyPage() {
   const router = useRouter();
-  const [members, setMembers] = useState<Member[]>([]);
+  const [slug, setSlug] = useState("");
+  const [eventName, setEventName] = useState("Wasim");
+  const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Real Database Interactions
+  const [likes, setLikes] = useState<Record<string | number, number>>({});
+  const [userLiked, setUserLiked] = useState<Record<string | number, boolean>>({});
+  const [openCommentId, setOpenCommentId] = useState<string | number | null>(null);
+  const [comments, setComments] = useState<Record<string | number, MemberComment[]>>({});
+  const [commentInput, setCommentInput] = useState("");
+  const [guestNameInput, setGuestNameInput] = useState("");
+
   useEffect(() => {
-    async function loadFamily() {
+    async function fetchFamilyData() {
       try {
         const sp = new URLSearchParams(window.location.search);
-        let s = sp.get("event") || sp.get("slug") || "";
+        let s = sp.get("slug") || sp.get("event") || "";
         if (!s && typeof window !== "undefined") {
           s = sessionStorage.getItem("active_event_slug") || "";
         }
-        if (s && typeof window !== "undefined") {
+        if (s) {
+          setSlug(s);
           sessionStorage.setItem("active_event_slug", s);
         }
 
@@ -86,171 +74,325 @@ export default function FamilyPage() {
         const json = await res.json();
 
         if (json?.success && json?.event) {
-          const raw = json.event.familyMembers || json.event.customMap?.familyMembers || json.event.customMap?.keyPeople || [];
-          if (Array.isArray(raw) && raw.length > 0) {
-            setMembers(raw);
+          const name = json.event.name || json.event.title || json.event.groomBride || "Wasim";
+          setEventName(name);
+
+          // Direct Admin Real Data from DB
+          if (Array.isArray(json.event.familyMembers)) {
+            setMembers(json.event.familyMembers);
           }
         }
+
+        const interRes = await fetch(`/api/family-interactions?slug=${encodeURIComponent(s)}&_t=${Date.now()}`, { cache: "no-store" });
+        const interJson = await interRes.json();
+        if (interJson?.success) {
+          setLikes(interJson.likes || {});
+          setComments(interJson.comments || {});
+        }
       } catch (err) {
-        console.error("Family page load error:", err);
+        console.error("Family fetch error", err);
       } finally {
         setLoading(false);
       }
     }
-    loadFamily();
+    fetchFamilyData();
   }, []);
+
+  const getActiveBlessing = (member: FamilyMember) => {
+    if (member.description && member.description.trim()) {
+      return member.description.trim();
+    }
+    const r = (member.relation || "").toLowerCase();
+    if (r.includes("father") || r.includes("mother") || r.includes("parent")) {
+      return "Pillars of unconditional love, wisdom, and eternal blessings.";
+    }
+    if (r.includes("brother") || r.includes("sister") || r.includes("sibling")) {
+      return "Lifelong partners in laughter, cherished secrets, and joyful celebrations.";
+    }
+    if (r.includes("friend") || r.includes("best")) {
+      return "Bringing boundless cheer, vibrant energy, and unforgettable memories.";
+    }
+    return "Honored pillar and cherished heart of this celebration.";
+  };
+
+  const toggleLike = async (id: string | number) => {
+    if (userLiked[id]) return;
+    setUserLiked((prev) => ({ ...prev, [id]: true }));
+    setLikes((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+
+    try {
+      await fetch("/api/family-interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, memberId: id, type: "like" })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddComment = async (id: string | number) => {
+    if (!commentInput.trim()) return;
+    const currentName = guestNameInput.trim() || "Guest";
+    const currentText = commentInput.trim();
+
+    const optimistic: MemberComment = {
+      name: currentName,
+      text: currentText,
+      time: "Just now"
+    };
+
+    setComments((prev) => ({
+      ...prev,
+      [id]: [...(prev[id] || []), optimistic]
+    }));
+    setCommentInput("");
+
+    try {
+      await fetch("/api/family-interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          memberId: id,
+          type: "comment",
+          guestName: currentName,
+          text: currentText
+        })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const formatSocialUrl = (handleOrUrl: string, type: "ig" | "fb") => {
+    if (!handleOrUrl) return "";
+    const clean = handleOrUrl.trim();
+    if (clean.startsWith("http://") || clean.startsWith("https://")) return clean;
+    const sanitized = clean.replace(/^@/, "");
+    return type === "ig" ? `https://instagram.com/${sanitized}` : `https://facebook.com/${sanitized}`;
+  };
 
   return (
     <MobileContainer>
-      <main className="min-h-screen pb-32 text-gray-900 bg-[#fdfbf7]">
-        {/* Sticky Mobile Header */}
-        <div className="sticky top-0 z-30 flex items-center justify-between border-b border-amber-100/70 bg-white/90 px-4 py-3.5 backdrop-blur-md">
+      <style jsx global>{`
+        @keyframes softColorShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animated-event-heading {
+          background: linear-gradient(-45deg, #b45309, #e11d48, #7c3aed, #d97706, #92400e);
+          background-size: 300% 300%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: softColorShift 5s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="flex min-h-screen flex-col bg-[#FAF7F2]">
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-amber-100 bg-[#FAF7F2]/95 px-4 py-3 backdrop-blur-md">
           <button
             onClick={() => router.back()}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-950 shadow-xs active:scale-90 transition duration-150 border border-amber-100"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50/80 text-stone-800 shadow-xs border border-amber-200/60 transition active:scale-90"
           >
             <ArrowLeft size={18} />
           </button>
-          <div className="text-center">
-            <h1 className="text-base font-extrabold text-stone-900 flex items-center justify-center gap-1.5 leading-tight">
-              Family & VIPs
+          
+          <div className="text-center px-2 flex-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700/80 block">
+              The Family Of
+            </span>
+            <h1 className="animated-event-heading text-lg font-black tracking-tight leading-tight capitalize">
+              {eventName}
             </h1>
-            <p className="text-[10px] text-amber-700 font-semibold tracking-wide uppercase">
-              Pillars of Love & Blessings
+            <p className="text-[10px] font-semibold text-stone-500 tracking-wide mt-0.5">
+              Family Members • Pillars of Love & Blessings
             </p>
           </div>
-          <div className="h-10 w-10" />
-        </div>
 
-        {/* Member Cards List */}
-        <div className="p-4 space-y-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100/50 text-amber-700">
+            <Sparkles size={16} />
+          </div>
+        </header>
+
+        {/* Members Cards Feed: Pure Admin Real Data */}
+        <main className="flex-1 px-4 py-4 space-y-4 pb-32">
           {loading ? (
             <div className="py-24 text-center">
-              <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
-              <p className="mt-2 text-xs font-semibold text-stone-400">Loading family members...</p>
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+              <p className="mt-3 text-xs font-bold text-stone-500">Loading Family Members...</p>
             </div>
           ) : members.length === 0 ? (
-            <div className="py-24 text-center space-y-2">
-              <Users size={36} className="mx-auto text-stone-300" />
-              <p className="text-xs font-bold text-stone-500">No family members added yet.</p>
+            <div className="rounded-3xl border border-dashed border-stone-300 bg-white p-10 text-center">
+              <Crown className="mx-auto text-amber-500" size={34} />
+              <p className="mt-2 text-sm font-bold text-stone-700">No Family Members Added Yet</p>
+              <p className="text-xs text-stone-400 mt-1">Add members from Admin Setup to display here.</p>
             </div>
           ) : (
             members.map((m, idx) => {
-              const name = m.name || m.personName || "Family Member";
-              const role = m.role || m.relation || "VIP Family";
-              const photoUrl = m.photo || m.photoUrl || m.avatar || m.image || "";
-              
-              const isVip = Boolean(
-                m.isVip || 
-                m.vip || 
-                role.toLowerCase().includes("vip") || 
-                role.toLowerCase().includes("host")
-              );
-
-              const blessingText = getRelationBlessing(role, m.description || m.note);
-
-              const instaUrl = normalizeUrl(m.instagram || m.instagramLink || m.insta, "insta");
-              const fbUrl = normalizeUrl(m.facebook || m.facebookLink || m.fb, "fb");
+              const cardId = m.id !== undefined ? m.id : idx;
+              const igLink = formatSocialUrl(m.instagramUrl || "", "ig");
+              const fbLink = formatSocialUrl(m.facebookUrl || "", "fb");
+              const memberLikes = likes[cardId] || 0;
+              const isLiked = !!userLiked[cardId];
+              const memberComments = comments[cardId] || [];
+              const isCommentOpen = openCommentId === cardId;
+              const currentBlessing = getActiveBlessing(m);
 
               return (
                 <div
-                  key={idx}
-                  className={`overflow-hidden rounded-[30px] bg-white transition-all duration-300 shadow-sm ${
-                    isVip 
-                      ? "border-2 border-amber-400/90 shadow-[0_10px_30px_rgba(245,158,11,0.18)]" 
-                      : "border border-stone-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.04)]"
-                  }`}
+                  key={cardId}
+                  className="group relative overflow-hidden rounded-[26px] bg-white shadow-sm border border-stone-200/80 transition"
                 >
-                  {/* Photo Container */}
-                  <div className="relative aspect-[4/3] w-full bg-stone-900 overflow-hidden">
-                    {photoUrl ? (
+                  {/* Photo Frame */}
+                  <div className="relative h-64 w-full overflow-hidden bg-stone-900">
+                    {m.photoUrl ? (
                       <Image
-                        src={photoUrl}
-                        alt={name}
+                        src={m.photoUrl}
+                        alt={m.name}
                         fill
-                        className="object-cover transition-transform duration-500 hover:scale-105"
+                        className="object-cover object-top transition duration-500 group-hover:scale-102"
                       />
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-stone-800 to-stone-950 text-stone-400">
-                        <Users size={52} className="stroke-[1.2]" />
-                        <span className="text-[10px] font-bold text-stone-500 mt-1 uppercase tracking-wider">Family Member</span>
-                      </div>
-                    )}
-
-                    {/* Gradient Scrim for readable text */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/40 to-transparent" />
-
-                    {/* Top VIP Crown Badge if checked/VIP */}
-                    {isVip && (
-                      <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-950 shadow-md">
-                        <Crown size={12} className="fill-amber-950 text-amber-950 animate-bounce" />
-                        VIP Honor
-                      </div>
-                    )}
-
-                    {/* Role Pill & Name on Image Base */}
-                    <div className="absolute bottom-3.5 left-4 right-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shadow-xs backdrop-blur-md ${
-                          isVip 
-                            ? "bg-amber-400 text-stone-950" 
-                            : "bg-white/90 text-stone-900"
-                        }`}>
-                          {isVip && <Sparkles size={10} className="fill-stone-950" />}
-                          {role}
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-amber-900/40 via-stone-900 to-stone-950 text-white">
+                        <span className="text-5xl font-black opacity-30 tracking-widest">
+                          {m.name ? m.name.charAt(0) : "M"}
                         </span>
                       </div>
-                      <h2 className="mt-1.5 text-xl font-black text-white leading-tight drop-shadow-sm">
-                        {name}
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/20 to-transparent pointer-events-none" />
+
+                    {/* VIP Badge */}
+                    {m.isVip && (
+                      <div className="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-[11px] font-black text-stone-950 shadow-lg backdrop-blur-xs border border-amber-300">
+                        <Crown size={12} className="fill-stone-950" />
+                        <span>VIP</span>
+                        <CheckCircle2 size={13} className="fill-stone-950 text-amber-400 ml-0.5" />
+                      </div>
+                    )}
+
+                    {/* Name & Relation */}
+                    <div className="absolute bottom-3.5 left-4 right-4 z-10 space-y-1 pointer-events-none">
+                      <span className="inline-block rounded-md bg-white/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white backdrop-blur-md border border-white/25">
+                        {m.relation}
+                      </span>
+                      <h2 className="text-xl font-black tracking-tight text-white drop-shadow-sm">
+                        {m.name}
                       </h2>
                     </div>
                   </div>
 
-                  {/* Card Content & Action Area */}
-                  <div className="p-4 space-y-3.5 bg-gradient-to-b from-white to-[#fcfbf9]">
-                    {/* Blessing / Custom Description */}
-                    <div className="flex items-start gap-2.5 rounded-2xl bg-amber-50/60 p-3 border border-amber-100/60">
-                      <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-rose-100/80 text-rose-600">
-                        <Heart size={12} className="fill-rose-500 text-rose-500" />
-                      </div>
-                      <p className="text-[11px] font-medium leading-relaxed text-stone-700">
-                        {blessingText}
+                  {/* Blessings & Interactions */}
+                  <div className="p-4 space-y-3 bg-white">
+                    <div className="flex items-start gap-2.5">
+                      <Heart size={16} className="mt-0.5 flex-shrink-0 fill-rose-500 text-rose-500" />
+                      <p className="text-sm font-semibold text-stone-800 leading-snug italic">
+                        &ldquo;{currentBlessing}&rdquo;
                       </p>
                     </div>
 
-                    {/* Social Connect Buttons */}
-                    {(instaUrl || fbUrl) ? (
-                      <div className="flex items-center gap-2 pt-1 border-t border-stone-100">
-                        {instaUrl && (
+                    <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => toggleLike(cardId)}
+                          className={`flex items-center gap-1.5 text-xs font-bold transition active:scale-90 ${
+                            isLiked ? "text-rose-600" : "text-stone-600 hover:text-stone-900"
+                          }`}
+                        >
+                          <Heart
+                            size={16}
+                            className={`transition ${isLiked ? "fill-rose-500 text-rose-500 scale-110" : ""}`}
+                          />
+                          <span>{memberLikes}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOpenCommentId(isCommentOpen ? null : cardId)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-stone-600 hover:text-stone-900 active:scale-95 transition"
+                        >
+                          <MessageCircle size={16} />
+                          <span>{memberComments.length}</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {igLink && (
                           <a
-                            href={instaUrl}
+                            href={igLink}
                             target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 py-2.5 px-3 text-xs font-black text-white shadow-xs hover:opacity-95 active:scale-95 transition duration-150"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg bg-pink-50 px-2.5 py-1 text-[11px] font-bold text-pink-700 border border-pink-200/60 active:scale-95 transition"
                           >
-                            <Instagram size={14} />
+                            <InstagramIcon size={12} />
                             <span>Instagram</span>
-                            <ExternalLink size={11} className="opacity-80" />
+                            <ExternalLink size={9} className="opacity-50" />
                           </a>
                         )}
 
-                        {fbUrl && (
+                        {fbLink && (
                           <a
-                            href={fbUrl}
+                            href={fbLink}
                             target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#1877F2] py-2.5 px-3 text-xs font-black text-white shadow-xs hover:bg-[#166fe5] active:scale-95 transition duration-150"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 border border-blue-200/60 active:scale-95 transition"
                           >
-                            <Facebook size={14} />
+                            <FacebookIcon size={12} />
                             <span>Facebook</span>
-                            <ExternalLink size={11} className="opacity-80" />
+                            <ExternalLink size={9} className="opacity-50" />
                           </a>
                         )}
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-stone-400 pt-1 border-t border-stone-100">
-                        <span>Pillar of Family</span>
-                        <span className="text-amber-700 font-bold">#TogetherForever</span>
+                    </div>
+
+                    {isCommentOpen && (
+                      <div className="mt-3 pt-3 border-t border-stone-100 space-y-2.5">
+                        {memberComments.length > 0 ? (
+                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                            {memberComments.map((c, i) => (
+                              <div key={i} className="rounded-xl bg-stone-50 p-2 text-xs">
+                                <div className="flex justify-between items-center font-bold text-stone-800">
+                                  <span>{c.name}</span>
+                                  <span className="text-[10px] text-stone-400 font-normal">{c.time}</span>
+                                </div>
+                                <p className="text-stone-600 mt-0.5 leading-snug">{c.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-stone-400 italic">No wishes posted yet. Be the first to leave a wish!</p>
+                        )}
+
+                        <div className="space-y-1.5 bg-stone-50/70 p-2.5 rounded-2xl border border-stone-200/60">
+                          <input
+                            type="text"
+                            placeholder="Your Name"
+                            value={guestNameInput}
+                            onChange={(e) => setGuestNameInput(e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-rose-400"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              placeholder="Write a sweet wish..."
+                              value={commentInput}
+                              onChange={(e) => setCommentInput(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && handleAddComment(cardId)}
+                              className="flex-1 bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-rose-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleAddComment(cardId)}
+                              className="h-8 w-8 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs active:scale-95 transition"
+                            >
+                              <Send size={13} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -258,10 +400,10 @@ export default function FamilyPage() {
               );
             })
           )}
-        </div>
+        </main>
 
         <BottomNavigation />
-      </main>
+      </div>
     </MobileContainer>
   );
 }
