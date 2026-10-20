@@ -128,9 +128,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
     ]);
     const [newTrackTitle, setNewTrackTitle] = useState("");
     const [newTrackUrl, setNewTrackUrl] = useState("");
-  const [familyMembers,
-          musicEnabled,
-          musicTracks, setFamilyMembers] = useState<any[]>([
+  const [familyMembers, setFamilyMembers] = useState<any[]>([
     { id: 1, name: "Key Host", relation: "Host & Coordinator", photoUrl: "", instagramUrl: "", facebookUrl: "" }
   ]);
   const [memName, setMemName] = useState("");
