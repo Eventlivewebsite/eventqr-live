@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Home, Image, Video, Mail } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,10 +12,16 @@ export default function BottomNavigation() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
-      const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
-      setSlug(s);
+      const urlSlug = sp.get("event") || sp.get("slug") || "";
+      if (urlSlug) {
+        setSlug(urlSlug);
+        sessionStorage.setItem("active_event_slug", urlSlug);
+      } else {
+        const cached = sessionStorage.getItem("active_event_slug") || "";
+        if (cached) setSlug(cached);
+      }
     }
-  }, []);
+  }, [pathname]);
 
   const menus = [
     { title: "Home", icon: Home, path: "/" },
@@ -25,8 +31,9 @@ export default function BottomNavigation() {
   ];
 
   const handleNav = (targetPath: string) => {
-    if (slug) {
-      router.push(`${targetPath}?slug=${encodeURIComponent(slug)}`);
+    const activeSlug = slug || (typeof window !== "undefined" ? sessionStorage.getItem("active_event_slug") || "" : "");
+    if (activeSlug) {
+      router.push(`${targetPath}?slug=${encodeURIComponent(activeSlug)}`);
     } else {
       router.push(targetPath);
     }

@@ -78,7 +78,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Unified Categories extraction from custom fields
+    // Unified Categories extraction
     let categoriesList: string[] = [];
     const possibleCategoryKeys = [
       "photoCategories",
@@ -108,6 +108,17 @@ export async function GET(request: Request) {
       }
     }
 
+    // Section 3: Digital Invitation Data (Exact field checks from Admin Form)
+    const inviteData = {
+      badgeTitle: customMap["topBadgeTitle"] || customMap["topBadge"] || customMap["badgeTitle"] || "OFFICIAL INVITATION",
+      initials: customMap["initials"] || customMap["coupleNames"] || customMap["names"] || event.title || "A & S",
+      tagline: customMap["tagline"] || event.settings?.subtitle || customMap["subtitle"] || "Together Forever",
+      invitationMessage: customMap["invitationMessage"] || customMap["message"] || customMap["inviteMessage"] || "We cordially invite you to celebrate this special occasion with us.",
+      displayDateText: customMap["displayDateText"] || customMap["dateText"] || "",
+      displayTimeText: customMap["displayTimeText"] || customMap["timeText"] || "",
+      displayVenueText: customMap["displayVenueText"] || customMap["venueText"] || event.location || customMap["venueName"] || "",
+    };
+
     const res = NextResponse.json({
       success: true,
       event: {
@@ -121,11 +132,12 @@ export async function GET(request: Request) {
         timelines: customMap["timelines"] || event.timelines || [],
         photoCategories: categoriesList,
         categoriesList,
+        inviteData,
         customMap,
       },
     });
 
-    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
+    res.headers.set("Cache-Control", "no-store, max-age=0");
     return res;
   } catch (err: any) {
     console.error("EVENT_DATA_API_ERROR:", err);

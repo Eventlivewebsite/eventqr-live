@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, Calendar, Clock, MapPin, Heart } from "lucide-react";
@@ -9,30 +9,39 @@ import BottomNavigation from "../components/navigation/BottomNavigation";
 export default function InvitationPage() {
   const router = useRouter();
   const [data, setData] = useState({
-    badge: "EVENT INVITATION",
-    initials: "CELEBRATION",
+    badge: "OFFICIAL INVITATION",
+    initials: "A & S",
     tagline: "Together Forever",
-    message: "Together with our families we request the honour of your presence to celebrate with us.",
-    dateText: "Upcoming Date",
-    timeText: "Time TBD",
-    venueText: "Venue Location"
+    message: "We cordially invite you to celebrate this special occasion with us.",
+    dateText: "October 19, 2026",
+    timeText: "06:00 PM Onwards",
+    venueText: "KHARAGPUR"
   });
 
   useEffect(() => {
     async function loadData() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
+        let activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
+        
+        if (!activeSlug && typeof window !== "undefined") {
+          activeSlug = sessionStorage.getItem("active_event_slug") || "";
+        }
+        if (activeSlug && typeof window !== "undefined") {
+          sessionStorage.setItem("active_event_slug", activeSlug);
+        }
+
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
         const json = await res.json();
         
         if (json?.success && json?.event) {
           const ev = json.event;
+          const inv = ev.inviteData || {};
+          const cm = ev.customMap || {};
 
-          // Format readable date from eventDate if available
-          let formattedDate = "Special Occasion";
-          let formattedTime = "07:00 PM Onwards";
-          if (ev.eventDate) {
+          // Date fallback
+          let formattedDate = inv.displayDateText || cm.displayDateText || cm.dateText;
+          if (!formattedDate && ev.eventDate) {
             try {
               const d = new Date(ev.eventDate);
               formattedDate = d.toLocaleDateString("en-US", {
@@ -40,28 +49,23 @@ export default function InvitationPage() {
                 month: "long",
                 year: "numeric"
               });
-              formattedTime = d.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true
-              }) + " Onwards";
             } catch {}
           }
 
-          // If timelines exist, take the first timeline time
-          if (Array.isArray(ev.timelines) && ev.timelines.length > 0) {
-            const firstT = ev.timelines[0];
-            if (firstT.time) formattedTime = firstT.time;
+          // Time fallback
+          let formattedTime = inv.displayTimeText || cm.displayTimeText || cm.timeText;
+          if (!formattedTime && Array.isArray(ev.timelines) && ev.timelines.length > 0) {
+            formattedTime = ev.timelines[0].timeText || ev.timelines[0].time || "06:00 PM Onwards";
           }
 
           setData({
-            badge: ev.inviteBadge || "OFFICIAL INVITATION",
-            initials: ev.title || "A & S",
-            tagline: ev.subtitle || "Together Forever",
-            message: ev.inviteMessage || "Together with our families we request the honour of your presence to celebrate our special day and blessings.",
-            dateText: ev.inviteDateText || formattedDate,
-            timeText: ev.inviteTimeText || formattedTime,
-            venueText: ev.location || "Venue Location"
+            badge: inv.badgeTitle || cm.topBadgeTitle || cm.topBadge || "OFFICIAL INVITATION",
+            initials: inv.initials || cm.initials || cm.coupleNames || ev.title || "A & S",
+            tagline: inv.tagline || cm.tagline || ev.subtitle || "Together Forever",
+            message: inv.invitationMessage || cm.invitationMessage || cm.message || "We cordially invite you to celebrate this special occasion with us.",
+            dateText: formattedDate || "October 19, 2026",
+            timeText: formattedTime || "06:00 PM Onwards",
+            venueText: inv.displayVenueText || cm.displayVenueText || cm.venueText || ev.location || "KHARAGPUR"
           });
         }
       } catch (err) {
