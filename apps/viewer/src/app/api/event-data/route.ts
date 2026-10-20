@@ -71,7 +71,7 @@ export async function GET(request: Request) {
       customMap[cf.fieldName] = val;
     }
 
-    // Parse Key People / Family Members (Section 7)
+    // Family members
     let familyMembers: any[] = [];
     const possibleFamilyKeys = ["familyMembers", "keyPeople", "vips", "teamAndFamily", "members"];
     for (const k of possibleFamilyKeys) {
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Unified Categories (Section 4)
+    // Categories
     let categoriesList: string[] = [];
     const possibleCategoryKeys = ["photoCategories", "categories", "activeCategories", "unifiedCategories", "categoriesList"];
     for (const key of possibleCategoryKeys) {
@@ -112,6 +112,39 @@ export async function GET(request: Request) {
       }
     }
 
+    // Slideshow Photos parsing
+    let highlightPhotos: string[] = [];
+    const rawPhotos = customMap["highlightPhotos"];
+    if (Array.isArray(rawPhotos)) {
+      highlightPhotos = rawPhotos.filter(Boolean);
+    } else if (typeof rawPhotos === "string" && rawPhotos.trim()) {
+      try {
+        const parsed = JSON.parse(rawPhotos);
+        if (Array.isArray(parsed)) highlightPhotos = parsed.filter(Boolean);
+      } catch {}
+    }
+
+    // Music Tracks parsing
+    let musicTracks: any[] = [];
+    const rawMusic = customMap["musicTracks"] || customMap["playlist"];
+    if (Array.isArray(rawMusic)) {
+      musicTracks = rawMusic;
+    } else if (typeof rawMusic === "string" && rawMusic.trim()) {
+      try {
+        const parsed = JSON.parse(rawMusic);
+        if (Array.isArray(parsed)) musicTracks = parsed;
+      } catch {}
+    }
+
+    // Default sample tracks if music enabled but list empty
+    const musicEnabled = customMap["musicEnabled"] === true || customMap["musicEnabled"] === "true" || customMap["showMusic"] === true || customMap["showMusic"] === "true";
+    if (musicTracks.length === 0 && musicEnabled) {
+      musicTracks = [
+        { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" },
+        { id: 2, title: "Acoustic Romantic Melodies", artist: "Live Strings", url: "https://actions.google.com/sounds/v1/water/rain_heavy.ogg" }
+      ];
+    }
+
     const inviteData = {
       badgeTitle: customMap["topBadgeTitle"] || customMap["topBadge"] || customMap["badgeTitle"] || "OFFICIAL INVITATION",
       initials: customMap["initials"] || customMap["coupleNames"] || customMap["names"] || event.title || "A & S",
@@ -131,6 +164,13 @@ export async function GET(request: Request) {
         subtitle: event.settings?.subtitle || customMap["subtitle"] || "",
         location: event.location || customMap["venueName"] || "",
         eventDate: event.eventDate,
+        highlightType: customMap["highlightType"] || "video",
+        highlightVideoUrl: customMap["highlightVideoUrl"] || "",
+        highlightPhotos,
+        ceremonyName: customMap["ceremonyName"] || "Main Ceremony",
+        ourStoryUrl: customMap["ourStoryUrl"] || "",
+        musicEnabled,
+        musicTracks,
         timelines: customMap["timelines"] || event.timelines || [],
         photoCategories: categoriesList,
         categoriesList,

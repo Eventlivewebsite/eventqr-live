@@ -122,7 +122,15 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
   // 7. VIP & Key Members
   const [showFamily, setShowFamily] = useState(true);
-  const [familyMembers, setFamilyMembers] = useState<any[]>([
+    const [musicEnabled, setMusicEnabled] = useState(true);
+    const [musicTracks, setMusicTracks] = useState<any[]>([
+      { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" }
+    ]);
+    const [newTrackTitle, setNewTrackTitle] = useState("");
+    const [newTrackUrl, setNewTrackUrl] = useState("");
+  const [familyMembers,
+          musicEnabled,
+          musicTracks, setFamilyMembers] = useState<any[]>([
     { id: 1, name: "Key Host", relation: "Host & Coordinator", photoUrl: "", instagramUrl: "", facebookUrl: "" }
   ]);
   const [memName, setMemName] = useState("");
@@ -130,6 +138,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [memPhoto, setMemPhoto] = useState("");
   const [memInsta, setMemInsta] = useState("");
   const [memFb, setMemFb] = useState("");
+    const [memVip, setMemVip] = useState(false);
+    const [memDesc, setMemDesc] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -174,6 +184,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           if (cm.showTimeline !== undefined) setShowTimeline(cm.showTimeline === "true");
           if (cm.showFoodMenu !== undefined) setShowFoodMenu(cm.showFoodMenu === "true");
           if (cm.showFamily !== undefined) setShowFamily(cm.showFamily === "true");
+            if (cm.musicEnabled !== undefined) setMusicEnabled(cm.musicEnabled === "true" || cm.musicEnabled === true);
+            try { if (cm.musicTracks) setMusicTracks(JSON.parse(cm.musicTracks)); } catch {}
         }
       } catch (e) {
         console.error(e);
@@ -261,6 +273,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         foodItems,
         showFamily,
         familyMembers,
+          musicEnabled,
+          musicTracks,
       };
 
       const res = await fetch(`/api/events/${eventId}/configure`, {
@@ -815,7 +829,85 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Users className="text-amber-500 h-5 w-5" /> 7. Key People & VIPs
+              <Music className="text-rose-500 h-5 w-5" /> 6. Background Music & DJ Tracks
+              </h2>
+              <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={musicEnabled}
+                  onChange={e => setMusicEnabled(e.target.checked)}
+                  className="accent-rose-500 h-4 w-4"
+                />
+                Event Music ON
+              </label>
+            </div>
+
+            {musicEnabled && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-amber-50/40 p-4 rounded-2xl border border-amber-200">
+                  <input
+                    type="text"
+                    placeholder="Track Title (e.g. Wedding Theme)"
+                    value={newTrackTitle}
+                    onChange={e => setNewTrackTitle(e.target.value)}
+                    className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Audio URL (https://...mp3)"
+                    value={newTrackUrl}
+                    onChange={e => setNewTrackUrl(e.target.value)}
+                    className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none"
+                  />
+                  <label className="cursor-pointer bg-white border border-amber-300 text-amber-900 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-50">
+                    <Upload size={14} /> Upload Audio
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={e => {
+                        if (e.target.files?.[0]) {
+                          handleProcessMedia(e.target.files[0], url => setNewTrackUrl(url));
+                        }
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newTrackTitle.trim() && newTrackUrl.trim()) {
+                        setMusicTracks([...musicTracks, { id: Date.now(), title: newTrackTitle.trim(), artist: "Live Event", url: newTrackUrl.trim() }]);
+                        setNewTrackTitle("");
+                        setNewTrackUrl("");
+                      }
+                    }}
+                    className="bg-stone-900 text-white rounded-xl text-xs font-bold hover:bg-black transition"
+                  >
+                    + Add Track
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {musicTracks.map(t => (
+                    <div key={t.id} className="flex justify-between items-center p-3 border rounded-2xl bg-gray-50 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Disc3 size={16} className="text-rose-500" />
+                        <span className="font-bold text-gray-900">{t.title}</span>
+                      </div>
+                      <button type="button" onClick={() => setMusicTracks(musicTracks.filter(x => x.id !== t.id))} className="text-red-500 font-bold hover:underline">
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Users className="text-amber-500 h-5 w-5" /> 7. Key People & VIPs
             </h2>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
               <input
@@ -876,7 +968,9 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   type="button"
                   onClick={() => {
                     if (memName.trim()) {
-                      setFamilyMembers([...familyMembers, { id: Date.now(), name: memName.trim(), relation: memRelation.trim() || "Host", photoUrl: memPhoto, instagramUrl: memInsta.trim(), facebookUrl: memFb.trim() }]);
+                      setFamilyMembers([...familyMembers,
+          musicEnabled,
+          musicTracks, { id: Date.now(), name: memName.trim(), relation: memRelation.trim() || "Host", photoUrl: memPhoto, instagramUrl: memInsta.trim(), facebookUrl: memFb.trim() }]);
                       setMemName("");
                       setMemRelation("");
                       setMemPhoto("");
