@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Heart,  useEffect, useState } from "react";
 import { ArrowLeft, UtensilsCrossed, Wine, Sparkles, Leaf, Flame, MapPin, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MobileContainer from "../components/layout/MobileContainer";

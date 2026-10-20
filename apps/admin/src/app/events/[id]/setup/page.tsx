@@ -3,6 +3,10 @@
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { 
+  Volume2, 
+  VolumeX, 
+  Video, 
+  Plus,  
   Music,
   Disc3,
   ArrowLeft,
@@ -68,7 +72,11 @@ async function compressAndConvertToBase64(file: File): Promise<string> {
   });
 }
 
-export default function EventSetupPage({ params }: { params: Promise<{ id: string }> }) {
+export default function EventSetupPage({
+  params
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const resolvedParams = use(params);
   const eventId = resolvedParams.id;
 
@@ -92,7 +100,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [ourStoryUrl, setOurStoryUrl] = useState("");
   const [ceremonyName, setCeremonyName] = useState("Main Ceremony");
 
-  // 3. Invitation Card Customizer
+  // 3. Digital Invitation Card Customizer
   const [inviteBadge, setInviteBadge] = useState("OFFICIAL INVITATION");
   const [inviteCoupleInitials, setInviteCoupleInitials] = useState("A & S");
   const [inviteTagline, setInviteTagline] = useState("Together Forever");
@@ -102,11 +110,21 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [inviteVenueText, setInviteVenueText] = useState("");
 
   // 4. Unified Categories & Decoration Hub
-  const [commonCategories, setCommonCategories] = useState<string[]>(["Ceremony", "Stage", "Celebrations", "Family", "Guests"]);
+  const [commonCategories, setCommonCategories] = useState<string[]>([
+    "Ceremony",
+    "Stage",
+    "Celebrations",
+    "Family",
+    "Guests"
+  ]);
   const [newCategory, setNewCategory] = useState("");
 
   const [decorationAlbums, setDecorationAlbums] = useState<string[]>([
-    "Main Stage", "Entrance Gate", "Floral Decor", "Lighting Setup", "VIP Lounge"
+    "Main Stage",
+    "Entrance Gate",
+    "Floral Decor",
+    "Lighting Setup",
+    "VIP Lounge"
   ]);
   const [newDecorItem, setNewDecorItem] = useState("");
 
@@ -132,24 +150,27 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const [dishDesc, setDishDesc] = useState("");
   const [dishPhoto, setDishPhoto] = useState("");
 
-  // 7. VIP & Key Members
+  // 7. Background Music & DJ Controls
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [musicTracks, setMusicTracks] = useState<any[]>([
+    { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" }
+  ]);
+  const [newTrackTitle, setNewTrackTitle] = useState("");
+  const [newTrackUrl, setNewTrackUrl] = useState("");
+
+  // 8. Key People & VIPs
   const [showFamily, setShowFamily] = useState(true);
-    const [musicEnabled, setMusicEnabled] = useState(true);
-    const [musicTracks, setMusicTracks] = useState<any[]>([
-      { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" }
-    ]);
-    const [newTrackTitle, setNewTrackTitle] = useState("");
-    const [newTrackUrl, setNewTrackUrl] = useState("");
+  const [familyPrefixTitle, setFamilyPrefixTitle] = useState("The Family Of");
   const [familyMembers, setFamilyMembers] = useState<any[]>([
-    { id: 1, name: "Key Host", relation: "Host & Coordinator", photoUrl: "", instagramUrl: "", facebookUrl: "" }
+    { id: 1, name: "Key Host", relation: "Host & Coordinator", photoUrl: "", instagramUrl: "", facebookUrl: "", isVip: true, description: "Honored pillar and cherished heart of this celebration." }
   ]);
   const [memName, setMemName] = useState("");
   const [memRelation, setMemRelation] = useState("");
   const [memPhoto, setMemPhoto] = useState("");
   const [memInsta, setMemInsta] = useState("");
   const [memFb, setMemFb] = useState("");
-    const [memVip, setMemVip] = useState(false);
-    const [memDesc, setMemDesc] = useState("");
+  const [memVip, setMemVip] = useState(false);
+  const [memDesc, setMemDesc] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -163,8 +184,10 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           setTitle(ev.title || "");
           setVenueName(ev.venueName || ev.location || "");
           setHeroTag(ev.heroTag || "LIVE EVENT");
-          
-          const rawDate = ev.eventDate ? new Date(ev.eventDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }) : "";
+
+          const rawDate = ev.eventDate
+            ? new Date(ev.eventDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
+            : "";
           setLockedEventDate(rawDate);
           setInviteDateText(rawDate || "Event Date");
           setInviteVenueText(ev.venueName || ev.location || "Main Venue");
@@ -176,6 +199,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           if (cm.ourStoryUrl) setOurStoryUrl(cm.ourStoryUrl);
           if (cm.ceremonyName) setCeremonyName(cm.ceremonyName);
 
+          if (cm.familyPrefixTitle) setFamilyPrefixTitle(cm.familyPrefixTitle);
           if (cm.inviteBadge) setInviteBadge(cm.inviteBadge);
           if (cm.inviteCoupleInitials) setInviteCoupleInitials(cm.inviteCoupleInitials);
           if (cm.inviteTagline) setInviteTagline(cm.inviteTagline);
@@ -194,8 +218,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           if (cm.showTimeline !== undefined) setShowTimeline(cm.showTimeline === "true");
           if (cm.showFoodMenu !== undefined) setShowFoodMenu(cm.showFoodMenu === "true");
           if (cm.showFamily !== undefined) setShowFamily(cm.showFamily === "true");
-            if (cm.musicEnabled !== undefined) setMusicEnabled(cm.musicEnabled === "true" || cm.musicEnabled === true);
-            try { if (cm.musicTracks) setMusicTracks(JSON.parse(cm.musicTracks)); } catch {}
+          if (cm.musicEnabled !== undefined) setMusicEnabled(cm.musicEnabled === "true" || cm.musicEnabled === true);
+          try { if (cm.musicTracks) setMusicTracks(JSON.parse(cm.musicTracks)); } catch {}
         }
       } catch (e) {
         console.error(e);
@@ -209,7 +233,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   const handleProcessMedia = async (rawFile: File, cb: (mediaUrl: string) => void) => {
     try {
       setUploading(true);
-      // If it's a video file, upload via FormData to avoid 413 Request Entity Too Large
       if (rawFile.type.startsWith("video/")) {
         const formData = new FormData();
         formData.append("file", rawFile);
@@ -224,34 +247,27 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         if (data && data.url) {
           cb(data.url);
         } else {
-          // If server rejects huge file, notify user to provide direct streamable URL
-          alert("Video upload size exceeds serverless limits. Please provide a direct MP4/stream URL (e.g. Cloudinary, S3, or YouTube).");
+          alert("Video upload size exceeds limit. Please provide a direct stream link.");
         }
         return;
       }
 
-      // For images, compress to lightweight Base64
       const dataUri = await compressAndConvertToBase64(rawFile);
       cb(dataUri);
     } catch (e: any) {
-      alert("Media processing error: " + e.message);
+      alert("Media error: " + e.message);
     } finally {
       setUploading(false);
     }
   };
 
   const handlePublishAll = async () => {
-    if (highlightVideoUrl && highlightVideoUrl.startsWith("data:video/") && highlightVideoUrl.length > 2500000) {
-      alert("Uploaded video is too large. Please use a video URL or a short clip under 2MB.");
-      return;
-    }
     setSaving(true);
     setMsg("");
     try {
-      // Safety guard: Prevent submitting oversized Base64 video strings
       let sanitizedVideoUrl = highlightVideoUrl;
       if (sanitizedVideoUrl.startsWith("data:video/") && sanitizedVideoUrl.length > 2000000) {
-        alert("The uploaded video file is too large to save directly. Please paste a direct video MP4 URL or use a smaller clip under 2MB.");
+        alert("Video too large. Please paste a direct video MP4 URL.");
         setSaving(false);
         return;
       }
@@ -282,9 +298,10 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
         showFoodMenu,
         foodItems,
         showFamily,
+        familyPrefixTitle,
         familyMembers,
-          musicEnabled,
-          musicTracks,
+        musicEnabled,
+        musicTracks,
       };
 
       const res = await fetch(`/api/events/${eventId}/configure`, {
@@ -317,8 +334,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-gray-900">
       <div className="max-w-5xl mx-auto space-y-6">
-
-        {/* Master Header */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <Link href="/events" className="text-xs font-semibold text-gray-500 flex items-center gap-1 hover:underline mb-2">
@@ -338,7 +353,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 rel="noreferrer"
                 className="text-xs font-bold px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition shadow-sm"
               >
-                Open Live Viewer ?
+                Open Live Viewer ↗
               </a>
             )}
             <button
@@ -354,7 +369,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
         {uploading && (
           <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 font-semibold text-xs flex items-center gap-2">
-            <Loader2 className="animate-spin h-4 w-4 text-amber-600" /> Compressing & applying photo...
+            <Loader2 className="animate-spin h-4 w-4 text-amber-600" /> Compressing & applying media...
           </div>
         )}
 
@@ -364,7 +379,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* 1. Basic Metadata (Locked to Request Dates) */}
+        {/* 1. Basic Metadata */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2 border-b pb-3">
             <MapPin className="text-amber-500 h-5 w-5" /> 1. Event Headings & Venue Details
@@ -376,7 +391,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. A & S Wedding"
+                placeholder="e.g. Wasim"
                 className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
@@ -396,23 +411,23 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 type="text"
                 value={venueName}
                 onChange={e => setVenueName(e.target.value)}
-                placeholder="e.g. Jaipur Palace, Rajasthan"
+                placeholder="e.g. Kharagpur"
                 className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
           </div>
           {lockedEventDate && (
             <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-xl font-semibold">
-              ?? Event Scheduled Date: <span className="font-bold">{lockedEventDate}</span> (Locked directly from the approved event request)
+              Event Scheduled Date: <span className="font-bold">{lockedEventDate}</span>
             </div>
           )}
         </div>
 
-        {/* 2. Hero Highlights & Countdown Card */}
+        {/* 2. Hero Banner & Countdown Card */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Film className="text-amber-500 h-5 w-5" /> 2. Hero Banner & Countdown Card
+              <Film className="text-amber-500 h-5 w-5" /> 2. Hero Banner Media & Ceremony Settings
             </h2>
             <div className="flex items-center bg-gray-100 p-1 rounded-xl">
               <button
@@ -420,26 +435,26 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                 onClick={() => setHighlightType("video")}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${highlightType === "video" ? "bg-white text-gray-900 shadow" : "text-gray-500"}`}
               >
-                Highlight Video
+                Loop Video
               </button>
               <button
                 type="button"
                 onClick={() => setHighlightType("photos")}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${highlightType === "photos" ? "bg-white text-gray-900 shadow" : "text-gray-500"}`}
               >
-                Slideshow Photos
+                4s Photo Slideshow
               </button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Ceremony / Stage Name (In Countdown Card)</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Ceremony / Stage Name (In Glow Box)</label>
               <input
                 type="text"
                 value={ceremonyName}
                 onChange={e => setCeremonyName(e.target.value)}
-                placeholder="e.g. Wedding Reception"
+                placeholder="e.g. Main Ceremony"
                 className="mt-1 w-full border border-gray-300 rounded-xl p-3 text-sm text-gray-900 bg-white placeholder-gray-400 outline-none focus:border-amber-500"
               />
             </div>
@@ -457,7 +472,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
 
           {highlightType === "video" ? (
             <div className="space-y-2 pt-2">
-              <label className="text-xs font-bold text-gray-700 uppercase">Highlight Video Stream/MP4 Link</label>
+              <label className="text-xs font-bold text-gray-700 uppercase">Background Video Loop URL (MP4 / WebM)</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -484,7 +499,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           ) : (
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-gray-700 uppercase">Hero Slideshow Photos ({highlightPhotos.length})</label>
+                <label className="text-xs font-bold text-gray-700 uppercase">Hero Slideshow Photos (Min 4 Recommended) ({highlightPhotos.length})</label>
                 <label className="cursor-pointer bg-amber-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-amber-600">
                   <Upload size={13} /> Add Slide Photo
                   <input
@@ -604,7 +619,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <ImageIcon className="text-amber-500 h-5 w-5" /> 4. Unified Categories & Decoration Hub
             </h2>
-            <p className="text-xs text-gray-500 mt-1">Common apartment categories for both Photos & Videos.</p>
+            <p className="text-xs text-gray-500 mt-1">Common categories for Photos & Videos.</p>
           </div>
 
           <div>
@@ -640,7 +655,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             <div className="flex flex-wrap gap-2 mt-2">
               {decorationAlbums.map((item, i) => (
                 <span key={i} className="bg-rose-50 border border-rose-200 text-rose-900 px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-                  ?? {item}
+                  {item}
                   <button type="button" onClick={() => setDecorationAlbums(decorationAlbums.filter((_, idx) => idx !== i))} className="hover:text-red-500 font-bold ml-1">×</button>
                 </span>
               ))}
@@ -704,8 +719,8 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white font-bold outline-none"
                 >
                   <option value="UPCOMING">UPCOMING</option>
-                  <option value="LIVE">?? LIVE NOW</option>
-                  <option value="COMPLETED">?? COMPLETED</option>
+                  <option value="LIVE">LIVE NOW</option>
+                  <option value="COMPLETED">COMPLETED</option>
                 </select>
                 <button
                   type="button"
@@ -774,9 +789,9 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   onChange={e => setDishCat(e.target.value as any)}
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white font-bold outline-none"
                 >
-                  <option value="VEG">?? Veg Dish</option>
-                  <option value="NON_VEG">?? Non-Veg</option>
-                  <option value="DRINK">?? Beverage / Drink</option>
+                  <option value="VEG">Veg Dish</option>
+                  <option value="NON_VEG">Non-Veg</option>
+                  <option value="DRINK">Beverage / Drink</option>
                 </select>
                 <input
                   type="text"
@@ -786,7 +801,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {dishPhoto ? "? Photo Ready" : "Upload Photo"}
+                  <Upload size={14} /> {dishPhoto ? "Photo Ready" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"
@@ -835,89 +850,90 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
 
-        {/* 7. Key Members & VIPs */}
+        {/* 7. Background Music & DJ Controls */}
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Music className="text-rose-500 h-5 w-5" /> 6. Background Music & DJ Tracks
-              </h2>
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={musicEnabled}
-                  onChange={e => setMusicEnabled(e.target.checked)}
-                  className="accent-rose-500 h-4 w-4"
-                />
-                Event Music ON
-              </label>
-            </div>
-
-            {musicEnabled && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-amber-50/40 p-4 rounded-2xl border border-amber-200">
-                  <input
-                    type="text"
-                    placeholder="Track Title (e.g. Wedding Theme)"
-                    value={newTrackTitle}
-                    onChange={e => setNewTrackTitle(e.target.value)}
-                    className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Audio URL (https://...mp3)"
-                    value={newTrackUrl}
-                    onChange={e => setNewTrackUrl(e.target.value)}
-                    className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none"
-                  />
-                  <label className="cursor-pointer bg-white border border-amber-300 text-amber-900 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-50">
-                    <Upload size={14} /> Upload Audio
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      className="hidden"
-                      onChange={e => {
-                        if (e.target.files?.[0]) {
-                          handleProcessMedia(e.target.files[0], url => setNewTrackUrl(url));
-                        }
-                      }}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (newTrackTitle.trim() && newTrackUrl.trim()) {
-                        setMusicTracks([...musicTracks, { id: Date.now(), title: newTrackTitle.trim(), artist: "Live Event", url: newTrackUrl.trim() }]);
-                        setNewTrackTitle("");
-                        setNewTrackUrl("");
-                      }
-                    }}
-                    className="bg-stone-900 text-white rounded-xl text-xs font-bold hover:bg-black transition"
-                  >
-                    + Add Track
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {musicTracks.map(t => (
-                    <div key={t.id} className="flex justify-between items-center p-3 border rounded-2xl bg-gray-50 text-xs">
-                      <div className="flex items-center gap-2">
-                        <Disc3 size={16} className="text-rose-500" />
-                        <span className="font-bold text-gray-900">{t.title}</span>
-                      </div>
-                      <button type="button" onClick={() => setMusicTracks(musicTracks.filter(x => x.id !== t.id))} className="text-red-500 font-bold hover:underline">
-                        Delete
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              <Music className="text-rose-500 h-5 w-5" /> 7. Background Music & DJ Controls
+            </h2>
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={musicEnabled}
+                onChange={e => setMusicEnabled(e.target.checked)}
+                className="accent-rose-500 h-4 w-4"
+              />
+              Event Music ON
+            </label>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Users className="text-amber-500 h-5 w-5" /> 7. Key People & VIPs
+          {musicEnabled && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-amber-50/40 p-4 rounded-2xl border border-amber-200">
+                <input
+                  type="text"
+                  placeholder="Track Title (e.g. Wedding Theme)"
+                  value={newTrackTitle}
+                  onChange={e => setNewTrackTitle(e.target.value)}
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Audio URL (https://...mp3)"
+                  value={newTrackUrl}
+                  onChange={e => setNewTrackUrl(e.target.value)}
+                  className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none"
+                />
+                <label className="cursor-pointer bg-white border border-amber-300 text-amber-900 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-50">
+                  <Upload size={14} /> Upload Audio
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={e => {
+                      if (e.target.files?.[0]) {
+                        handleProcessMedia(e.target.files[0], url => setNewTrackUrl(url));
+                      }
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newTrackTitle.trim() && newTrackUrl.trim()) {
+                      setMusicTracks([...musicTracks, { id: Date.now(), title: newTrackTitle.trim(), artist: "Live Event", url: newTrackUrl.trim() }]);
+                      setNewTrackTitle("");
+                      setNewTrackUrl("");
+                    }
+                  }}
+                  className="bg-stone-900 text-white rounded-xl text-xs font-bold hover:bg-black transition"
+                >
+                  + Add Track
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {musicTracks.map(t => (
+                  <div key={t.id} className="flex justify-between items-center p-3 border rounded-2xl bg-gray-50 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Disc3 size={16} className="text-rose-500" />
+                      <span className="font-bold text-gray-900">{t.title}</span>
+                    </div>
+                    <button type="button" onClick={() => setMusicTracks(musicTracks.filter(x => x.id !== t.id))} className="text-red-500 font-bold hover:underline">
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 8. Key People & VIPs */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Users className="text-amber-500 h-5 w-5" /> 8. Key People & VIPs (Family Tab)
             </h2>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
               <input
@@ -931,7 +947,18 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {showFamily && (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-700 uppercase">Custom Family Header Prefix</label>
+                <input
+                  type="text"
+                  value={familyPrefixTitle}
+                  onChange={e => setFamilyPrefixTitle(e.target.value)}
+                  placeholder="The Family Of"
+                  className="mt-1 w-full max-w-sm border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white outline-none focus:border-amber-500"
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3 bg-rose-50/40 p-4 rounded-2xl border border-rose-200">
                 <input
                   type="text"
@@ -962,7 +989,7 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   className="border border-gray-300 rounded-xl p-2.5 text-xs text-gray-900 bg-white placeholder-gray-400 outline-none"
                 />
                 <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50">
-                  <Upload size={14} /> {memPhoto ? "? Photo Set" : "Upload Photo"}
+                  <Upload size={14} /> {memPhoto ? "Photo Set" : "Upload Photo"}
                   <input
                     type="file"
                     accept="image/*"
@@ -978,14 +1005,26 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
                   type="button"
                   onClick={() => {
                     if (memName.trim()) {
-                      setFamilyMembers([...familyMembers,
-          musicEnabled,
-          musicTracks, { id: Date.now(), name: memName.trim(), relation: memRelation.trim() || "Host", photoUrl: memPhoto, instagramUrl: memInsta.trim(), facebookUrl: memFb.trim() }]);
+                      setFamilyMembers([
+                        ...familyMembers,
+                        {
+                          id: Date.now(),
+                          name: memName.trim(),
+                          relation: memRelation.trim() || "Host",
+                          photoUrl: memPhoto,
+                          instagramUrl: memInsta.trim(),
+                          facebookUrl: memFb.trim(),
+                          isVip: memVip,
+                          description: memDesc.trim()
+                        }
+                      ]);
                       setMemName("");
                       setMemRelation("");
                       setMemPhoto("");
                       setMemInsta("");
                       setMemFb("");
+                      setMemVip(false);
+                      setMemDesc("");
                     }
                   }}
                   className="bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition"
@@ -1011,7 +1050,6 @@ export default function EventSetupPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

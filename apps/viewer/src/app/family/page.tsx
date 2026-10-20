@@ -147,6 +147,7 @@ export default function FamilyPage() {
       [id]: [...(prev[id] || []), optimistic]
     }));
     setCommentInput("");
+    setOpenCommentId(null);
 
     try {
       await fetch("/api/family-interactions", {
