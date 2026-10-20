@@ -13,6 +13,22 @@ export default function GalleryPage() {
   return (
     <MobileContainer>
 
+      <style jsx global>{`
+        @keyframes luxuryColorFlow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animated-event-heading {
+          background: linear-gradient(-45deg, #d97706, #e11d48, #9333ea, #2563eb, #b45309);
+          background-size: 300% 300%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: luxuryColorFlow 5s ease-in-out infinite;
+        }
+      `}</style>
+    
+
       <GalleryHeader
         onMenuClick={() => setDrawerOpen(true)}
       />

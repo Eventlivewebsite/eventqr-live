@@ -266,13 +266,13 @@ export default function FamilyPage() {
                   className="group relative overflow-hidden rounded-[26px] bg-white shadow-sm border border-stone-200/80 transition"
                 >
                   {/* Photo Frame */}
-                  <div className="relative h-64 w-full overflow-hidden bg-stone-900">
+                  <div className="relative aspect-[4/5] min-h-[320px] max-h-[460px] w-full overflow-hidden bg-stone-950">
                     {m.photoUrl ? (
                       <Image
                         src={m.photoUrl}
                         alt={m.name}
                         fill
-                        className="object-cover object-top transition duration-500 group-hover:scale-102"
+                        className="object-cover object-center transition duration-500 group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-amber-900/40 via-stone-900 to-stone-950 text-white">
