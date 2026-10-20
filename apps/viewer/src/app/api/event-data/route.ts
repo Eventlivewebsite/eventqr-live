@@ -4,6 +4,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
@@ -69,26 +71,28 @@ export async function GET(request: Request) {
       customMap[cf.fieldName] = val;
     }
 
-    let foodItems = customMap["foodItems"] || [];
-    if (typeof foodItems === "string") {
-      try {
-        foodItems = JSON.parse(foodItems);
-      } catch {
-        foodItems = [];
+    // Parse Key People / Family Members (Section 7)
+    let familyMembers: any[] = [];
+    const possibleFamilyKeys = ["familyMembers", "keyPeople", "vips", "teamAndFamily", "members"];
+    for (const k of possibleFamilyKeys) {
+      const candidate = customMap[k];
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        familyMembers = candidate;
+        break;
+      } else if (typeof candidate === "string" && candidate.trim()) {
+        try {
+          const parsed = JSON.parse(candidate);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            familyMembers = parsed;
+            break;
+          }
+        } catch {}
       }
     }
 
-    // Unified Categories extraction
+    // Unified Categories (Section 4)
     let categoriesList: string[] = [];
-    const possibleCategoryKeys = [
-      "photoCategories",
-      "categories",
-      "activeCategories",
-      "unifiedCategories",
-      "categoriesList",
-      "eventCategories"
-    ];
-
+    const possibleCategoryKeys = ["photoCategories", "categories", "activeCategories", "unifiedCategories", "categoriesList"];
     for (const key of possibleCategoryKeys) {
       const candidate = customMap[key];
       if (Array.isArray(candidate) && candidate.length > 0) {
@@ -108,7 +112,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // Section 3: Digital Invitation Data (Exact field checks from Admin Form)
     const inviteData = {
       badgeTitle: customMap["topBadgeTitle"] || customMap["topBadge"] || customMap["badgeTitle"] || "OFFICIAL INVITATION",
       initials: customMap["initials"] || customMap["coupleNames"] || customMap["names"] || event.title || "A & S",
@@ -128,16 +131,18 @@ export async function GET(request: Request) {
         subtitle: event.settings?.subtitle || customMap["subtitle"] || "",
         location: event.location || customMap["venueName"] || "",
         eventDate: event.eventDate,
-        foodItems: Array.isArray(foodItems) ? foodItems : [],
         timelines: customMap["timelines"] || event.timelines || [],
         photoCategories: categoriesList,
         categoriesList,
+        familyMembers,
         inviteData,
         customMap,
       },
     });
 
-    res.headers.set("Cache-Control", "no-store, max-age=0");
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
     return res;
   } catch (err: any) {
     console.error("EVENT_DATA_API_ERROR:", err);

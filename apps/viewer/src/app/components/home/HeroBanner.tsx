@@ -1,203 +1,103 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { Play, Heart, MapPin, X } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { Play, Heart, MapPin, Radio } from "lucide-react";
 
 export default function HeroBanner() {
-  const [data, setData] = useState({
-    title: "",
-    location: "",
-    heroTag: "LIVE EVENT",
-    ceremonyName: "Wedding Reception",
-    bannerPhotos: [
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"
-    ],
-    highlightVideoUrl: "",
-    targetDate: null as Date | null,
-  });
-
-  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 14, seconds: 36 });
+  const [slug, setSlug] = useState("");
+  const [title, setTitle] = useState("Live Event");
+  const [subtitle, setSubtitle] = useState("Forever Begins Today");
+  const [location, setLocation] = useState("Kharagpur");
+  const [coverUrl, setCoverUrl] = useState("/images/hero-couple.jpg");
 
   useEffect(() => {
-    async function loadHero() {
+    async function loadData() {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`).catch(() => null);
-        const json = res ? await res.json().catch(() => null) : null;
-        
+        const sp = new URLSearchParams(window.location.search);
+        let s = sp.get("event") || sp.get("slug") || "";
+        if (!s && typeof window !== "undefined") {
+          s = sessionStorage.getItem("active_event_slug") || "";
+        }
+        if (s) {
+          setSlug(s);
+          sessionStorage.setItem("active_event_slug", s);
+        }
+
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(s)}&_t=${Date.now()}`, { cache: "no-store" });
+        const json = await res.json();
         if (json?.success && json?.event) {
           const ev = json.event;
-          const photos = (ev.photos && ev.photos.length > 0)
-            ? ev.photos.map((p: any) => p.url)
-            : ["https://images.unsplash.com/photo-1519741497674-611481863552?w=1200"];
-
-          setData({
-            title: ev.title || "Event Celebration",
-            location: ev.location || "Kharagpur",
-            heroTag: ev.customMap?.heroTag || "LIVE EVENT",
-            ceremonyName: "Wedding Reception",
-            bannerPhotos: photos,
-            highlightVideoUrl: (ev.videos && ev.videos[0]?.url) || "",
-            targetDate: ev.eventDate ? new Date(ev.eventDate) : null,
-          });
+          if (ev.title) setTitle(ev.title);
+          if (ev.subtitle) setSubtitle(ev.subtitle);
+          if (ev.location) setLocation(ev.location);
+          if (ev.customMap?.coverImage || ev.customMap?.bannerImage) {
+            setCoverUrl(ev.customMap.coverImage || ev.customMap.bannerImage);
+          }
         }
-      } catch (e) {
-        console.error("Failed to load hero banner", e);
+      } catch (err) {
+        console.error("HeroBanner load error", err);
       }
     }
-    loadHero();
+    loadData();
   }, []);
 
-  useEffect(() => {
-    if (data.bannerPhotos.length <= 1) return;
-    const slideTimer = setInterval(() => {
-      setActivePhotoIdx(prev => (prev + 1) % data.bannerPhotos.length);
-    }, 4500);
-    return () => clearInterval(slideTimer);
-  }, [data.bannerPhotos]);
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      if (!data.targetDate || isNaN(data.targetDate.getTime())) return;
-      const now = new Date().getTime();
-      const difference = data.targetDate.getTime() - now;
-      if (difference > 0) {
-        const hours = Math.floor(difference / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-        setTimeLeft({ hours, minutes, seconds });
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [data.targetDate]);
-
-  const padZero = (n: number) => n.toString().padStart(2, "0");
-
   return (
-    <div className="relative mx-3.5 mt-2 mb-3.5">
-      <style jsx>{`
-        @keyframes timingAura {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .timing-aura {
-          background: linear-gradient(135deg, rgba(236,72,153,0.35), rgba(245,158,11,0.35), rgba(139,92,246,0.35), rgba(6,182,212,0.35));
-          background-size: 300% 300%;
-          animation: timingAura 6s ease infinite;
-        }
-      `}</style>
-
-      {/* Classic Luxury Rounded Card */}
-      <div className="relative h-[325px] w-full overflow-hidden rounded-[2rem] shadow-xl ring-1 ring-black/10">
-        {data.bannerPhotos.map((photo, idx) => (
-          <img
-            key={idx}
-            src={photo}
-            alt="Cover"
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-              idx === activePhotoIdx ? "opacity-100" : "opacity-0"
-            }`}
+    <section className="px-3.5 pt-2">
+      <div className="relative overflow-hidden rounded-[28px] bg-stone-950 p-4 pt-4 shadow-xl border border-stone-800">
+        {/* Background Image with Ambient Glow */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src={coverUrl}
+            alt="Event Cover"
+            fill
+            priority
+            className="object-cover opacity-45 scale-105 transition-all duration-700"
           />
-        ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/60 to-transparent" />
+        </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/25" />
-
-        <div className="relative flex h-full flex-col justify-between p-4 text-white">
-          <div className="flex items-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase text-white shadow-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-              {data.heroTag}
-            </span>
+        {/* Live Badge */}
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/90 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-xs backdrop-blur-xs">
+            <Radio size={11} className="animate-pulse text-white" />
+            Live Event
           </div>
+        </div>
 
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-black tracking-tight text-white capitalize leading-tight drop-shadow-md">
-                {data.title}
-              </h2>
-              {data.location && (
-                <p className="flex items-center gap-1 text-xs font-medium text-stone-200 capitalize drop-shadow">
-                  <MapPin className="h-3.5 w-3.5 text-amber-400" />
-                  {data.location}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => {
-                  if (data.highlightVideoUrl) setShowVideoModal(true);
-                  else alert("Live highlights will begin shortly!");
-                }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white py-2.5 px-4 text-xs font-extrabold text-stone-900 shadow-md transition-all duration-200 hover:bg-stone-100 active:scale-95"
-              >
-                <Play className="h-3.5 w-3.5 fill-stone-900" />
-                Watch Highlights
-              </button>
-              <button
-                onClick={() => {
-                  const el = document.getElementById("timeline-section");
-                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/25 bg-black/45 py-2.5 px-4 text-xs font-extrabold text-white backdrop-blur-md transition-all duration-200 hover:bg-black/60 active:scale-95"
-              >
-                <Heart className="h-3.5 w-3.5" />
-                Our Story
-              </button>
-            </div>
-
-            {/* Timing Box with Soft Aura */}
-            <div className="timing-aura rounded-2xl border border-white/20 p-[1.5px] shadow-lg backdrop-blur-md">
-              <div className="flex items-center justify-between rounded-2xl bg-black/75 px-4 py-2.5 backdrop-blur-md">
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-amber-300">
-                    CEREMONY
-                  </p>
-                  <p className="text-[13px] font-bold text-white leading-tight mt-0.5">
-                    {data.ceremonyName}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-amber-300">
-                    STARTS IN
-                  </p>
-                  <p className="font-mono text-sm font-black tracking-widest text-white leading-tight mt-0.5">
-                    {padZero(timeLeft.hours)} : {padZero(timeLeft.minutes)} : {padZero(timeLeft.seconds)}
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* Content: Title & Location (Flexible Wrap, no cut) */}
+        <div className="relative z-10 mt-14 mb-3">
+          <h1 className="text-2xl font-black tracking-tight text-white leading-tight break-words">
+            {title}
+          </h1>
+          <p className="text-xs font-medium text-stone-300 mt-0.5 break-words line-clamp-2">
+            {subtitle}
+          </p>
+          <div className="mt-2 flex items-center gap-1 text-[11px] font-bold text-amber-300 break-words">
+            <MapPin size={12} className="flex-shrink-0 text-amber-400" />
+            <span>{location}</span>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="relative z-10 grid grid-cols-2 gap-2 mt-3">
+          <Link
+            href={`/videos?slug=${encodeURIComponent(slug)}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-black text-stone-950 shadow-md transition hover:bg-stone-100 active:scale-95"
+          >
+            <Play size={13} className="fill-stone-950" />
+            Watch Highlights
+          </Link>
+          <Link
+            href={`/invitation?slug=${encodeURIComponent(slug)}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+          >
+            <Heart size={13} className="text-rose-400 fill-rose-400" />
+            Our Story
+          </Link>
         </div>
       </div>
-
-      {showVideoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-black">
-            <button
-              onClick={() => setShowVideoModal(false)}
-              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/40"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div className="aspect-video w-full">
-              <iframe
-                src={data.highlightVideoUrl}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
