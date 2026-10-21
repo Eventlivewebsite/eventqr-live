@@ -1,3 +1,4 @@
+import FloatingMusicPlayer from "../music/FloatingMusicPlayer";
 import { ReactNode } from "react";
 
 type Props = {

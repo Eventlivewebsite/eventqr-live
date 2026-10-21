@@ -57,7 +57,13 @@ export async function GET(request: Request) {
     }
 
     if (!event) {
-      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 });
+      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      }
+    });
     }
 
     const customMap: Record<string, any> = {};
@@ -186,6 +192,12 @@ export async function GET(request: Request) {
     return res;
   } catch (err: any) {
     console.error("EVENT_DATA_API_ERROR:", err);
-    return NextResponse.json({ success: false, message: err?.message || "Internal Error" }, { status: 500 });
+    return NextResponse.json({ success: false, message: err?.message || "Internal Error" }, { status: 500 }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      }
+    });
   }
 }

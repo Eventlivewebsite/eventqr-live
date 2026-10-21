@@ -10,6 +10,30 @@ import VideoFilter from "../components/video/VideoFilter";
 import VideoGrid from "../components/video/VideoGrid";
 
 export default function VideosPage() {
+
+  const [eventName, setEventName] = useState("");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlSlug = sp.get("event") || sp.get("slug") || "";
+      const s = urlSlug || (typeof window !== "undefined" ? sessionStorage.getItem("active_event_slug") : "") || "";
+      if (urlSlug) {
+        sessionStorage.setItem("active_event_slug", urlSlug);
+      }
+      if (s) {
+        sessionStorage.setItem("active_event_slug", s);
+        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`, { cache: "no-store", headers: { "Pragma": "no-cache" } })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d?.event?.name || d?.event?.title) {
+              setEventName(d.event.name || d.event.title);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, []);
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [selectedType, setSelectedType] = useState("All Videos");
@@ -33,7 +57,7 @@ export default function VideosPage() {
         }
       `}</style>
     
-      <main className="relative min-h-screen overflow-hidden bg-[#fffafc]">
+      <main className="relative overflow-hidden relative min-h-screen overflow-hidden bg-[#fffafc]">
 
         {/* Premium Background */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">

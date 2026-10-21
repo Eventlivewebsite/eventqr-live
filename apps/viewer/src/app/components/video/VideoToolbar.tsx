@@ -10,7 +10,11 @@ export default function VideoToolbar() {
   const handleBack = () => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
-      const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
+      const urlSlug = sp.get("event") || sp.get("slug") || "";
+      const s = urlSlug || (typeof window !== "undefined" ? sessionStorage.getItem("active_event_slug") : "") || "";
+      if (urlSlug) {
+        sessionStorage.setItem("active_event_slug", urlSlug);
+      }
       if (window.history.length > 1) {
         router.back();
       } else {
@@ -30,9 +34,13 @@ export default function VideoToolbar() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
-      const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
+      const urlSlug = sp.get("event") || sp.get("slug") || "";
+      const s = urlSlug || (typeof window !== "undefined" ? sessionStorage.getItem("active_event_slug") : "") || "";
+      if (urlSlug) {
+        sessionStorage.setItem("active_event_slug", urlSlug);
+      }
       if (s) {
-        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
+        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`, { cache: "no-store", headers: { "Pragma": "no-cache" } })
           .then((r) => r.json())
           .then((d) => {
             const title = d?.event?.name || d?.event?.title || "";
