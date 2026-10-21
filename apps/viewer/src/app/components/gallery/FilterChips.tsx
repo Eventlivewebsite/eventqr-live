@@ -9,7 +9,9 @@ interface FilterChipsProps {
 
 export default function FilterChips({ activeCategory = "All", onSelectCategory }: FilterChipsProps) {
   const [selected, setSelected] = useState(activeCategory);
-  const [categories, setCategories] = useState<string[]>(["All", "Ceremony", "Stage", "Celebrations", "Family"]);
+  const [categories, setCategories] = useState<string[]>([
+    "All", "Ceremony", "Stage", "Celebrations", "Family"
+  ]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -35,17 +37,17 @@ export default function FilterChips({ activeCategory = "All", onSelectCategory }
   };
 
   return (
-    <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-2">
+    <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-2.5">
       {categories.map((cat) => {
         const isActive = (activeCategory || selected) === cat;
         return (
           <button
             key={cat}
             onClick={() => handleClick(cat)}
-            className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition active:scale-95 ${
+            className={`relative whitespace-nowrap rounded-2xl px-5 py-2 text-xs font-bold transition-all duration-300 active:scale-95 ${
               isActive
-                ? "bg-amber-600 text-white shadow-xs"
-                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                ? "bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 text-white shadow-[0_6px_16px_rgba(217,119,6,0.35)] scale-105"
+                : "bg-white/80 text-stone-600 hover:text-stone-900 border border-stone-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:bg-white"
             }`}
           >
             {cat}
