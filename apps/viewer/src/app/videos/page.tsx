@@ -1,7 +1,5 @@
 "use client";
-
-import { useState } from "react";
-
+import React, { useState, useEffect } from "react";
 import MobileContainer from "../components/layout/MobileContainer";
 import VideoHeader from "../components/video/VideoHeader";
 import VideoDrawer from "../components/video/VideoDrawer";
