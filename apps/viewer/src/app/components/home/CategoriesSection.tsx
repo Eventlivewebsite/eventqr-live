@@ -27,7 +27,7 @@ export default function CategoriesSection() {
           }
         } catch {}
 
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`);
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store", headers: { "Pragma": "no-cache" } });
         const json = await res.json();
         
         if (json?.success && json?.event) {
