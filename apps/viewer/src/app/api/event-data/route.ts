@@ -15,67 +15,41 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+function safeParse(val: any, fallback: any = []) {
+  if (!val) return fallback;
+  if (typeof val !== "string") return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug") || searchParams.get("event") || "";
 
     if (!slug) {
-      return NextResponse.json({ error: "Missing event slug" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Missing event slug" }, { status: 400 });
     }
 
-    // Single lightning-fast indexed query fetching all modules
     const event = await prisma.event.findFirst({
       where: {
         slug: slug,
         isDeleted: false,
       },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        clientName: true,
-        type: true,
-        eventDate: true,
-        location: true,
-        coverImage: true,
-        logo: true,
-        themeColor: true,
-        status: true,
-        guestBook: true,
-        settings: true,
+      include: {
         customFields: true,
-        timelines: {
-          orderBy: { time: "asc" },
-          select: {
-            id: true,
-            title: true,
-            time: true,
-            description: true,
-            location: true,
-            icon: true,
-            isCompleted: true
-          }
-        },
+        settings: true,
+        timelines: { orderBy: { time: "asc" } },
         albums: {
           where: { isDeleted: false },
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            coverUrl: true,
-            _count: { select: { media: true } },
+          include: {
             media: {
               where: { isDeleted: false },
-              select: {
-                id: true,
-                url: true,
-                thumbnailUrl: true,
-                type: true,
-                title: true,
-                createdAt: true
-              },
-              take: 50
+              take: 50,
+              orderBy: { createdAt: "desc" }
             }
           }
         }
@@ -83,17 +57,14 @@ export async function GET(req: Request) {
     });
 
     if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
     }
 
-    // Map customFields into clean key-value pairs (Family, Food, Subtitle, Music, Venue)
-    const fieldsMap: Record<string, any> = {};
+    // Extract Customizer fields
+    const customMap: Record<string, any> = {};
     if (Array.isArray(event.customFields)) {
       event.customFields.forEach((cf: any) => {
-        const k = cf.fieldName || cf.key || cf.name;
-        if (k) {
-          fieldsMap[k] = cf.fieldValue ?? cf.value ?? "";
-        }
+        customMap[cf.fieldName] = cf.fieldValue;
       });
     }
 
@@ -101,34 +72,45 @@ export async function GET(req: Request) {
       ? (event.settings as Record<string, any>) 
       : {};
 
-    // Dynamic title & name resolver
-    let groom = fieldsMap.groomName || settingsObj.groomName || "";
-    let bride = fieldsMap.brideName || settingsObj.brideName || "";
-    
-    if (!groom && event.title && event.title.includes("&")) {
-      const parts = event.title.split("&").map((s: string) => s.trim());
-      groom = parts[0] || "";
-      bride = parts[1] || "";
-    } else if (!groom) {
-      groom = event.title || event.clientName || "";
-    }
+    const venueName = event.location || customMap["venueName"] || "";
+    const subtitle = customMap["subtitle"] || settingsObj["subtitle"] || "";
+    const heroTag = customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION");
+    const ceremonyName = customMap["ceremonyName"] || customMap["stageName"] || "Main Ceremony";
+    const ourStoryUrl = customMap["ourStoryUrl"] || "";
+    const highlightType = customMap["highlightType"] || (customMap["highlightVideoUrl"] ? "video" : "photos");
+    const highlightVideoUrl = customMap["highlightVideoUrl"] || "";
+    const highlightPhotos = safeParse(customMap["highlightPhotos"], []);
 
-    const subtitle = fieldsMap.subtitle || settingsObj.subtitle || "";
-    const musicUrl = fieldsMap.musicUrl || settingsObj.musicUrl || "";
-    const location = event.location || fieldsMap.venueName || fieldsMap.location || "";
+    // Timeline array resolver (checks JSON customField first, then DB relation)
+    const rawTimelines = safeParse(customMap["timelines"], null);
+    const timelines = Array.isArray(rawTimelines) && rawTimelines.length > 0 ? rawTimelines : (event.timelines || []);
 
     const payload = {
       ...event,
-      title: event.title || groom,
-      groomName: groom,
-      brideName: bride,
+      title: event.title,
       subtitle: subtitle,
-      musicUrl: musicUrl,
-      location: location,
-      customFieldsMap: fieldsMap
+      location: venueName,
+      venueName: venueName,
+      heroTag: heroTag,
+      ceremonyName: ceremonyName,
+      ourStoryUrl: ourStoryUrl,
+      highlightType: highlightType,
+      highlightVideoUrl: highlightVideoUrl,
+      highlightPhotos: highlightPhotos,
+      timelines: timelines,
+      foodItems: safeParse(customMap["foodItems"], []),
+      familyMembers: safeParse(customMap["familyMembers"], []),
+      playlist: safeParse(customMap["playlist"], []),
+      photoCategories: safeParse(customMap["photoCategories"], []),
+      videoCategories: safeParse(customMap["videoCategories"], []),
+      showTimeline: customMap["showTimeline"] !== "false",
+      showFoodMenu: customMap["showFoodMenu"] !== "false",
+      showFamily: customMap["showFamily"] !== "false",
+      showPlaylist: customMap["showPlaylist"] !== "false",
+      customMap
     };
 
-    return NextResponse.json({ event: payload }, {
+    return NextResponse.json({ success: true, event: payload }, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
@@ -136,6 +118,6 @@ export async function GET(req: Request) {
       }
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
