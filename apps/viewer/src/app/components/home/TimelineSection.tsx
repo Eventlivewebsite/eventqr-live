@@ -81,7 +81,7 @@ export default function TimelineSection() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(s)}&_t=${Date.now()}`);
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`);
         const json = await res.json();
         
         const raw = json?.event?.timelines || json?.event?.customMap?.timelines;

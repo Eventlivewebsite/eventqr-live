@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -7,117 +7,185 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL,
-  max: 10,
-  idleTimeoutMillis: 10000,
-});
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
-function safeParse(val: any, fallback: any = []) {
-  if (!val) return fallback;
-  if (typeof val !== "string") return val;
-  try {
-    return JSON.parse(val);
-  } catch {
-    return fallback;
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || "";
+    const pool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
+    const adapter = new PrismaPg(pool);
+    globalForPrisma.prisma = new PrismaClient({ adapter });
   }
+  return globalForPrisma.prisma;
 }
 
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const slug = searchParams.get("slug") || searchParams.get("event") || "";
+    const { searchParams } = new URL(request.url);
+    const rawSlug = searchParams.get("slug") || searchParams.get("event") || "";
+    const slug = rawSlug.trim().replace(/[^a-zA-Z0-9-_]/g, "");
 
-    if (!slug) {
-      return NextResponse.json({ success: false, error: "Missing event slug" }, { status: 400 });
-    }
+    const prisma = getPrisma();
+    let event = null;
 
-    const event = await prisma.event.findFirst({
-      where: {
-        slug: slug,
-        isDeleted: false,
-      },
-      include: {
-        customFields: true,
-        settings: true,
-        timelines: { orderBy: { time: "asc" } },
-        albums: {
-          where: { isDeleted: false },
-          include: {
-            media: {
-              where: { isDeleted: false },
-              take: 50,
-              orderBy: { createdAt: "desc" }
-            }
-          }
-        }
-      }
-    });
-
-    if (!event) {
-      return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
-    }
-
-    // Extract Customizer fields
-    const customMap: Record<string, any> = {};
-    if (Array.isArray(event.customFields)) {
-      event.customFields.forEach((cf: any) => {
-        customMap[cf.fieldName] = cf.fieldValue;
+    if (slug) {
+      event = await prisma.event.findFirst({
+        where: { OR: [{ slug }, { id: slug }], isDeleted: false },
+        include: {
+          settings: true,
+          timelines: true,
+          customFields: true,
+        },
       });
     }
 
-    const settingsObj = (typeof event.settings === "object" && event.settings !== null) 
-      ? (event.settings as Record<string, any>) 
-      : {};
+    if (!event) {
+      event = await prisma.event.findFirst({
+        where: { isDeleted: false },
+        orderBy: { createdAt: "desc" },
+        include: {
+          settings: true,
+          timelines: true,
+          customFields: true,
+        },
+      });
+    }
 
-    const venueName = event.location || customMap["venueName"] || "";
-    const subtitle = customMap["subtitle"] || settingsObj["subtitle"] || "";
-    const heroTag = customMap["heroTag"] || (event.isLive ? "LIVE EVENT" : "CELEBRATION");
-    const ceremonyName = customMap["ceremonyName"] || customMap["stageName"] || "Main Ceremony";
-    const ourStoryUrl = customMap["ourStoryUrl"] || "";
-    const highlightType = customMap["highlightType"] || (customMap["highlightVideoUrl"] ? "video" : "photos");
-    const highlightVideoUrl = customMap["highlightVideoUrl"] || "";
-    const highlightPhotos = safeParse(customMap["highlightPhotos"], []);
+    if (!event) {
+      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 });
+    }
 
-    // Timeline array resolver (checks JSON customField first, then DB relation)
-    const rawTimelines = safeParse(customMap["timelines"], null);
-    const timelines = Array.isArray(rawTimelines) && rawTimelines.length > 0 ? rawTimelines : (event.timelines || []);
+    const customMap: Record<string, any> = {};
+    for (const cf of event.customFields || []) {
+      let val: any = cf.fieldValue;
+      if (typeof val === "string") {
+        try {
+          val = JSON.parse(val);
+        } catch {}
+      }
+      customMap[cf.fieldName] = val;
+    }
 
-    const payload = {
-      ...event,
-      title: event.title,
-      subtitle: subtitle,
-      location: venueName,
-      venueName: venueName,
-      heroTag: heroTag,
-      ceremonyName: ceremonyName,
-      ourStoryUrl: ourStoryUrl,
-      highlightType: highlightType,
-      highlightVideoUrl: highlightVideoUrl,
-      highlightPhotos: highlightPhotos,
-      timelines: timelines,
-      foodItems: safeParse(customMap["foodItems"], []),
-      familyMembers: safeParse(customMap["familyMembers"], []),
-      playlist: safeParse(customMap["playlist"], []),
-      photoCategories: safeParse(customMap["photoCategories"], []),
-      videoCategories: safeParse(customMap["videoCategories"], []),
-      showTimeline: customMap["showTimeline"] !== "false",
-      showFoodMenu: customMap["showFoodMenu"] !== "false",
-      showFamily: customMap["showFamily"] !== "false",
-      showPlaylist: customMap["showPlaylist"] !== "false",
-      customMap
+    // Family members
+    let familyMembers: any[] = [];
+    const possibleFamilyKeys = ["familyMembers", "keyPeople", "vips", "teamAndFamily", "members"];
+    for (const k of possibleFamilyKeys) {
+      const candidate = customMap[k];
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        familyMembers = candidate;
+        break;
+      } else if (typeof candidate === "string" && candidate.trim()) {
+        try {
+          const parsed = JSON.parse(candidate);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            familyMembers = parsed;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    // Categories
+    let categoriesList: string[] = [];
+    const possibleCategoryKeys = ["photoCategories", "categories", "activeCategories", "unifiedCategories", "categoriesList"];
+    for (const key of possibleCategoryKeys) {
+      const candidate = customMap[key];
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        categoriesList = candidate.map(c => typeof c === "string" ? c : c?.name || "").filter(Boolean);
+        break;
+      } else if (typeof candidate === "string" && candidate.trim()) {
+        try {
+          const parsed = JSON.parse(candidate);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            categoriesList = parsed.map(c => typeof c === "string" ? c : c?.name || "").filter(Boolean);
+            break;
+          }
+        } catch {
+          categoriesList = candidate.split(",").map(c => c.trim()).filter(Boolean);
+          if (categoriesList.length > 0) break;
+        }
+      }
+    }
+
+    // Slideshow Photos parsing
+    let highlightPhotos: string[] = [];
+    const rawPhotos = customMap["highlightPhotos"];
+    if (Array.isArray(rawPhotos)) {
+      highlightPhotos = rawPhotos.filter(Boolean);
+    } else if (typeof rawPhotos === "string" && rawPhotos.trim()) {
+      try {
+        const parsed = JSON.parse(rawPhotos);
+        if (Array.isArray(parsed)) highlightPhotos = parsed.filter(Boolean);
+      } catch {}
+    }
+
+    // Music Tracks parsing
+    let musicTracks: any[] = [];
+    const rawMusic = customMap["musicTracks"] || customMap["playlist"];
+    if (Array.isArray(rawMusic)) {
+      musicTracks = rawMusic;
+    } else if (typeof rawMusic === "string" && rawMusic.trim()) {
+      try {
+        const parsed = JSON.parse(rawMusic);
+        if (Array.isArray(parsed)) musicTracks = parsed;
+      } catch {}
+    }
+
+    // Default sample tracks if music enabled but list empty
+    const musicEnabled = customMap["musicEnabled"] === true || customMap["musicEnabled"] === "true" || customMap["showMusic"] === true || customMap["showMusic"] === "true";
+    if (musicTracks.length === 0 && musicEnabled) {
+      musicTracks = [
+        { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" },
+        { id: 2, title: "Acoustic Romantic Melodies", artist: "Live Strings", url: "https://actions.google.com/sounds/v1/water/rain_heavy.ogg" }
+      ];
+    }
+
+    const inviteData = {
+      badgeTitle: customMap["topBadgeTitle"] || customMap["topBadge"] || customMap["badgeTitle"] || "OFFICIAL INVITATION",
+      initials: customMap["initials"] || customMap["coupleNames"] || customMap["names"] || event.title || "A & S",
+      tagline: customMap["tagline"] || event.settings?.subtitle || customMap["subtitle"] || "Together Forever",
+      invitationMessage: customMap["invitationMessage"] || customMap["message"] || customMap["inviteMessage"] || "We cordially invite you to celebrate this special occasion with us.",
+      displayDateText: customMap["displayDateText"] || customMap["dateText"] || "",
+      displayTimeText: customMap["displayTimeText"] || customMap["timeText"] || "",
+      displayVenueText: customMap["displayVenueText"] || customMap["venueText"] || event.location || customMap["venueName"] || "",
     };
 
-    return NextResponse.json({ success: true, event: payload }, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
-        "Pragma": "no-cache",
-        "Expires": "0"
-      }
+    const res = NextResponse.json({
+      success: true,
+      event: {
+        id: event.id,
+        slug: event.slug,
+        title: event.title,
+        subtitle: event.settings?.subtitle || customMap["subtitle"] || "",
+        location: event.location || customMap["venueName"] || "",
+        eventDate: event.eventDate,
+        highlightType: customMap["highlightType"] || "video",
+        highlightVideoUrl: customMap["highlightVideoUrl"] || "",
+        highlightPhotos,
+        ceremonyName: customMap["ceremonyName"] || "Main Ceremony",
+        ourStoryUrl: customMap["ourStoryUrl"] || "",
+        musicEnabled,
+        musicTracks,
+        timelines: customMap["timelines"] || event.timelines || [],
+        photoCategories: categoriesList,
+        categoriesList,
+        familyMembers,
+        inviteData,
+        customMap,
+      },
     });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+    return res;
+  } catch (err: any) {
+    console.error("EVENT_DATA_API_ERROR:", err);
+    return NextResponse.json({ success: false, message: err?.message || "Internal Error" }, { status: 500 });
   }
 }

@@ -1,33 +1,40 @@
+import { useState, useEffect } from "react";
 "use client";
 
-import { useState, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-interface FilterChipsProps {
-  activeCategory?: string;
-  onSelectCategory?: (cat: string) => void;
-}
+const filters = [
+  "All",
+  "Wedding",
+  "Haldi",
+  "Mehendi",
+  "Reception",
+];
 
-export default function FilterChips({ activeCategory = "All", onSelectCategory }: FilterChipsProps) {
-  const [selected, setSelected] = useState(activeCategory);
-  const [categories, setCategories] = useState<string[]>([
-    "All", "Ceremony", "Stage", "Celebrations", "Family"
-  ]);
+type Props = {
+  active: string;
+  onChange: (value: string) => void;
+  counts: Record<string, number>;
+
+  // New
+  galleryType?: string;
+};
+
+export default function FilterChips({
+
+  const [categories, setCategories] = useState<string[]>(["All", "Ceremony", "Stage", "Celebrations", "Family"]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
-      const urlSlug = sp.get("event") || sp.get("slug") || "";
-      const s = urlSlug || (typeof window !== "undefined" ? sessionStorage.getItem("active_event_slug") : "") || "";
-      if (urlSlug) {
-        sessionStorage.setItem("active_event_slug", urlSlug);
-      }
+      const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
       if (s) {
-        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`, { cache: "no-store", headers: { "Pragma": "no-cache" } })
-          .then((r) => r.json())
-          .then((d) => {
-            const list = d?.event?.photoCategories;
-            if (Array.isArray(list) && list.length > 0) {
-              setCategories(["All", ...list]);
+        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.event?.photoCategories && Array.isArray(d.event.photoCategories) && d.event.photoCategories.length > 0) {
+              setCategories(["All", ...d.event.photoCategories]);
             }
           })
           .catch(() => {});
@@ -35,29 +42,75 @@ export default function FilterChips({ activeCategory = "All", onSelectCategory }
     }
   }, []);
 
-  const handleClick = (cat: string) => {
-    setSelected(cat);
-    if (onSelectCategory) onSelectCategory(cat);
-  };
+  active,
+  onChange,
+  counts,
+  galleryType = "default",
+}: Props) {
+  const router = useRouter();
 
+  // Category Gallery
+  if (galleryType !== "default") {
+    return (
+      <div className="mt-5 flex gap-3 overflow-x-auto no-scrollbar">
+
+        <button
+          onClick={() => router.push("/gallery")}
+          className="flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+        >
+          <ArrowLeft size={16} />
+          Back Gallery
+        </button>
+
+        <button className="rounded-full bg-amber-600 px-5 py-2 text-sm font-semibold text-white shadow-lg">
+          {galleryType
+            .split("-")
+            .map(
+              (word) =>
+                word.charAt(0).toUpperCase() +
+                word.slice(1)
+            )
+            .join(" ")}
+        </button>
+
+      </div>
+    );
+  }
+
+  // Main Gallery
   return (
-    <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-2.5">
-      {categories.map((cat) => {
-        const isActive = (activeCategory || selected) === cat;
-        return (
-          <button
-            key={cat}
-            onClick={() => handleClick(cat)}
-            className={`relative whitespace-nowrap rounded-2xl px-5 py-2 text-xs font-bold transition-all duration-300 active:scale-95 ${
-              isActive
-                ? "bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 text-white shadow-[0_6px_16px_rgba(217,119,6,0.35)] scale-105"
-                : "bg-white/80 text-stone-600 hover:text-stone-900 border border-stone-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:bg-white"
-            }`}
-          >
-            {cat}
-          </button>
-        );
-      })}
+    <div className="mt-5 flex gap-3 overflow-x-auto no-scrollbar">
+
+      {filters.map((filter) => (
+
+        <button
+          key={filter}
+          onClick={() => onChange(filter)}
+          className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+            active === filter
+              ? "bg-amber-600 text-white shadow-lg"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+
+            <span>{filter}</span>
+
+            <span
+              className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
+                active === filter
+                  ? "bg-white/20 text-white"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {counts[filter] ?? 0}
+            </span>
+
+          </div>
+        </button>
+
+      ))}
+
     </div>
   );
 }
