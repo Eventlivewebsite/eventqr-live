@@ -32,10 +32,8 @@ export default function HeroBanner() {
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(s)}&_t=${Date.now()}`, { cache: "no-store" });
         const json = await res.json();
-        const evData = json?.event || json?.data || json;
-        if (evData) {
-          const ev = evData;
-          const ev = json.event;
+        const ev = json?.event || json?.data || json;
+        if (ev) {
           if (ev.title) setTitle(ev.title);
           if (ev.subtitle) setSubtitle(ev.subtitle);
           if (ev.location) setLocation(ev.location);
