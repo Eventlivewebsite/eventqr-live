@@ -15,12 +15,13 @@ export default function VideosPage() {
       const sp = new URLSearchParams(window.location.search);
       const urlSlug = sp.get("event") || sp.get("slug") || "";
       const s = urlSlug || (typeof window !== "undefined" ? sessionStorage.getItem("active_event_slug") : "") || "";
+      if (!s) return;
       if (urlSlug) {
         sessionStorage.setItem("active_event_slug", urlSlug);
       }
       if (s) {
         sessionStorage.setItem("active_event_slug", s);
-        fetch(`/api/event-data?slug=${encodeURIComponent(s)}`, { cache: "no-store", headers: { "Pragma": "no-cache" } })
+        fetch(`/api/event-data?slug=${encodeURIComponent(s)}&_t=${Date.now()}`, { cache: "no-store", headers: { "Pragma": "no-cache" } })
           .then((r) => r.json())
           .then((d) => {
             if (d?.event?.name || d?.event?.title) {

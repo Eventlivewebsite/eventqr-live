@@ -31,7 +31,7 @@ export default function InvitationPage() {
           sessionStorage.setItem("active_event_slug", activeSlug);
         }
 
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" });
+        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}&_t=${Date.now()}`, { cache: "no-store" });
         const json = await res.json();
         
         if (json?.success && json?.event) {

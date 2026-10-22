@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -7,197 +7,135 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL,
+  max: 10,
+  idleTimeoutMillis: 10000,
+});
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
-function getPrisma(): PrismaClient {
-  if (!globalForPrisma.prisma) {
-    const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || "";
-    const pool = new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
-    });
-    const adapter = new PrismaPg(pool);
-    globalForPrisma.prisma = new PrismaClient({ adapter });
-  }
-  return globalForPrisma.prisma;
-}
-
-export async function GET(request: Request) {
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const rawSlug = searchParams.get("slug") || searchParams.get("event") || "";
-    const slug = rawSlug.trim().replace(/[^a-zA-Z0-9-_]/g, "");
+    const { searchParams } = new URL(req.url);
+    const slug = searchParams.get("slug") || searchParams.get("event") || "";
 
-    const prisma = getPrisma();
-    let event = null;
-
-    if (slug) {
-      event = await prisma.event.findFirst({
-        where: { OR: [{ slug }, { id: slug }], isDeleted: false },
-        include: {
-          settings: true,
-          timelines: true,
-          customFields: true,
-        },
-      });
+    if (!slug) {
+      return NextResponse.json({ error: "Missing event slug" }, { status: 400 });
     }
 
-    if (!event) {
-      event = await prisma.event.findFirst({
-        where: { isDeleted: false },
-        orderBy: { createdAt: "desc" },
-        include: {
-          settings: true,
-          timelines: true,
-          customFields: true,
-        },
-      });
-    }
-
-    if (!event) {
-      return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 }, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
-        "Pragma": "no-cache",
-        "Expires": "0"
-      }
-    });
-    }
-
-    const customMap: Record<string, any> = {};
-    for (const cf of event.customFields || []) {
-      let val: any = cf.fieldValue;
-      if (typeof val === "string") {
-        try {
-          val = JSON.parse(val);
-        } catch {}
-      }
-      customMap[cf.fieldName] = val;
-    }
-
-    // Family members
-    let familyMembers: any[] = [];
-    const possibleFamilyKeys = ["familyMembers", "keyPeople", "vips", "teamAndFamily", "members"];
-    for (const k of possibleFamilyKeys) {
-      const candidate = customMap[k];
-      if (Array.isArray(candidate) && candidate.length > 0) {
-        familyMembers = candidate;
-        break;
-      } else if (typeof candidate === "string" && candidate.trim()) {
-        try {
-          const parsed = JSON.parse(candidate);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            familyMembers = parsed;
-            break;
+    // Single lightning-fast indexed query fetching all modules
+    const event = await prisma.event.findFirst({
+      where: {
+        slug: slug,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        clientName: true,
+        type: true,
+        eventDate: true,
+        location: true,
+        coverImage: true,
+        logo: true,
+        themeColor: true,
+        status: true,
+        guestBook: true,
+        settings: true,
+        customFields: true,
+        timelines: {
+          orderBy: { time: "asc" },
+          select: {
+            id: true,
+            title: true,
+            time: true,
+            description: true,
+            location: true,
+            icon: true,
+            isCompleted: true
           }
-        } catch {}
-      }
-    }
-
-    // Categories
-    let categoriesList: string[] = [];
-    const possibleCategoryKeys = ["photoCategories", "categories", "activeCategories", "unifiedCategories", "categoriesList"];
-    for (const key of possibleCategoryKeys) {
-      const candidate = customMap[key];
-      if (Array.isArray(candidate) && candidate.length > 0) {
-        categoriesList = candidate.map(c => typeof c === "string" ? c : c?.name || "").filter(Boolean);
-        break;
-      } else if (typeof candidate === "string" && candidate.trim()) {
-        try {
-          const parsed = JSON.parse(candidate);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            categoriesList = parsed.map(c => typeof c === "string" ? c : c?.name || "").filter(Boolean);
-            break;
+        },
+        albums: {
+          where: { isDeleted: false },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            coverUrl: true,
+            _count: { select: { media: true } },
+            media: {
+              where: { isDeleted: false },
+              select: {
+                id: true,
+                url: true,
+                thumbnailUrl: true,
+                type: true,
+                title: true,
+                createdAt: true
+              },
+              take: 50
+            }
           }
-        } catch {
-          categoriesList = candidate.split(",").map(c => c.trim()).filter(Boolean);
-          if (categoriesList.length > 0) break;
         }
       }
-    }
-
-    // Slideshow Photos parsing
-    let highlightPhotos: string[] = [];
-    const rawPhotos = customMap["highlightPhotos"];
-    if (Array.isArray(rawPhotos)) {
-      highlightPhotos = rawPhotos.filter(Boolean);
-    } else if (typeof rawPhotos === "string" && rawPhotos.trim()) {
-      try {
-        const parsed = JSON.parse(rawPhotos);
-        if (Array.isArray(parsed)) highlightPhotos = parsed.filter(Boolean);
-      } catch {}
-    }
-
-    // Music Tracks parsing
-    let musicTracks: any[] = [];
-    const rawMusic = customMap["musicTracks"] || customMap["playlist"];
-    if (Array.isArray(rawMusic)) {
-      musicTracks = rawMusic;
-    } else if (typeof rawMusic === "string" && rawMusic.trim()) {
-      try {
-        const parsed = JSON.parse(rawMusic);
-        if (Array.isArray(parsed)) musicTracks = parsed;
-      } catch {}
-    }
-
-    // Default sample tracks if music enabled but list empty
-    const musicEnabled = customMap["musicEnabled"] === true || customMap["musicEnabled"] === "true" || customMap["showMusic"] === true || customMap["showMusic"] === "true";
-    if (musicTracks.length === 0 && musicEnabled) {
-      musicTracks = [
-        { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" },
-        { id: 2, title: "Acoustic Romantic Melodies", artist: "Live Strings", url: "https://actions.google.com/sounds/v1/water/rain_heavy.ogg" }
-      ];
-    }
-
-    const inviteData = {
-      badgeTitle: customMap["topBadgeTitle"] || customMap["topBadge"] || customMap["badgeTitle"] || "OFFICIAL INVITATION",
-      initials: customMap["initials"] || customMap["coupleNames"] || customMap["names"] || event.title || "A & S",
-      tagline: customMap["tagline"] || event.settings?.subtitle || customMap["subtitle"] || "Together Forever",
-      invitationMessage: customMap["invitationMessage"] || customMap["message"] || customMap["inviteMessage"] || "We cordially invite you to celebrate this special occasion with us.",
-      displayDateText: customMap["displayDateText"] || customMap["dateText"] || "",
-      displayTimeText: customMap["displayTimeText"] || customMap["timeText"] || "",
-      displayVenueText: customMap["displayVenueText"] || customMap["venueText"] || event.location || customMap["venueName"] || "",
-    };
-
-    const res = NextResponse.json({
-      success: true,
-      event: {
-        id: event.id,
-        slug: event.slug,
-        title: event.title,
-        subtitle: event.settings?.subtitle || customMap["subtitle"] || "",
-        location: event.location || customMap["venueName"] || "",
-        eventDate: event.eventDate,
-        highlightType: customMap["highlightType"] || "video",
-        highlightVideoUrl: customMap["highlightVideoUrl"] || "",
-        highlightPhotos,
-        ceremonyName: customMap["ceremonyName"] || "Main Ceremony",
-        ourStoryUrl: customMap["ourStoryUrl"] || "",
-        musicEnabled,
-        musicTracks,
-        timelines: customMap["timelines"] || event.timelines || [],
-        photoCategories: categoriesList,
-        categoriesList,
-        familyMembers,
-        inviteData,
-        customMap,
-      },
     });
 
-    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
-    res.headers.set("Pragma", "no-cache");
-    res.headers.set("Expires", "0");
-    return res;
-  } catch (err: any) {
-    console.error("EVENT_DATA_API_ERROR:", err);
-    return NextResponse.json({ success: false, message: err?.message || "Internal Error" }, { status: 500 }, {
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // Map customFields into clean key-value pairs (Family, Food, Subtitle, Music, Venue)
+    const fieldsMap: Record<string, any> = {};
+    if (Array.isArray(event.customFields)) {
+      event.customFields.forEach((cf: any) => {
+        const k = cf.fieldName || cf.key || cf.name;
+        if (k) {
+          fieldsMap[k] = cf.fieldValue ?? cf.value ?? "";
+        }
+      });
+    }
+
+    const settingsObj = (typeof event.settings === "object" && event.settings !== null) 
+      ? (event.settings as Record<string, any>) 
+      : {};
+
+    // Dynamic title & name resolver
+    let groom = fieldsMap.groomName || settingsObj.groomName || "";
+    let bride = fieldsMap.brideName || settingsObj.brideName || "";
+    
+    if (!groom && event.title && event.title.includes("&")) {
+      const parts = event.title.split("&").map((s: string) => s.trim());
+      groom = parts[0] || "";
+      bride = parts[1] || "";
+    } else if (!groom) {
+      groom = event.title || event.clientName || "";
+    }
+
+    const subtitle = fieldsMap.subtitle || settingsObj.subtitle || "";
+    const musicUrl = fieldsMap.musicUrl || settingsObj.musicUrl || "";
+    const location = event.location || fieldsMap.venueName || fieldsMap.location || "";
+
+    const payload = {
+      ...event,
+      title: event.title || groom,
+      groomName: groom,
+      brideName: bride,
+      subtitle: subtitle,
+      musicUrl: musicUrl,
+      location: location,
+      customFieldsMap: fieldsMap
+    };
+
+    return NextResponse.json({ event: payload }, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0"
       }
     });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
