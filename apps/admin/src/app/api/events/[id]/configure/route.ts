@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -77,18 +77,22 @@ export async function POST(
       playlist,
     } = body;
 
-    if (venueName) {
-      await prisma.event.update({
-        where: { id },
-        data: { location: venueName },
-      });
-    }
+          const eventUpdateData: any = {};
+      if (title !== undefined && title !== null) eventUpdateData.title = title;
+      if (venueName !== undefined && venueName !== null) eventUpdateData.location = venueName;
+
+      if (Object.keys(eventUpdateData).length > 0) {
+        await prisma.event.update({
+          where: { id },
+          data: eventUpdateData,
+        });
+      }
 
     const fieldsToSave: Record<string, any> = {
       venueName: venueName || "",
       heroTag: heroTag || "LIVE EVENT",
       highlightVideoUrl: highlightVideoUrl || "",
-      subtitle: subtitle || "Forever Begins Today",
+      subtitle: subtitle || "",
       scheduledPublishDate: scheduledPublishDate || "",
       highlightType: highlightType || "video",
       highlightPhotos: JSON.stringify(highlightPhotos || []),

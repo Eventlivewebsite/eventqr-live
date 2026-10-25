@@ -43,7 +43,7 @@ export default function Header({ onMenuClick }: Props) {
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`);
         const json = await res.json();
         if (json?.success && json?.event) {
-          const t = json.event.title || "Live Event";
+          const t = json.event.title || "";
           const st = json.event.subtitle || "";
           setTitle(t);
           setSubtitle(st);
@@ -58,15 +58,15 @@ export default function Header({ onMenuClick }: Props) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-[430px] items-center justify-between px-4">
+      <div className="mx-auto flex min-h-[56px] py-2 max-w-[430px] items-center justify-between px-4">
         <div>
           {title ? (
             <>
-              <h1 className="text-[16px] font-extrabold tracking-wide text-[#B68D40] line-clamp-1 uppercase">
+              <h1 className="text-[16px] font-extrabold tracking-wide text-[#B68D40] break-words whitespace-normal leading-tight uppercase">
                 {title}
               </h1>
               {subtitle && (
-                <p className="text-[11px] font-medium text-gray-500 line-clamp-1">
+                <p className="text-[11px] font-medium text-gray-500 break-words whitespace-normal leading-tight">
                   {subtitle}
                 </p>
               )}
