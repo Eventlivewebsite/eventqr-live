@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import MobileContainer from "../components/layout/MobileContainer";
 import GalleryHeader from "../components/gallery/GalleryHeader";
