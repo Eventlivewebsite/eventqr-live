@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
@@ -7,14 +7,14 @@ import { Play, Heart, MapPin, Radio, Calendar } from "lucide-react";
 
 export default function HeroBanner() {
   const [slug, setSlug] = useState("");
-  const [title, setTitle] = useState("Live Event");
-  const [subtitle, setSubtitle] = useState("Forever Begins Today");
-  const [location, setLocation] = useState("Kharagpur");
+  const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [location, setLocation] = useState("");
   const [highlightType, setHighlightType] = useState<"video" | "photos">("video");
   const [videoUrl, setVideoUrl] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [ceremonyName, setCeremonyName] = useState("Wedding Reception");
+  const [ceremonyName, setCeremonyName] = useState("");
   const [ourStoryUrl, setOurStoryUrl] = useState("");
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -33,28 +33,21 @@ export async function GET(request: Request) {
     const prisma = getPrisma();
     let event = null;
 
-    if (slug) {
-      event = await prisma.event.findFirst({
-        where: { OR: [{ slug }, { id: slug }], isDeleted: false },
-        include: {
-          settings: true,
-          timelines: true,
-          customFields: true,
-        },
-      });
+    if (!slug) {
+      return NextResponse.json(
+        { success: false, error: "Event slug or ID is required" },
+        { status: 400, headers: { "Cache-Control": "no-store, max-age=0" } }
+      );
     }
 
-    if (!event) {
-      event = await prisma.event.findFirst({
-        where: { isDeleted: false },
-        orderBy: { createdAt: "desc" },
-        include: {
-          settings: true,
-          timelines: true,
-          customFields: true,
-        },
-      });
-    }
+    event = await prisma.event.findFirst({
+      where: { OR: [{ slug }, { id: slug }], isDeleted: false },
+      include: {
+        settings: true,
+        timelines: true,
+        customFields: true,
+      },
+    });
 
     if (!event) {
       return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 });
