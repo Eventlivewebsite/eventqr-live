@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
@@ -348,7 +348,7 @@ export default function EventSetupPage({
           <div className="flex items-center gap-3 w-full md:w-auto">
             {slug && (
               <a
-                href={(process.env.NEXT_PUBLIC_VIEWER_URL || "https://eventqr-live-viewer.vercel.app").replace(/\/$/, "") + "/e/" + slug}
+                href={(process.env.NEXT_PUBLIC_VIEWER_URL || "https://eventqr-live-viewer.vercel.app").replace(/\/$/, "") + "/?slug=" + encodeURIComponent(slug || id)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs font-bold px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition shadow-sm"
