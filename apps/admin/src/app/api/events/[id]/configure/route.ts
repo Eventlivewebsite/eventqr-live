@@ -53,7 +53,7 @@ export async function POST(
     const { id } = await context.params;
     const body = await req.json();
 
-    const { title, venueName,
+    const { title, venueName, ceremonyName, ourStoryUrl,
       heroTag,
       highlightVideoUrl,
       subtitle,
@@ -89,6 +89,8 @@ export async function POST(
 
     const fieldsToSave: Record<string, any> = {
       venueName: venueName || "",
+      ceremonyName: ceremonyName || "",
+      ourStoryUrl: ourStoryUrl || "",
       heroTag: heroTag || "LIVE EVENT",
       highlightVideoUrl: highlightVideoUrl || "",
       subtitle: subtitle || "",

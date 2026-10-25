@@ -459,7 +459,37 @@ export default function EventSetupPage({
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-700 uppercase">Our Story / Info URL</label>
+              <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-gray-700 uppercase">Our Story Video / URL</label>
+                  <label className="cursor-pointer text-xs font-bold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition flex items-center gap-1">
+                    <Upload size={12} /> Upload Video
+                    <input
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          setUploading(true);
+                          const fd = new FormData();
+                          fd.append("file", file);
+                          const res = await fetch("/api/upload", { method: "POST", body: fd });
+                          const data = await res.json();
+                          if (data.url) {
+                            setOurStoryUrl(data.url);
+                          } else {
+                            alert("Upload failed, please check file size.");
+                          }
+                        } catch (err) {
+                          alert("Video upload failed.");
+                        } finally {
+                          setUploading(false);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               <input
                 type="text"
                 value={ourStoryUrl}

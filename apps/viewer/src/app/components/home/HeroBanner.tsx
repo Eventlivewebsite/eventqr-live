@@ -132,18 +132,23 @@ export default function HeroBanner() {
         </div>
 
         {/* Main Headings: Wrap safe for long titles */}
-        <div className="relative z-10 mt-14 mb-3">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white leading-snug break-words whitespace-normal max-w-full drop-shadow-md">
-            {title}
-          </h1>
-          <p className="text-xs sm:text-sm font-semibold text-stone-200 mt-1 break-words whitespace-normal ">
-            {subtitle}
-          </p>
-          <div className="mt-2.5 flex items-center gap-1 text-[11px] font-bold text-amber-300">
-            <MapPin size={12} className="flex-shrink-0 text-amber-400" />
-            <span className="truncate">{location}</span>
+        {/* Main Headings: Clean, compact & background slideshow friendly */}
+          <div className="relative z-10 mt-8 mb-2 px-1">
+            <h1 className="text-lg sm:text-xl font-bold tracking-normal text-white/95 leading-tight break-words whitespace-normal drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="text-[12px] sm:text-xs font-medium text-stone-200/90 mt-0.5 break-words whitespace-normal drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+                {subtitle}
+              </p>
+            )}
+            {location && (
+              <div className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-amber-300/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                <MapPin size={11} className="flex-shrink-0 text-amber-400" />
+                <span className="break-words">{location}</span>
+              </div>
+            )}
           </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="relative z-10 grid grid-cols-2 gap-2 mt-2">
@@ -184,7 +189,7 @@ export default function HeroBanner() {
             </div>
             <div>
               <span className="text-[9px] uppercase font-bold text-amber-400/90 block leading-none">Ceremony</span>
-              <span className="text-xs font-bold text-stone-100 leading-tight block mt-0.5 truncate max-w-[150px]">{ceremonyName}</span>
+              <span className="text-xs font-bold text-stone-100 leading-tight block mt-0.5 break-words max-w-[200px]">{ceremonyName || "Main Ceremony"}</span>
             </div>
           </div>
 
