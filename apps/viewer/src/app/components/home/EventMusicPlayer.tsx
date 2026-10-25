@@ -89,7 +89,7 @@ export default function EventMusicPlayer() {
     // default demo ambient track so button is always visible and functional
   }
 
-  const currentTrack = tracks[currentTrackIdx] || tracks[0] || { title: "Event Celebration Music", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" };
+  const currentTrack = tracks[currentTrackIdx] || tracks[0] || { title: "Event Celebration Music", url: "https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3" };
 
   return (
     <>
