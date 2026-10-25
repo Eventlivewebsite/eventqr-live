@@ -139,14 +139,14 @@ export async function GET(request: Request) {
     }
 
     const inviteData = {
-      badgeTitle: customMap["topBadgeTitle"] || customMap["topBadge"] || customMap["badgeTitle"] || "OFFICIAL INVITATION",
-      initials: customMap["initials"] || customMap["coupleNames"] || customMap["names"] || event.title || "A & S",
-      tagline: customMap["tagline"] || event.settings?.subtitle || customMap["subtitle"] || "Together Forever",
-      invitationMessage: customMap["invitationMessage"] || customMap["message"] || customMap["inviteMessage"] || "We cordially invite you to celebrate this special occasion with us.",
-      displayDateText: customMap["displayDateText"] || customMap["dateText"] || "",
-      displayTimeText: customMap["displayTimeText"] || customMap["timeText"] || "",
-      displayVenueText: customMap["displayVenueText"] || customMap["venueText"] || event.location || customMap["venueName"] || "",
-    };
+        badgeTitle: customMap["inviteBadge"] || customMap["topBadgeTitle"] || customMap["topBadge"] || "",
+        initials: customMap["inviteCoupleInitials"] || customMap["initials"] || customMap["coupleNames"] || event.title || "",
+        tagline: customMap["inviteTagline"] || customMap["subtitle"] || event.settings?.subtitle || "",
+        invitationMessage: customMap["inviteMessage"] || customMap["invitationMessage"] || customMap["message"] || "",
+        displayDateText: customMap["inviteDateText"] || customMap["displayDateText"] || customMap["dateText"] || "",
+        displayTimeText: customMap["inviteTimeText"] || customMap["displayTimeText"] || customMap["timeText"] || "",
+        displayVenueText: customMap["inviteVenueText"] || customMap["venueName"] || event.location || "",
+      };
 
     const res = NextResponse.json({
       success: true,
@@ -154,7 +154,7 @@ export async function GET(request: Request) {
         id: event.id,
         slug: event.slug,
         title: event.title,
-        subtitle: event.settings?.subtitle || customMap["subtitle"] || "",
+        subtitle: customMap["subtitle"] || event.settings?.subtitle || "",
         location: event.location || customMap["venueName"] || "",
         eventDate: event.eventDate,
         highlightType: customMap["highlightType"] || "video",

@@ -138,8 +138,8 @@ export default function HeroBanner() {
               {title}
             </h1>
             {subtitle && (
-              <p className="text-[12px] sm:text-xs font-medium text-stone-200/90 mt-0.5 break-words whitespace-normal drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
-                {subtitle}
+              <p className="text-[11px] sm:text-[12px] font-serif italic tracking-widest text-amber-100/90 mt-0.5 break-words uppercase drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                ? {subtitle} ?
               </p>
             )}
             {location && (

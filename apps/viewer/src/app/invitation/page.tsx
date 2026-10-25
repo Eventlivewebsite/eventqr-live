@@ -9,14 +9,15 @@ import BottomNavigation from "../components/navigation/BottomNavigation";
 export default function InvitationPage() {
   const router = useRouter();
   const [data, setData] = useState({
-    badge: "OFFICIAL INVITATION",
-    initials: "A & S",
-    tagline: "Together Forever",
-    message: "We cordially invite you to celebrate this special occasion with us.",
-    dateText: "October 19, 2026",
-    timeText: "06:00 PM Onwards",
-    venueText: "KHARAGPUR"
+    badge: "",
+    initials: "",
+    tagline: "",
+    message: "",
+    dateText: "",
+    timeText: "",
+    venueText: ""
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
@@ -58,10 +59,11 @@ export default function InvitationPage() {
             formattedTime = ev.timelines[0].timeText || ev.timelines[0].time || "06:00 PM Onwards";
           }
 
+          setLoading(false);
           setData({
             badge: inv.badgeTitle || cm.topBadgeTitle || cm.topBadge || "OFFICIAL INVITATION",
             initials: inv.initials || cm.initials || cm.coupleNames || ev.title || "A & S",
-            tagline: inv.tagline || cm.tagline || ev.subtitle || "Together Forever",
+            tagline: inv.tagline || cm.inviteTagline || cm.subtitle || ev.subtitle || "",
             message: inv.invitationMessage || cm.invitationMessage || cm.message || "We cordially invite you to celebrate this special occasion with us.",
             dateText: formattedDate || "October 19, 2026",
             timeText: formattedTime || "06:00 PM Onwards",

@@ -53,7 +53,7 @@ export async function POST(
     const { id } = await context.params;
     const body = await req.json();
 
-    const { title, venueName, ceremonyName, ourStoryUrl,
+    const { title, venueName, ceremonyName, ourStoryUrl, inviteBadge, inviteCoupleInitials, inviteTagline, inviteMessage, inviteDateText, inviteTimeText, inviteVenueText,
       heroTag,
       highlightVideoUrl,
       subtitle,
@@ -91,6 +91,13 @@ export async function POST(
       venueName: venueName || "",
       ceremonyName: ceremonyName || "",
       ourStoryUrl: ourStoryUrl || "",
+      inviteBadge: inviteBadge || "",
+      inviteCoupleInitials: inviteCoupleInitials || "",
+      inviteTagline: inviteTagline || "",
+      inviteMessage: inviteMessage || "",
+      inviteDateText: inviteDateText || "",
+      inviteTimeText: inviteTimeText || "",
+      inviteVenueText: inviteVenueText || "",
       heroTag: heroTag || "LIVE EVENT",
       highlightVideoUrl: highlightVideoUrl || "",
       subtitle: subtitle || "",
