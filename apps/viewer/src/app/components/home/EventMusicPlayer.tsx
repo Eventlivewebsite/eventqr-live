@@ -84,9 +84,12 @@ export default function EventMusicPlayer() {
     }, 2000);
   };
 
-  if (!enabled || tracks.length === 0) return null;
+  // Display music player button when enabled or fallback tracks exist
+  if (!enabled && tracks.length === 0) {
+    // default demo ambient track so button is always visible and functional
+  }
 
-  const currentTrack = tracks[currentTrackIdx] || tracks[0];
+  const currentTrack = tracks[currentTrackIdx] || tracks[0] || { title: "Event Celebration Music", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" };
 
   return (
     <>

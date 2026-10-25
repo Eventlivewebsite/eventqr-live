@@ -138,8 +138,11 @@ export default function HeroBanner() {
               {title}
             </h1>
             {subtitle && (
-              <p className="text-[11px] sm:text-[12px] font-serif italic tracking-widest text-amber-100/90 mt-0.5 break-words uppercase drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                ? {subtitle} ?
+              <p 
+                style={{ fontFamily: "'Dancing Script', 'Brush Script MT', 'Great Vibes', cursive" }}
+                className="text-[14px] sm:text-[15px] font-normal italic tracking-wide text-rose-500 mt-0.5 break-words capitalize drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
+              >
+                {subtitle.replace(/[???]/g, "").trim()}
               </p>
             )}
             {location && (
