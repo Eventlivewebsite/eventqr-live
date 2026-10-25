@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { ArrowLeft, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -7,8 +8,8 @@ type Props = {
   onMenuClick?: () => void;
 };
 
-export default function GalleryHeader({
-
+export default function GalleryHeader({ onMenuClick }: Props) {
+  const router = useRouter();
   const [eventName, setEventName] = useState("");
 
   useEffect(() => {
@@ -17,8 +18,8 @@ export default function GalleryHeader({
       const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
       if (s) {
         fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
-          .then(r => r.json())
-          .then(d => {
+          .then((r) => r.json())
+          .then((d) => {
             if (d?.event?.name || d?.event?.title) {
               setEventName(d.event.name || d.event.title);
             }
@@ -28,56 +29,31 @@ export default function GalleryHeader({
     }
   }, []);
 
-  onMenuClick,
-}: Props) {
-  const router = useRouter();
-
   return (
-    <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-
-      <style jsx global>{`
-        @keyframes luxuryColorShift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animated-event-heading {
-          background: linear-gradient(-45deg, #d97706, #e11d48, #9333ea, #2563eb, #b45309);
-          background-size: 300% 300%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          animation: luxuryColorShift 5s ease-in-out infinite;
-        }
-      `}</style>
-    
-      <div className="flex items-center justify-between px-5 py-4">
-
-        {/* Back */}
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-stone-200/80 bg-white/90 px-4 py-3 backdrop-blur-md">
+      <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push("/")}
-          className="rounded-xl p-2 transition hover:bg-gray-100"
+          onClick={() => router.back()}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-stone-700 active:scale-95 transition"
         >
-          <ArrowLeft size={22} />
+          <ArrowLeft size={18} />
         </button>
-
-        {/* Title */}
-        <div className="text-center">
-          <h1 className="animated-event-heading text-xl font-black tracking-tight text-center uppercase">{eventName || "WASIM"}</h1>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Browse all memories
-          </p>
+        <div>
+          <h1 className="text-sm font-extrabold text-stone-900 leading-tight">
+            {eventName || "Photo Gallery"}
+          </h1>
+          <p className="text-[10px] text-stone-500 font-semibold">Shared Memories</p>
         </div>
-
-        {/* Menu */}
-        <button
-          onClick={() => onMenuClick?.()}
-          className="rounded-xl p-2 transition hover:bg-gray-100"
-        >
-          <Menu size={22} />
-        </button>
-
       </div>
+
+      {onMenuClick && (
+        <button
+          onClick={onMenuClick}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-stone-700 active:scale-95 transition"
+        >
+          <Menu size={18} />
+        </button>
+      )}
     </header>
   );
 }

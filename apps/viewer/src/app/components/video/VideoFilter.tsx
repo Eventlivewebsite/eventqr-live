@@ -1,17 +1,6 @@
-import { useState, useEffect } from "react";
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-const filters = [
-  "All",
-  "Wedding",
-  "Haldi",
-  "Mehendi",
-  "Reception",
-    "Decoration",
-];
+import { useState, useEffect } from "react";
 
 type Props = {
   active: string;
@@ -19,8 +8,7 @@ type Props = {
   videoType?: string;
 };
 
-export default function VideoFilter({
-
+export default function VideoFilter({ active, onChange }: Props) {
   const [categories, setCategories] = useState<string[]>(["All", "Ceremony", "Stage", "Celebrations", "Family"]);
 
   useEffect(() => {
@@ -29,11 +17,14 @@ export default function VideoFilter({
       const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
       if (s) {
         fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
-          .then(r => r.json())
-          .then(d => {
-            const list = d?.event?.videoCategories || d?.event?.photoCategories;
+          .then((r) => r.json())
+          .then((d) => {
+            const list = d?.event?.categoriesList || d?.event?.videoCategories || d?.event?.photoCategories;
             if (list && Array.isArray(list) && list.length > 0) {
-              setCategories(["All", ...list]);
+              const formatted = list.map((item: any) => (typeof item === "string" ? item : item.name || item.title || "")).filter(Boolean);
+              if (formatted.length > 0) {
+                setCategories(["All", ...formatted]);
+              }
             }
           })
           .catch(() => {});
@@ -41,60 +32,25 @@ export default function VideoFilter({
     }
   }, []);
 
-  active,
-  onChange,
-  videoType = "default",
-}: Props) {
-  const router = useRouter();
-
-  // Category Page
-  if (videoType !== "default") {
-    return (
-      <div className="mb-6 flex gap-3 overflow-x-auto no-scrollbar">
-
-        <button
-          onClick={() => router.push("/videos")}
-          className="flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
-        >
-          <ArrowLeft size={16} />
-          Back Videos
-        </button>
-
-        <button className="rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg">
-          {videoType
-            .split("-")
-            .map(
-              (word) =>
-                word.charAt(0).toUpperCase() +
-                word.slice(1)
-            )
-            .join(" ")}
-        </button>
-
-      </div>
-    );
-  }
-
-  // Main Videos Page
   return (
-    <div className="mb-6 flex gap-3 overflow-x-auto no-scrollbar">
+    <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5">
+      {categories.map((cat) => {
+        const isActive = active.toLowerCase() === cat.toLowerCase();
 
-      {filters.map((filter) => (
-
-        <button
-          key={filter}
-          onClick={() => onChange(filter)}
-          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-            active === filter
-              ? "bg-red-500 text-white shadow-lg"
-              : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          {filter}
-        </button>
-
-      ))}
-
+        return (
+          <button
+            key={cat}
+            onClick={() => onChange(cat)}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition cursor-pointer active:scale-95 ${
+              isActive
+                ? "bg-rose-600 text-white shadow-xs"
+                : "bg-white/80 text-stone-600 border border-stone-200/80 hover:bg-stone-100"
+            }`}
+          >
+            {cat}
+          </button>
+        );
+      })}
     </div>
   );
 }
