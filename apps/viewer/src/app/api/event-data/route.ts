@@ -158,6 +158,16 @@ export async function GET(request: Request) {
         location: event.location || customMap["venueName"] || "",
         eventDate: event.eventDate,
         highlightType: customMap["highlightType"] || "video",
+        musicEnabled: customMap["musicEnabled"] !== undefined ? (customMap["musicEnabled"] === "true" || customMap["musicEnabled"] === true) : true,
+        musicTracks: (() => {
+          try {
+            if (customMap["musicTracks"]) {
+              const parsed = JSON.parse(customMap["musicTracks"]);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+          } catch {}
+          return [];
+        })(),
         highlightVideoUrl: customMap["highlightVideoUrl"] || "",
         highlightPhotos,
         ceremonyName: customMap["ceremonyName"] || "Main Ceremony",
