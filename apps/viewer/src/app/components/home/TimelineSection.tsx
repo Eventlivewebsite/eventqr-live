@@ -97,6 +97,8 @@ export default function TimelineSection() {
 
   if (timelineEvents.length === 0) return null;
 
+  if (!showTimeline) return null;
+
   return (
     <section className="mt-4 px-3.5">
       <div className="mb-2.5 flex items-center justify-between">

@@ -8,14 +8,23 @@ export default function BottomNavigation() {
   const router = useRouter();
   const pathname = usePathname();
   const [slug, setSlug] = useState("");
+  const [showInvitation, setShowInvitation] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const urlSlug = sp.get("event") || sp.get("slug") || "";
-      if (urlSlug) {
+            if (urlSlug) {
         setSlug(urlSlug);
         sessionStorage.setItem("active_event_slug", urlSlug);
+        fetch(`/api/event-data?slug=${encodeURIComponent(urlSlug)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.event?.showInvitation !== undefined) {
+              setShowInvitation(d.event.showInvitation === true || d.event.showInvitation === "true");
+            }
+          })
+          .catch(() => {});
       } else {
         const cached = sessionStorage.getItem("active_event_slug") || "";
         if (cached) setSlug(cached);
@@ -42,7 +51,7 @@ export default function BottomNavigation() {
   return (
     <div className="fixed bottom-3 left-1/2 z-50 w-[92%] max-w-[400px] -translate-x-1/2">
       <div className="flex items-center justify-around rounded-2xl border border-stone-200/70 bg-white/90 px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl">
-        {menus.map((item) => {
+        {menus.filter(item => item.path !== "/invitation" || showInvitation).map((item) => {
           const Icon = item.icon;
           const active = pathname === item.path;
 

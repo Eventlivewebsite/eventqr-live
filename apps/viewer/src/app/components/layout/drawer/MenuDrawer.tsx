@@ -17,7 +17,32 @@ type Props = {
   onClose: () => void;
 };
 
+import { useEffect, useState } from "react";
+
 export default function MenuDrawer({ open, onClose }: Props) {
+  const [showInvitation, setShowInvitation] = useState(true);
+  const [showFamily, setShowFamily] = useState(true);
+  const [showFoodMenu, setShowFoodMenu] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const slug = sp.get("slug") || sp.get("event") || sessionStorage.getItem("active_event_slug") || "";
+      if (slug) {
+        fetch(`/api/event-data?slug=${encodeURIComponent(slug)}`)
+          .then(r => r.json())
+          .then(d => {
+            const ev = d?.event;
+            if (ev) {
+              if (ev.showInvitation !== undefined) setShowInvitation(ev.showInvitation === true || ev.showInvitation === "true");
+              if (ev.showFamily !== undefined) setShowFamily(ev.showFamily === true || ev.showFamily === "true");
+              if (ev.showFoodMenu !== undefined) setShowFoodMenu(ev.showFoodMenu === true || ev.showFoodMenu === "true");
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [open]);
   const router = useRouter();
 
   if (!open) return null;
@@ -62,6 +87,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
         <div className="space-y-3.5">
           
           {/* 1. Premium Invitation */}
+          {showInvitation && (
           <div
             onClick={() => navigateTo("/invitation")}
             className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
@@ -78,7 +104,10 @@ export default function MenuDrawer({ open, onClose }: Props) {
             <ChevronRight size={18} className="text-[#b5aaa0]" />
           </div>
 
+          )}
+
           {/* 2. Family */}
+          {showFamily && (
           <div
             onClick={() => navigateTo("/family")}
             className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
@@ -94,6 +123,8 @@ export default function MenuDrawer({ open, onClose }: Props) {
             </div>
             <ChevronRight size={18} className="text-[#b5aaa0]" />
           </div>
+
+          )}
 
           {/* 3. Guest Book */}
           <div
@@ -113,6 +144,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
           </div>
 
           {/* 4. Food Menu */}
+          {showFoodMenu && (
           <div
             onClick={() => {
       const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -132,6 +164,8 @@ export default function MenuDrawer({ open, onClose }: Props) {
             </div>
             <ChevronRight size={18} className="text-[#b5aaa0]" />
           </div>
+
+          )}
 
           {/* 5. Settings */}
           <div

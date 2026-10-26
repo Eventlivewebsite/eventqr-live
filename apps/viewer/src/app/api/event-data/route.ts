@@ -159,6 +159,10 @@ export async function GET(request: Request) {
         eventDate: event.eventDate,
         highlightType: customMap["highlightType"] || "video",
         musicEnabled: customMap["musicEnabled"] !== undefined ? (customMap["musicEnabled"] === "true" || customMap["musicEnabled"] === true) : true,
+        showTimeline: customMap["showTimeline"] !== undefined ? (customMap["showTimeline"] === "true" || customMap["showTimeline"] === true) : true,
+        showFoodMenu: customMap["showFoodMenu"] !== undefined ? (customMap["showFoodMenu"] === "true" || customMap["showFoodMenu"] === true) : true,
+        showFamily: customMap["showFamily"] !== undefined ? (customMap["showFamily"] === "true" || customMap["showFamily"] === true) : true,
+        showInvitation: customMap["showInvitation"] !== undefined ? (customMap["showInvitation"] === "true" || customMap["showInvitation"] === true) : true,
         musicTracks: (() => {
           try {
             if (customMap["musicTracks"]) {
