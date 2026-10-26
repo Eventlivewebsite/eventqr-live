@@ -1,6 +1,5 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   X,
@@ -19,30 +18,6 @@ type Props = {
 };
 
 export default function MenuDrawer({ open, onClose }: Props) {
-  const [showInvitation, setShowInvitation] = useState(true);
-  const [showFamily, setShowFamily] = useState(true);
-  const [showFoodMenu, setShowFoodMenu] = useState(true);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      const slug = sp.get("slug") || sp.get("event") || sessionStorage.getItem("active_event_slug") || "";
-      if (slug) {
-        fetch(`/api/event-data?slug=${encodeURIComponent(slug)}`)
-          .then(r => r.json())
-          .then(d => {
-            const ev = d?.event;
-            if (ev) {
-              if (ev.showInvitation !== undefined) setShowInvitation(ev.showInvitation === true || ev.showInvitation === "true");
-              if (ev.showFamily !== undefined) setShowFamily(ev.showFamily === true || ev.showFamily === "true");
-              if (ev.showFoodMenu !== undefined) setShowFoodMenu(ev.showFoodMenu === true || ev.showFoodMenu === "true");
-            }
-          })
-          .catch(() => {});
-      }
-    }
-  }, [open]);
-
   const router = useRouter();
 
   if (!open) return null;
@@ -60,7 +35,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity"
       />
 
-      {/* Floating Card Drawer */}
+      {/* Floating Card Drawer (Exact Screenshot UI) */}
       <div className="fixed top-6 right-4 left-4 z-50 mx-auto max-w-[370px] overflow-hidden rounded-[36px] bg-[#fbf9f4]/95 p-6 shadow-2xl backdrop-blur-2xl border border-white/80 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -87,42 +62,38 @@ export default function MenuDrawer({ open, onClose }: Props) {
         <div className="space-y-3.5">
           
           {/* 1. Premium Invitation */}
-          {showInvitation && (
-            <div
-              onClick={() => navigateTo("/invitation")}
-              className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="h-13 w-13 p-3 rounded-2xl bg-[#fbf0dc] text-[#333] flex items-center justify-center">
-                  <Mail size={22} className="text-[#3a352f]" />
-                </div>
-                <div>
-                  <h4 className="text-[15px] font-bold text-[#1f1f1f]">Premium Invitation</h4>
-                  <p className="text-xs text-[#8c827a] mt-0.5">View Invitation</p>
-                </div>
+          <div
+            onClick={() => navigateTo("/invitation")}
+            className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="h-13 w-13 p-3 rounded-2xl bg-[#fbf0dc] text-[#333] flex items-center justify-center">
+                <Mail size={22} className="text-[#3a352f]" />
               </div>
-              <ChevronRight size={18} className="text-[#b5aaa0]" />
+              <div>
+                <h4 className="text-[15px] font-bold text-[#1f1f1f]">Premium Invitation</h4>
+                <p className="text-xs text-[#8c827a] mt-0.5">View Invitation</p>
+              </div>
             </div>
-          )}
+            <ChevronRight size={18} className="text-[#b5aaa0]" />
+          </div>
 
           {/* 2. Family */}
-          {showFamily && (
-            <div
-              onClick={() => navigateTo("/family")}
-              className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="h-13 w-13 p-3 rounded-2xl bg-[#fbf0dc] text-[#333] flex items-center justify-center">
-                  <Users size={22} className="text-[#3a352f]" />
-                </div>
-                <div>
-                  <h4 className="text-[15px] font-bold text-[#1f1f1f]">Family</h4>
-                  <p className="text-xs text-[#8c827a] mt-0.5">Bride & Groom Family</p>
-                </div>
+          <div
+            onClick={() => navigateTo("/family")}
+            className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="h-13 w-13 p-3 rounded-2xl bg-[#fbf0dc] text-[#333] flex items-center justify-center">
+                <Users size={22} className="text-[#3a352f]" />
               </div>
-              <ChevronRight size={18} className="text-[#b5aaa0]" />
+              <div>
+                <h4 className="text-[15px] font-bold text-[#1f1f1f]">Family</h4>
+                <p className="text-xs text-[#8c827a] mt-0.5">Bride & Groom Family</p>
+              </div>
             </div>
-          )}
+            <ChevronRight size={18} className="text-[#b5aaa0]" />
+          </div>
 
           {/* 3. Guest Book */}
           <div
@@ -142,27 +113,25 @@ export default function MenuDrawer({ open, onClose }: Props) {
           </div>
 
           {/* 4. Food Menu */}
-          {showFoodMenu && (
-            <div
-              onClick={() => {
-                const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-                const s = sp ? (sp.get("slug") || sp.get("event") || "") : "";
-                navigateTo(s ? `/food-menu?slug=${encodeURIComponent(s)}` : "/food-menu");
-              }}
-              className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="h-13 w-13 p-3 rounded-2xl bg-[#fbf0dc] text-[#333] flex items-center justify-center">
-                  <UtensilsCrossed size={22} className="text-[#3a352f]" />
-                </div>
-                <div>
-                  <h4 className="text-[15px] font-bold text-[#1f1f1f]">Food Menu</h4>
-                  <p className="text-xs text-[#8c827a] mt-0.5">Today's Special</p>
-                </div>
+          <div
+            onClick={() => {
+      const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const s = sp ? (sp.get("slug") || sp.get("event") || "") : "";
+      navigateTo(s ? `/food-menu?slug=${encodeURIComponent(s)}` : "/food-menu");
+    }}
+            className="flex items-center justify-between p-3.5 rounded-[22px] bg-white border border-gray-100/80 shadow-sm cursor-pointer hover:bg-amber-50/40 transition active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="h-13 w-13 p-3 rounded-2xl bg-[#fbf0dc] text-[#333] flex items-center justify-center">
+                <UtensilsCrossed size={22} className="text-[#3a352f]" />
               </div>
-              <ChevronRight size={18} className="text-[#b5aaa0]" />
+              <div>
+                <h4 className="text-[15px] font-bold text-[#1f1f1f]">Food Menu</h4>
+                <p className="text-xs text-[#8c827a] mt-0.5">Today's Special</p>
+              </div>
             </div>
-          )}
+            <ChevronRight size={18} className="text-[#b5aaa0]" />
+          </div>
 
           {/* 5. Settings */}
           <div

@@ -101,7 +101,6 @@ export default function EventSetupPage({
   const [ceremonyName, setCeremonyName] = useState("Main Ceremony");
 
   // 3. Digital Invitation Card Customizer
-  const [showInvitation, setShowInvitation] = useState(true);
   const [inviteBadge, setInviteBadge] = useState("OFFICIAL INVITATION");
   const [inviteCoupleInitials, setInviteCoupleInitials] = useState("A & S");
   const [inviteTagline, setInviteTagline] = useState("Together Forever");
