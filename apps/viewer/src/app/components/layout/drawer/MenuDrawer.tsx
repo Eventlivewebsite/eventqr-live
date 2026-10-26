@@ -17,7 +17,7 @@ type Props = {
   onClose: () => void;
 };
 
-import { useEffect, useState } from "react";
+
 
 export default function MenuDrawer({ open, onClose }: Props) {
   const [showInvitation, setShowInvitation] = useState(true);
