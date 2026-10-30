@@ -1,6 +1,7 @@
 "use client";
 
-import { X, Sparkles, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Sparkles, ChevronRight, Image as ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -8,124 +9,102 @@ type Props = {
   onClose: () => void;
 };
 
-const decorations = [
-  { title: "Wedding Stage", icon: "💍" },
-  { title: "Floral Decoration", icon: "🌸" },
-  { title: "Lighting", icon: "💡" },
-  { title: "Entrance", icon: "🚪" },
-  { title: "Dining", icon: "🍽️" },
-  { title: "Selfie Booth", icon: "📸" },
-  { title: "Reception Hall", icon: "🏛️" },
+const DEFAULT_DECORATIONS = [
+  "Floral Decor",
+  "Stage Decor",
+  "Lighting",
+  "Entrance",
+  "Dining",
+  "Selfie Booth",
+  "Reception Hall"
 ];
 
-export default function GalleryDrawer({
-  open,
-  onClose,
-}: Props) {
-
+export default function GalleryDrawer({ open, onClose }: Props) {
   const router = useRouter();
+  const [items, setItems] = useState<string[]>(DEFAULT_DECORATIONS);
+  const [slug, setSlug] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const activeSlug = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
+      if (activeSlug) {
+        setSlug(activeSlug);
+        fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`)
+          .then((r) => r.json())
+          .then((d) => {
+            if (d?.success && Array.isArray(d?.event?.decorationItems) && d.event.decorationItems.length > 0) {
+              setItems(d.event.decorationItems);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [open]);
 
   if (!open) return null;
 
+  const handleSelectAlbum = (title: string) => {
+    onClose();
+    const query = new URLSearchParams();
+    if (slug) query.set("slug", slug);
+    query.set("category", title.toLowerCase());
+    router.push(`/gallery?${query.toString()}`);
+  };
+
   return (
     <>
-      {/* Overlay */}
       <div
         onClick={onClose}
-        className="absolute inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity"
       />
 
-      {/* Drawer */}
-      {/* Drawer */}
-<div className="absolute top-0 right-0 z-50 max-h-[90vh] w-[88%] max-w-[340px] overflow-hidden rounded-l-[32px] border-l border-white/40 bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
-
-  {/* Header */}
-
-        {/* Header */}
+      <div className="fixed top-0 right-0 z-50 h-full w-[88%] max-w-[340px] overflow-hidden rounded-l-[32px] border-l border-white/40 bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col">
         <div className="relative overflow-hidden border-b border-pink-100 bg-gradient-to-br from-white via-pink-50 to-rose-100 p-6">
-
-          <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-pink-200/40 blur-3xl" />
-          <div className="absolute -left-8 bottom-0 h-20 w-20 rounded-full bg-rose-200/40 blur-2xl" />
-
           <div className="relative flex items-center justify-between">
-
             <div>
-              <h2 className="flex items-center gap-2 text-2xl font-bold">
+              <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
                 <Sparkles size={22} className="text-pink-500" />
                 Decoration
               </h2>
-
-              <p className="mt-2 text-sm text-gray-500">
-                Premium Decoration Albums
+              <p className="mt-1 text-xs text-gray-500">
+                Live Decoration Albums
               </p>
             </div>
-
             <button
               onClick={onClose}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-md transition hover:scale-105 hover:shadow-lg"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-md transition hover:scale-105"
             >
-              <X size={20} />
+              <X size={18} className="text-gray-700" />
             </button>
-
           </div>
-
         </div>
 
-        {/* List */}
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-5">
-
-          {decorations.map((item) => (
-
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          {items.map((title, idx) => (
             <button
-              key={item.title}
-              onClick={() => {
-                router.push(
-                  "/gallery/" +
-                    item.title
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")
-                );
-
-                onClose();
-              }}
-              className="group flex w-full items-center justify-between rounded-3xl border border-pink-100 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-pink-300 hover:bg-pink-50 hover:shadow-xl hover:shadow-pink-100"
+              key={`${title}-${idx}`}
+              onClick={() => handleSelectAlbum(title)}
+              className="group flex w-full items-center justify-between rounded-2xl border border-pink-100/70 bg-white p-3.5 shadow-sm transition hover:border-pink-300 hover:bg-pink-50/50 hover:shadow-md"
             >
-
-              <div className="flex items-center gap-4">
-
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-2xl text-white shadow-lg">
-                  {item.icon}
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-amber-500 text-white shadow-sm">
+                  <ImageIcon size={20} />
                 </div>
-
-                <div>
-
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    {item.title}
+                <div className="text-left">
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    {title}
                   </h3>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    Photos & Videos
-                  </p>
-
+                  <p className="text-[11px] text-gray-400">View Collection</p>
                 </div>
-
               </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-50 transition-all duration-300 group-hover:bg-pink-500">
-
-                <ChevronRight
-                  size={18}
-                  className="text-pink-500 transition-all duration-300 group-hover:text-white"
-                />
-
-              </div>
-
+              <ChevronRight
+                size={16}
+                className="text-pink-400 transition group-hover:translate-x-0.5 group-hover:text-pink-600"
+              />
             </button>
-
           ))}
-
         </div>
-
       </div>
     </>
   );

@@ -1,11 +1,6 @@
 "use client";
 
-import PremiumCard from "../ui/PremiumCard";
-import {
-  Heart,
-  Eye,
-  MessageCircle,
-} from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 
 type GalleryCardProps = {
   image: string;
@@ -29,66 +24,78 @@ export default function GalleryCard({
   onLike,
 }: GalleryCardProps) {
   return (
-    <PremiumCard
-      className="group cursor-pointer overflow-hidden p-0"
+    <div
       onClick={onClick}
+      className="group mb-3 overflow-hidden rounded-2xl border border-stone-200/60 bg-white shadow-sm transition duration-300 hover:shadow-md cursor-pointer"
     >
-      <div className="relative">
-
+      {/* Photo Frame */}
+      <div className="relative overflow-hidden bg-stone-100">
         <img
           src={image}
-          alt="Gallery"
-          className={`${height} w-full object-cover transition-transform duration-500 group-hover:scale-105`}
+          alt="Post"
+          className={`${height} w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]`}
+          loading="lazy"
         />
 
-        {/* Dark Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+        {/* Top-Right Views Badge */}
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-md">
+          <span>{views}</span>
+        </div>
+      </div>
 
-        {/* Comment Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            // Baad me comment bottom sheet open karenge
-          }}
-          className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/40 px-2 py-2 text-white backdrop-blur-md transition hover:bg-black/60"
-        >
-          <MessageCircle size={16} />
-          <span className="text-xs font-semibold">
-            {comments}
-          </span>
-        </button>
-
-        {/* Bottom Info */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-
-          {/* Views */}
-          <span className="flex items-center gap-1 text-sm font-medium">
-            <Eye size={15} />
-            {views}
-          </span>
-
-          {/* Likes */}
+      {/* Instagram Action Row */}
+      <div className="flex items-center justify-between px-3 py-2.5 bg-white">
+        <div className="flex items-center gap-3">
+          {/* Like Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onLike();
             }}
-            className="flex items-center gap-1 text-sm font-medium transition hover:scale-110"
+            className="flex items-center gap-1.5 transition active:scale-75"
           >
             <Heart
-              size={15}
+              size={18}
               className={
                 liked
-                  ? "fill-red-500 text-red-500"
-                  : "text-white"
+                  ? "fill-rose-500 text-rose-500 transition"
+                  : "text-stone-700 hover:text-stone-900 transition"
               }
             />
-            {likes}
+            <span
+              className={`text-xs font-bold ${
+                liked ? "text-rose-500" : "text-stone-800"
+              }`}
+            >
+              {likes}
+            </span>
           </button>
 
+          {/* Comment Icon */}
+          <div className="flex items-center gap-1 text-stone-600">
+            <MessageCircle size={17} />
+            <span className="text-xs font-medium text-stone-700">
+              {comments}
+            </span>
+          </div>
+
+          {/* Share Icon */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (navigator.share) {
+                navigator.share({ title: "Event Photo", url: image }).catch(() => {});
+              }
+            }}
+            className="text-stone-500 hover:text-stone-800 transition"
+          >
+            <Share2 size={16} />
+          </button>
         </div>
 
+        {/* Bookmark Icon */}
+        <Bookmark size={16} className="text-stone-400 hover:text-stone-700" />
       </div>
-    </PremiumCard>
+    </div>
   );
 }
