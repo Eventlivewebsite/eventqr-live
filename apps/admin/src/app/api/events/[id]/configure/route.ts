@@ -109,7 +109,7 @@ export async function POST(
       showVideoDecoration: String(showVideoDecoration ?? true),
       photoCategories: JSON.stringify(photoCategories || []),
       photoDecorationCategories: JSON.stringify(photoDecorationCategories || []),
-      decorationItems: decorationItems ? JSON.stringify(decorationItems) : "[]",
+      decorationItems: JSON.stringify(decorationItems || body?.decorationItems || []), showDecoration: "true",
       showPhotoDecoration: String(showPhotoDecoration ?? true),
       showTimeline: String(showTimeline ?? true),
       timelines: JSON.stringify(timelines || []),
