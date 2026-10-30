@@ -5,6 +5,7 @@ import GalleryCard from "./GalleryCard";
 import ViewerModal from "./ViewerModal";
 import SearchBar from "./SearchBar";
 import FilterChips from "./FilterChips";
+import { Camera, CheckSquare, Heart } from "lucide-react";
 
 type Props = {
   galleryType?: string;
@@ -114,71 +115,74 @@ export default function GalleryGrid({
         galleryType={galleryType}
       />
 
-      <div className="mt-4 flex items-center justify-between">
-        <button
-          onClick={() => setShowFavorites(!showFavorites)}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-            showFavorites ? "bg-red-500 text-white" : "bg-gray-200 text-black"
-          }`}
-        >
-          {showFavorites ? "All Photos" : "Favorites"}
-        </button>
-
-        {selectionMode && selectedPhotos.length > 0 && (
-          <div className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow">
-            {selectedPhotos.length} Selected
-          </div>
-        )}
-
-        <button
-          onClick={() => {
-            setSelectionMode(!selectionMode);
-            setSelectedPhotos([]);
-          }}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-            selectionMode ? "bg-blue-600 text-white" : "bg-gray-200 text-black"
-          }`}
-        >
-          {selectionMode ? "Done" : "Select"}
-        </button>
-
-        {selectionMode && selectedPhotos.length > 0 && (
+      <div className="mt-3 flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setSelectedPhotos([])}
-            className="rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-white"
+            onClick={() => setShowFavorites(!showFavorites)}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition active:scale-95 ${
+              showFavorites
+                ? "bg-rose-500 text-white shadow-xs"
+                : "border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+            }`}
           >
-            Clear
+            <Heart size={14} className={showFavorites ? "fill-white" : "text-rose-500"} />
+            <span>{showFavorites ? "All Photos" : "Favorites"}</span>
           </button>
-        )}
 
-        {selectionMode && selectedPhotos.length > 0 && (
           <button
             onClick={() => {
-              selectedPhotos.forEach((id, index) => {
-                const photo = galleryPhotos.find((p) => p.id === id);
-                if (!photo) return;
-
-                setTimeout(() => {
-                  const link = document.createElement("a");
-                  link.href = photo.image;
-                  link.download = `photo-${id}.jpg`;
-                  link.target = "_blank";
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }, index * 300);
-              });
+              setSelectionMode(!selectionMode);
+              setSelectedPhotos([]);
             }}
-            className="rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white"
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition active:scale-95 ${
+              selectionMode
+                ? "bg-stone-900 text-white shadow-xs"
+                : "border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+            }`}
           >
-            Download
+            <CheckSquare size={14} />
+            <span>{selectionMode ? "Done" : "Select"}</span>
           </button>
+        </div>
+
+        {selectionMode && selectedPhotos.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-stone-500">
+              {selectedPhotos.length} picked
+            </span>
+            <button
+              onClick={() => {
+                selectedPhotos.forEach((id, index) => {
+                  const photo = galleryPhotos.find((p) => p.id === id);
+                  if (!photo) return;
+                  setTimeout(() => {
+                    const link = document.createElement("a");
+                    link.href = photo.image;
+                    link.download = `photo-${id}.jpg`;
+                    link.target = "_blank";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }, index * 300);
+                });
+              }}
+              className="rounded-full bg-stone-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-stone-800"
+            >
+              Download
+            </button>
+          </div>
         )}
       </div>
 
       {!loading && galleryPhotos.length === 0 && (
-        <div className="py-20 text-center text-sm text-gray-500">
-          No photos have been uploaded or approved for this event yet.
+        <div className="my-12 flex flex-col items-center justify-center rounded-3xl border border-dashed border-stone-200 bg-stone-50/60 p-8 text-center">
+          <div className="mb-3.5 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm ring-8 ring-stone-100">
+            <Camera size={28} className="text-stone-400 stroke-[1.7]" />
+          </div>
+          <h4 className="text-base font-bold text-stone-800">No Photos Yet</h4>
+          <p className="mt-1 max-w-[240px] text-xs text-stone-500 leading-relaxed">
+            Photos uploaded or approved for this event will appear right here in your live stream.
+          </p>
         </div>
       )}
 

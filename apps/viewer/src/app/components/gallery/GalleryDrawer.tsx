@@ -56,10 +56,10 @@ export default function GalleryDrawer({ open, onClose }: Props) {
     <>
       <div
         onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity"
       />
 
-      <div className="fixed top-0 right-0 z-50 h-full w-[88%] max-w-[340px] overflow-hidden rounded-l-[32px] border-l border-white/40 bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col">
+      <div className="absolute top-0 right-0 z-50 h-full w-[85%] max-w-[340px] overflow-hidden rounded-l-[28px] border-l border-stone-200/60 bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
         <div className="relative overflow-hidden border-b border-pink-100 bg-gradient-to-br from-white via-pink-50 to-rose-100 p-6">
           <div className="relative flex items-center justify-between">
             <div>
