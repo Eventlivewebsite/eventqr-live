@@ -164,22 +164,6 @@ export default function GalleryGrid({
   }
 
   const filteredPhotos = processedPhotos;
-    const matchFavorite = !showFavorites || photo.liked;
-
-    if (searchText !== "") {
-      return (
-        ((photo.category && photo.category.toLowerCase().includes(searchText)) ||
-          photo.image.toLowerCase().includes(searchText)) &&
-        matchFavorite
-      );
-    }
-
-    const matchCategory =
-      category.toLowerCase() === "all" ||
-      (photo.category && photo.category.toLowerCase() === category.toLowerCase());
-
-    return matchCategory && matchFavorite;
-  });
 
   return (
     <>
