@@ -52,6 +52,7 @@ export async function POST(
   try {
     const { id } = await context.params;
     const body = await req.json();
+    const rawDecorItems = body?.decorationItems || body?.decorationAlbums || [];
 
     const { title, venueName, ceremonyName, ourStoryUrl, inviteBadge, inviteCoupleInitials, inviteTagline, inviteMessage, inviteDateText, inviteTimeText, inviteVenueText,
       heroTag,
@@ -109,7 +110,8 @@ export async function POST(
       showVideoDecoration: String(showVideoDecoration ?? true),
       photoCategories: JSON.stringify(photoCategories || []),
       photoDecorationCategories: JSON.stringify(photoDecorationCategories || []),
-      decorationItems: JSON.stringify(decorationItems || body?.decorationItems || []), showDecoration: "true",
+      decorationItems: JSON.stringify(rawDecorItems),
+      showDecoration: "true",
       showPhotoDecoration: String(showPhotoDecoration ?? true),
       showTimeline: String(showTimeline ?? true),
       timelines: JSON.stringify(timelines || []),
