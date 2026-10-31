@@ -160,24 +160,26 @@ export async function GET(request: Request) {
         highlightType: customMap["highlightType"] || "video",
         showDecoration: customMap["showDecoration"] !== undefined ? (customMap["showDecoration"] === "true" || customMap["showDecoration"] === true) : true,
         decorationItems: (() => {
-          try {
-            if (customMap["decorationItems"]) {
-              const parsed = JSON.parse(customMap["decorationItems"]);
-              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          const parseSafe = (val: any) => {
+            if (Array.isArray(val)) return val;
+            if (typeof val === "string") {
+              try {
+                const p = JSON.parse(val);
+                if (Array.isArray(p)) return p;
+              } catch {}
             }
-          } catch {}
-          try {
-            if (customMap["photoDecorationCategories"]) {
-              const parsed = JSON.parse(customMap["photoDecorationCategories"]);
-              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-          } catch {}
-          try {
-            if (customMap["videoDecorationCategories"]) {
-              const parsed = JSON.parse(customMap["videoDecorationCategories"]);
-              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-          } catch {}
+            return [];
+          };
+
+          const fromItems = parseSafe(customMap["decorationItems"]);
+          if (fromItems.length > 0) return fromItems;
+
+          const fromPhoto = parseSafe(customMap["photoDecorationCategories"]);
+          if (fromPhoto.length > 0) return fromPhoto;
+
+          const fromVideo = parseSafe(customMap["videoDecorationCategories"]);
+          if (fromVideo.length > 0) return fromVideo;
+
           return [];
         })(),
         musicEnabled: customMap["musicEnabled"] !== undefined ? (customMap["musicEnabled"] === "true" || customMap["musicEnabled"] === true) : true,
