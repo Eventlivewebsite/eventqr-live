@@ -51,8 +51,8 @@ export default function VideoHeader({ onMenuClick }: Props) {
 
         {/* Title connected to Admin Event Title */}
         <div className="text-center px-2 flex-1 min-w-0">
-          <h1 className="text-lg font-black tracking-tight text-stone-900 truncate flex items-center justify-center gap-1.5">
-            <span className="text-base">??</span> {title}
+          <h1 className="text-lg font-black tracking-tight text-stone-900 truncate text-center">
+            {title}
           </h1>
           <p className="text-[11px] font-medium text-stone-500 truncate mt-0.5">
             {subtitle}
