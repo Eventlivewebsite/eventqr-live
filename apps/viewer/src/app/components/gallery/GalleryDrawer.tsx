@@ -9,15 +9,7 @@ type Props = {
   onClose: () => void;
 };
 
-const DEFAULT_DECORATIONS = [
-  "Floral Decor",
-  "Stage Decor",
-  "Lighting",
-  "Entrance",
-  "Dining",
-  "Selfie Booth",
-  "Reception Hall"
-];
+const DEFAULT_DECORATIONS: string[] = [];
 
 export default function GalleryDrawer({ open, onClose }: Props) {
   const router = useRouter();
@@ -91,7 +83,12 @@ export default function GalleryDrawer({ open, onClose }: Props) {
 
         {/* List of Albums */}
         <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
-          {items.map((title, idx) => (
+          {items.length === 0 ? (
+            <div className="py-12 text-center text-xs text-stone-400">
+              No decoration albums configured yet.
+            </div>
+          ) : (
+            items.map((title, idx) => (
             <button
               key={`${title}-${idx}`}
               onClick={() => handleSelectAlbum(title)}
@@ -113,7 +110,8 @@ export default function GalleryDrawer({ open, onClose }: Props) {
                 className="text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-800"
               />
             </button>
-          ))}
+            ))
+          )}
         </div>
 
       </div>

@@ -163,10 +163,22 @@ export async function GET(request: Request) {
           try {
             if (customMap["decorationItems"]) {
               const parsed = JSON.parse(customMap["decorationItems"]);
-              return Array.isArray(parsed) ? parsed : [];
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
             }
           } catch {}
-          return ["Floral Decor", "Stage Decor", "Lighting", "Entrance", "Dining"];
+          try {
+            if (customMap["photoDecorationCategories"]) {
+              const parsed = JSON.parse(customMap["photoDecorationCategories"]);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+          } catch {}
+          try {
+            if (customMap["videoDecorationCategories"]) {
+              const parsed = JSON.parse(customMap["videoDecorationCategories"]);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+          } catch {}
+          return [];
         })(),
         musicEnabled: customMap["musicEnabled"] !== undefined ? (customMap["musicEnabled"] === "true" || customMap["musicEnabled"] === true) : true,
         musicTracks: (() => {
