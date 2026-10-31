@@ -1,21 +1,22 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { 
   Image as ImageIcon, Film, Upload, Trash2, Loader2, 
   Sparkles, CheckCircle2, ChevronDown, FolderOpen, ExternalLink,
-  Filter, Eye, Check
+  Filter, Eye, Check, Send, Zap
 } from "lucide-react";
 
 interface MediaItem {
   id: string;
   url: string;
   type: "photo" | "video";
-  section: string; // e.g., "Category", "Decoration", "Food", "Family", "Hero"
+  section: "Category" | "Decoration";
   category: string;
   createdAt: string;
 }
 
+// Client-side auto canvas compression
 async function autoCompressFile(file: File): Promise<string> {
   if (file.type.startsWith("video/")) {
     return new Promise((resolve) => {
@@ -33,19 +34,19 @@ async function autoCompressFile(file: File): Promise<string> {
       img.src = e.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1600;
-        const MAX_HEIGHT = 1600;
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1920;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
           if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
+            height = Math.round((height * MAX_WIDTH) / width);
             width = MAX_WIDTH;
           }
         } else {
           if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
+            width = Math.round((width * MAX_HEIGHT) / height);
             height = MAX_HEIGHT;
           }
         }
@@ -53,10 +54,14 @@ async function autoCompressFile(file: File): Promise<string> {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
+        if (!ctx) {
+          resolve(img.src);
+          return;
+        }
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-        resolve(dataUrl);
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL("image/webp", 0.82);
+        resolve(compressedBase64);
       };
       img.onerror = () => resolve(reader.result as string);
     };
@@ -64,22 +69,41 @@ async function autoCompressFile(file: File): Promise<string> {
   });
 }
 
-export default function PhotosAndMediaHub() {
+export default function MediaStudioPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [loadingEvents, setLoadingEvents] = useState(true);
-  
-  const [eventData, setEventData] = useState<any>(null);
   const [loadingEventData, setLoadingEventData] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [activeMediaTab, setActiveMediaTab] = useState<"photo" | "video">("photo");
-  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+  const [activeTab, setActiveTab] = useState<"photos" | "videos">("photos");
 
-  // Target routing options populated from setup form
-  const [availableTargets, setAvailableTargets] = useState<{ section: string; name: string }[]>([]);
+  const [availableTargets, setAvailableTargets] = useState<{ section: "Category" | "Decoration"; name: string }[]>([]);
   const [selectedTarget, setSelectedTarget] = useState<string>("");
   const [mediaVault, setMediaVault] = useState<MediaItem[]>([]);
   const [filterTarget, setFilterTarget] = useState<string>("ALL");
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [pushSuccess, setPushSuccess] = useState(false);
+
+  // Broadcast zero-reload instant sync
+  const triggerLivePush = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const channel = new BroadcastChannel("event_media_sync");
+        channel.postMessage({
+          type: "MEDIA_UPLOADED",
+          eventId: selectedEventId,
+          timestamp: Date.now(),
+        });
+        channel.close();
+      } catch (e) {
+        console.error("BroadcastChannel sync error:", e);
+      }
+    }
+    setPushSuccess(true);
+    setTimeout(() => setPushSuccess(false), 2500);
+  };
 
   useEffect(() => {
     async function fetchEvents() {
@@ -106,55 +130,79 @@ export default function PhotosAndMediaHub() {
     async function loadEventMedia() {
       try {
         setLoadingEventData(true);
-        const res = await fetch(`/api/events/${selectedEventId}/configure`);
+        const res = await fetch("/api/events/" + selectedEventId + "/configure");
         const json = await res.json();
         if (json.success && json.event) {
-          setEventData(json.event);
           const cm = json.event.customMap || {};
+          const targets: { section: "Category" | "Decoration"; name: string }[] = [];
+
+          const parseSafe = (val: any) => {
+            if (Array.isArray(val)) return val;
+            if (typeof val === "string") {
+              try {
+                const p = JSON.parse(val);
+                if (Array.isArray(p)) return p;
+              } catch {}
+            }
+            return [];
+          };
+
+          // 1. ONLY Photo & Video Categories
+          const cats = [
+            ...parseSafe(cm.photoCategories),
+            ...parseSafe(cm.videoCategories),
+            ...parseSafe(cm.categoriesList),
+          ];
+          const uniqueCats = Array.from(
+            new Set(
+              cats
+                .map((c: any) => (typeof c === "string" ? c : c.name || c.title || ""))
+                .filter(Boolean)
+            )
+          );
           
-          const targets: { section: string; name: string }[] = [];
-
-          // 1. Photos/Videos Categories
-          try {
-            const cats = cm.photoCategories ? JSON.parse(cm.photoCategories) : ["Ceremony", "Haldi", "Reception", "Family"];
-            cats.forEach((c: string) => targets.push({ section: "Category", name: c }));
-          } catch {}
-
-          // 2. Decoration Albums
-          try {
-            const decors = cm.decorationItems ? JSON.parse(cm.decorationItems) : ["Stage Decor", "Entrance", "Lighting"];
-            decors.forEach((d: string) => targets.push({ section: "Decoration", name: d }));
-          } catch {}
-
-          // 3. Food Dishes
-          try {
-            const foods = cm.foodItems ? JSON.parse(cm.foodItems) : [];
-            foods.forEach((f: any) => targets.push({ section: "Food", name: f.name || "Dish Item" }));
-          } catch {}
-
-          // 4. Family & VIPs
-          try {
-            const fam = cm.familyMembers ? JSON.parse(cm.familyMembers) : [];
-            fam.forEach((m: any) => targets.push({ section: "Family", name: m.name || "Key Member" }));
-          } catch {}
-
-          // 5. Hero Highlights
-          targets.push({ section: "Hero", name: "Hero Highlights & Slideshow" });
-
-          setAvailableTargets(targets);
-          if (targets.length > 0) {
-            setSelectedTarget(`${targets[0].section}:${targets[0].name}`);
+          if (uniqueCats.length > 0) {
+            uniqueCats.forEach((c) => targets.push({ section: "Category", name: c }));
+          } else {
+            ["Ceremony", "Stage", "Celebrations", "Reception"].forEach((c) =>
+              targets.push({ section: "Category", name: c })
+            );
           }
 
-          // Parse existing vault
-          let parsedVault: MediaItem[] = [];
-          try {
-            if (cm.mediaVault) parsedVault = JSON.parse(cm.mediaVault);
-          } catch {}
-          setMediaVault(parsedVault);
+          // 2. ONLY Decoration Albums
+          const decors = [
+            ...parseSafe(cm.decorationItems),
+            ...parseSafe(cm.photoDecorationCategories),
+            ...parseSafe(cm.videoDecorationCategories),
+          ];
+          const uniqueDecors = Array.from(
+            new Set(
+              decors
+                .map((d: any) => (typeof d === "string" ? d : d.name || d.title || ""))
+                .filter(Boolean)
+            )
+          );
+          
+          if (uniqueDecors.length > 0) {
+            uniqueDecors.forEach((d) => targets.push({ section: "Decoration", name: d }));
+          } else {
+            ["Main Stage", "Entrance Gate", "Floral Decor", "Lighting Setup"].forEach((d) =>
+              targets.push({ section: "Decoration", name: d })
+            );
+          }
+
+          // Strictly filter out any other sections (Food, Family, Hero omitted)
+          setAvailableTargets(targets);
+          if (targets.length > 0) {
+            setSelectedTarget(targets[0].section + ":" + targets[0].name);
+          }
+
+          // Load vault media
+          const vault = parseSafe(cm.mediaVault);
+          setMediaVault(vault);
         }
       } catch (err) {
-        console.error("Error loading event media:", err);
+        console.error("Failed to load event media:", err);
       } finally {
         setLoadingEventData(false);
       }
@@ -168,7 +216,9 @@ export default function PhotosAndMediaHub() {
     setIsUploading(true);
 
     try {
-      const [sec, name] = selectedTarget.split(":");
+      const parts = selectedTarget.split(":");
+      const sec = parts[0] as "Category" | "Decoration";
+      const name = parts[1];
       const newItems: MediaItem[] = [];
 
       for (let i = 0; i < files.length; i++) {
@@ -177,7 +227,7 @@ export default function PhotosAndMediaHub() {
         const base64Uri = await autoCompressFile(file);
 
         newItems.push({
-          id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+          id: Date.now() + "-" + Math.random().toString(36).substring(2, 8),
           url: base64Uri,
           type: isVid ? "video" : "photo",
           section: sec,
@@ -189,88 +239,96 @@ export default function PhotosAndMediaHub() {
       const updatedVault = [...newItems, ...mediaVault];
       setMediaVault(updatedVault);
 
-      // Persist to backend configure endpoint
-      await fetch(`/api/events/${selectedEventId}/configure`, {
+      await fetch("/api/events/" + selectedEventId + "/configure", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mediaVault: updatedVault }),
       });
 
-      setSaveSuccessMsg(`✓ Successfully compressed & uploaded ${newItems.length} item(s) to [${sec}] ${name}!`);
-      setTimeout(() => setSaveSuccessMsg(""), 4500);
-    } catch (e: any) {
-      alert("Upload failed: " + e.message);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+
+      // Instant push sync
+      triggerLivePush();
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert("Failed to upload media. Please try again.");
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleDeleteItem = async (itemId: string) => {
-    const updated = mediaVault.filter(m => m.id !== itemId);
-    setMediaVault(updated);
+  const handleDeleteItem = async (id: string) => {
+    const updatedVault = mediaVault.filter((m) => m.id !== id);
+    setMediaVault(updatedVault);
+
     try {
-      await fetch(`/api/events/${selectedEventId}/configure`, {
+      await fetch("/api/events/" + selectedEventId + "/configure", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mediaVault: updated }),
+        body: JSON.stringify({ mediaVault: updatedVault }),
       });
-    } catch {}
+      triggerLivePush();
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
   };
 
-  const visibleMedia = mediaVault.filter((m) => {
-    if (m.type !== activeMediaTab) return false;
-    if (filterTarget !== "ALL") {
-      const targetIdentifier = `${m.section}:${m.category}`;
-      if (targetIdentifier !== filterTarget) return false;
-    }
-    return true;
+  const filteredVault = mediaVault.filter((item) => {
+    const matchesType = activeTab === "photos" ? item.type === "photo" : item.type === "video";
+    const matchesTarget = filterTarget === "ALL" || (item.section + ":" + item.category) === filterTarget;
+    return matchesType && matchesTarget;
   });
 
-  if (loadingEvents) {
-    return (
-      <div className="h-full flex items-center justify-center bg-slate-900">
-        <Loader2 className="animate-spin text-amber-500 h-8 w-8" />
-      </div>
-    );
-  }
+  const selectedEvent = events.find((e) => e.id === selectedEventId);
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 text-slate-100">
+    <div className="min-h-screen bg-[#0b0f17] text-stone-200 p-6 md:p-10 font-sans">
       
-      {/* Top Header Card */}
-      <div className="bg-[#0b101b] border border-slate-800/80 p-6 rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Top Suite Bar */}
+      <div className="mx-auto max-w-7xl rounded-3xl border border-stone-800/80 bg-stone-900/60 p-6 backdrop-blur-xl mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2">
-            <Sparkles className="text-amber-400 h-6 w-6" /> Media Studio & Publishing Suite
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Choose category target, drop media, and auto-publish directly to Live Guest screens.
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="text-amber-400" size={22} />
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white">
+              Media Studio & Publishing Suite
+            </h1>
+          </div>
+          <p className="mt-1 text-xs md:text-sm text-stone-400">
+            Auto-compress media and route strictly to Category &amp; Decoration targets with zero-refresh live push.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <span className="text-[11px] font-bold text-slate-400 uppercase whitespace-nowrap">Active Event:</span>
-          <div className="relative flex-1 md:w-64">
-            <select
-              value={selectedEventId}
-              onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full appearance-none bg-slate-900 border border-slate-700/80 font-bold text-xs text-white rounded-2xl py-3 px-4 pr-10 outline-none focus:border-amber-500 shadow-sm cursor-pointer"
-            >
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.title} ({ev.type})
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+        <div className="flex items-center gap-3">
+          {/* Push Live Button */}
+          <button
+            onClick={triggerLivePush}
+            disabled={isPushing}
+            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-600 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-rose-600/20 hover:brightness-110 active:scale-95 transition cursor-pointer"
+          >
+            <Zap size={15} className="fill-white" />
+            <span>{pushSuccess ? "Pushed to Guests!" : "Push to Live Viewer"}</span>
+          </button>
 
-          {eventData?.slug && (
+          {/* Active Event Selector */}
+          <select
+            value={selectedEventId}
+            onChange={(e) => setSelectedEventId(e.target.value)}
+            className="rounded-2xl border border-stone-700 bg-stone-800/90 px-3.5 py-2.5 text-xs font-bold text-white focus:outline-hidden focus:border-amber-400"
+          >
+            {events.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.title} ({ev.eventType || "EVENT"})
+              </option>
+            ))}
+          </select>
+
+          {selectedEvent && (
             <a
-              href={`http://localhost:3000/?event=${eventData.slug}`}
+              href={"https://eventqr-live-viewer.vercel.app/?slug=" + selectedEvent.slug}
               target="_blank"
-              rel="noreferrer"
-              className="hidden lg:flex items-center gap-1 text-xs font-bold px-4 py-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition shadow-sm whitespace-nowrap"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-2xl border border-stone-700 bg-stone-800/80 px-3.5 py-2.5 text-xs font-bold text-stone-300 hover:text-white hover:bg-stone-700 transition"
             >
               <span>Live Viewer</span>
               <ExternalLink size={13} />
@@ -279,143 +337,124 @@ export default function PhotosAndMediaHub() {
         </div>
       </div>
 
-      {saveSuccessMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center gap-2 shadow-sm animate-in fade-in">
-          <CheckCircle2 size={16} /> {saveSuccessMsg}
-        </div>
-      )}
-
-      {/* Main Studio Control Deck */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main Grid: Upload Router (Left) & Vault Gallery (Right) */}
+      <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left: Upload Dispatcher Panel */}
-        <div className="lg:col-span-5 bg-[#0b101b] border border-slate-800/80 rounded-3xl p-6 shadow-xl space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <FolderOpen className="text-amber-400 h-4 w-4" /> Upload Router & Compressor
-            </h2>
-            
-            {/* Photo / Video Switch */}
-            <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setActiveMediaTab("photo")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                  activeMediaTab === "photo" 
-                    ? "bg-amber-500 text-black shadow" 
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Photos
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveMediaTab("video")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                  activeMediaTab === "video" 
-                    ? "bg-amber-500 text-black shadow" 
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Videos
-              </button>
-            </div>
-          </div>
-
-          {/* Target Dropdown Selector */}
+        {/* Left: Upload Router & Compressor */}
+        <div className="lg:col-span-5 rounded-3xl border border-stone-800/90 bg-stone-900/50 p-6 flex flex-col justify-between">
           <div>
-            <label className="text-[11px] font-bold uppercase text-slate-400 block mb-1.5">
-              Select Destination Field / Album / Category:
-            </label>
-            <div className="relative">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-800">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="text-amber-400" size={18} />
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                  Upload Router &amp; Compressor
+                </h3>
+              </div>
+
+              {/* Photos / Videos Toggle */}
+              <div className="flex rounded-xl bg-stone-800 p-1 border border-stone-700/60">
+                <button
+                  onClick={() => setActiveTab("photos")}
+                  className={
+                    "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition " +
+                    (activeTab === "photos" ? "bg-amber-400 text-stone-950 shadow-xs" : "text-stone-400 hover:text-white")
+                  }
+                >
+                  <ImageIcon size={13} />
+                  <span>Photos</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("videos")}
+                  className={
+                    "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition " +
+                    (activeTab === "videos" ? "bg-amber-400 text-stone-950 shadow-xs" : "text-stone-400 hover:text-white")
+                  }
+                >
+                  <Film size={13} />
+                  <span>Videos</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Target Select Dropdown: STRICTLY CATEGORY & DECORATION */}
+            <div className="mt-5">
+              <label className="text-[11px] font-black uppercase tracking-wider text-stone-400">
+                SELECT DESTINATION (CATEGORY / DECORATION ONLY):
+              </label>
               <select
                 value={selectedTarget}
                 onChange={(e) => setSelectedTarget(e.target.value)}
-                className="w-full appearance-none bg-slate-900 border border-slate-700/80 text-white font-bold text-xs rounded-2xl p-3.5 pr-10 outline-none focus:border-amber-500 cursor-pointer"
+                className="mt-2 w-full rounded-2xl border border-stone-700 bg-stone-800/90 p-3 text-xs font-bold text-white focus:outline-hidden focus:border-amber-400"
               >
                 {availableTargets.map((t, idx) => (
-                  <option key={idx} value={`${t.section}:${t.name}`}>
-                    [{t.section.toUpperCase()}] → {t.name}
+                  <option key={idx} value={t.section + ":" + t.name}>
+                    [" + t.section.toUpperCase() + "] ? " + t.name
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3.5 top-4 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-            <p className="text-[10px] text-slate-500 mt-1.5">
-              Files uploaded will automatically route to this section on the live viewer.
-            </p>
-          </div>
-
-          {/* Unified Drag & Drop Upload Zone */}
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleUploadFiles(e.dataTransfer.files);
-              }
-            }}
-            className="border-2 border-dashed border-slate-700 hover:border-amber-400/80 bg-slate-900/60 rounded-3xl p-8 text-center transition flex flex-col items-center justify-center space-y-3 cursor-pointer group"
-          >
-            <div className="h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition">
-              {isUploading ? (
-                <Loader2 className="animate-spin h-6 w-6 text-amber-400" />
-              ) : activeMediaTab === "photo" ? (
-                <ImageIcon size={24} />
-              ) : (
-                <Film size={24} />
-              )}
-            </div>
-
-            <div>
-              <p className="text-xs font-bold text-slate-200">
-                {isUploading ? "Compressing & Publishing..." : `Drag & Drop ${activeMediaTab === "photo" ? "Photos" : "Videos"} Here`}
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Target: <span className="text-amber-400 font-semibold">{selectedTarget.replace(":", " → ")}</span>
+              <p className="mt-1.5 text-[11px] text-stone-500">
+                Files uploaded here route exclusively to Category feeds or Decoration albums on guest screens.
               </p>
             </div>
 
-            <label className="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black px-5 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-amber-500/10 transition mt-2">
-              <Upload size={14} /> Browse {activeMediaTab === "photo" ? "Images" : "Videos"}
+            {/* Drop / Upload Zone */}
+            <label className="mt-6 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-700 hover:border-amber-400/80 bg-stone-950/40 p-8 text-center cursor-pointer transition group">
               <input
                 type="file"
                 multiple
-                accept={activeMediaTab === "photo" ? "image/*" : "video/*"}
-                className="hidden"
-                disabled={isUploading}
+                accept={activeTab === "photos" ? "image/*" : "video/*"}
                 onChange={(e) => handleUploadFiles(e.target.files)}
+                className="hidden"
+                disabled={isUploading || !selectedTarget}
               />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-800/80 group-hover:bg-amber-400/10 text-stone-300 group-hover:text-amber-400 transition">
+                {isUploading ? <Loader2 size={24} className="animate-spin text-amber-400" /> : <Upload size={24} />}
+              </div>
+              <h4 className="mt-4 text-sm font-black text-white">
+                {isUploading ? "Auto-Compressing & Uploading..." : "Drag & Drop " + (activeTab === "photos" ? "Photos" : "Videos") + " Here"}
+              </h4>
+              <p className="mt-1 text-xs text-stone-400">
+                Target: <span className="text-amber-400 font-bold">{selectedTarget.replace(":", " ? ")}</span>
+              </p>
+              <span className="mt-4 rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-stone-950 shadow-md group-hover:brightness-105 transition">
+                {isUploading ? "Processing..." : "Browse " + (activeTab === "photos" ? "Images" : "Videos")}
+              </span>
+              <p className="mt-3 text-[10px] text-stone-500">
+                Auto-compressed on canvas for maximum sharpness &amp; zero guest lag.
+              </p>
             </label>
-            <span className="text-[10px] text-slate-500">
-              Auto-compressed on canvas for maximum sharpness & instant loading.
-            </span>
           </div>
+
+          {/* Success Status */}
+          {saveSuccess && (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3 text-xs font-bold text-emerald-400">
+              <CheckCircle2 size={16} />
+              <span>Media uploaded, compressed, and broadcast live!</span>
+            </div>
+          )}
         </div>
 
-        {/* Right: Live Gallery & Category Filter Feed */}
-        <div className="lg:col-span-7 bg-[#0b101b] border border-slate-800/80 rounded-3xl p-6 shadow-xl space-y-5">
-          
-          {/* Header & Filter Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        {/* Right: Published Vault */}
+        <div className="lg:col-span-7 rounded-3xl border border-stone-800/90 bg-stone-900/50 p-6 flex flex-col">
+          <div className="flex items-center justify-between pb-4 border-b border-stone-800">
             <div>
-              <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                <Eye className="text-amber-400 h-4 w-4" /> Published {activeMediaTab === "photo" ? "Photos" : "Videos"} ({visibleMedia.length})
-              </h2>
-              <span className="text-[11px] text-slate-400">Total in vault: {mediaVault.length} media items</span>
+              <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                Published {activeTab === "photos" ? "Photos" : "Videos"} ({filteredVault.length})
+              </h3>
+              <p className="text-[11px] text-stone-400">Total in vault: {mediaVault.length} media items</p>
             </div>
 
-            {/* Filter Category Dropdown */}
+            {/* Vault Filter */}
             <div className="flex items-center gap-2">
-              <Filter size={13} className="text-slate-400" />
+              <Filter size={14} className="text-stone-400" />
               <select
                 value={filterTarget}
                 onChange={(e) => setFilterTarget(e.target.value)}
-                className="bg-slate-900 border border-slate-800 text-white font-semibold text-xs rounded-xl px-3 py-1.5 outline-none focus:border-amber-500 cursor-pointer"
+                className="rounded-xl border border-stone-700 bg-stone-800/80 px-2.5 py-1.5 text-xs font-bold text-white focus:outline-hidden"
               >
-                <option value="ALL">All Categories & Albums</option>
-                {availableTargets.map((t, i) => (
-                  <option key={i} value={`${t.section}:${t.name}`}>
+                <option value="ALL">All Categories &amp; Albums</option>
+                {availableTargets.map((t, idx) => (
+                  <option key={idx} value={t.section + ":" + t.name}>
                     {t.section}: {t.name}
                   </option>
                 ))}
@@ -423,42 +462,48 @@ export default function PhotosAndMediaHub() {
             </div>
           </div>
 
-          {/* Media Grid */}
-          {visibleMedia.length === 0 ? (
-            <div className="py-20 text-center space-y-2">
-              <p className="text-xs text-slate-500 font-semibold">No {activeMediaTab} files published in this section yet.</p>
-              <p className="text-[11px] text-slate-600">Select a category on the left to upload your first item.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 max-h-[580px] overflow-y-auto pr-1">
-              {visibleMedia.map((item) => (
-                <div key={item.id} className="relative group rounded-2xl overflow-hidden border border-slate-800 aspect-square bg-slate-900 shadow-sm">
-                  {item.type === "photo" ? (
-                    <img src={item.url} alt="Media" className="h-full w-full object-cover group-hover:scale-105 transition duration-300" />
-                  ) : (
-                    <video src={item.url} className="h-full w-full object-cover" />
-                  )}
-
-                  {/* Section Badge */}
-                  <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-extrabold text-amber-300 border border-white/10 uppercase">
-                    {item.category}
-                  </div>
-
-                  {/* Hover Delete Action */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center p-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg transition"
-                    >
-                      <Trash2 size={12} /> Delete
-                    </button>
-                  </div>
+          {/* Media Items Grid */}
+          <div className="mt-6 flex-1 overflow-y-auto max-h-[580px] no-scrollbar">
+            {filteredVault.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="h-12 w-12 rounded-2xl bg-stone-800/60 flex items-center justify-center text-stone-500 mb-3">
+                  {activeTab === "photos" ? <ImageIcon size={22} /> : <Film size={22} />}
                 </div>
-              ))}
-            </div>
-          )}
+                <h4 className="text-sm font-bold text-stone-400">No media published in this section yet.</h4>
+                <p className="text-xs text-stone-600 mt-1">Select a category or decoration album on the left to upload.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+                {filteredVault.map((item) => (
+                  <div
+                    key={item.id}
+                    className="group relative rounded-2xl border border-stone-800 bg-stone-950/60 overflow-hidden shadow-xs hover:border-stone-700 transition"
+                  >
+                    <div className="aspect-[4/3] w-full bg-stone-900 overflow-hidden relative">
+                      {item.type === "photo" ? (
+                        <img src={item.url} alt={item.category} className="h-full w-full object-cover group-hover:scale-105 transition duration-300" />
+                      ) : (
+                        <video src={item.url} className="h-full w-full object-cover" />
+                      )}
 
+                      <span className="absolute top-2 left-2 rounded-md bg-stone-950/80 px-2 py-0.5 text-[9px] font-black text-amber-400 backdrop-blur-xs">
+                        {item.section}: {item.category}
+                      </span>
+
+                      {/* Delete Action */}
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-rose-600/80 text-white opacity-0 group-hover:opacity-100 hover:bg-rose-600 transition cursor-pointer"
+                        title="Delete media"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
