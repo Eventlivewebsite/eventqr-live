@@ -5,7 +5,7 @@ import GalleryCard from "./GalleryCard";
 import ViewerModal from "./ViewerModal";
 import SearchBar from "./SearchBar";
 import FilterChips from "./FilterChips";
-import { Camera, CheckSquare, Heart } from "lucide-react";
+import { Camera, CheckSquare, Heart, Download, FolderArchive, ArrowLeft, X } from "lucide-react";
 
 type Props = {
   galleryType?: string;
@@ -25,8 +25,39 @@ export default function GalleryGrid({
   const [selectedPhotos, setSelectedPhotos] = useState<number[]>([]);
   const [musicOn, setMusicOn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeSort, setActiveSort] = useState<string>("");
+  const [activeAlbum, setActiveAlbum] = useState<string>("");
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+  async function handleDownloadAll(itemsToDownload: any[]) {
+    if (downloadingAll || itemsToDownload.length === 0) return;
+    setDownloadingAll(true);
+    try {
+      for (let i = 0; i < itemsToDownload.length; i++) {
+        const item = itemsToDownload[i];
+        const mediaUrl = item.url || item.photoUrl || item.videoUrl;
+        if (mediaUrl) {
+          const res = await fetch(mediaUrl);
+          const blob = await res.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = `${activeAlbum || "event-media"}_${i + 1}.${blob.type.includes("video") ? "mp4" : "jpg"}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(blobUrl);
+          await new Promise((r) => setTimeout(r, 400));
+        }
+      }
+    } catch (e) {
+      console.error("Batch download error:", e);
+    } finally {
+      setDownloadingAll(false);
+    }
+  }
+
 
   useEffect(() => {
     async function loadGalleryData() {
@@ -37,6 +68,11 @@ export default function GalleryGrid({
         if (catParam) {
           setCategory(catParam.charAt(0).toUpperCase() + catParam.slice(1));
         }
+        const sortParam = urlParams.get("sort");
+        if (sortParam) setActiveSort(sortParam);
+
+        const albumParam = urlParams.get("album");
+        if (albumParam) setActiveAlbum(albumParam);
 
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
@@ -81,8 +117,53 @@ export default function GalleryGrid({
     photoCounts[p.category] = (photoCounts[p.category] || 0) + 1;
   });
 
-  const filteredPhotos = galleryPhotos.filter((photo) => {
-    const searchText = search.trim().toLowerCase();
+  let processedPhotos = [...galleryPhotos];
+
+  // 1. Album isolation
+  if (activeAlbum) {
+    processedPhotos = processedPhotos.filter((p: any) => {
+      const pAlbum = (p.album || p.category || "").toLowerCase();
+      return pAlbum === activeAlbum.toLowerCase();
+    });
+  }
+
+  // 2. Category filter
+  if (category && category.toLowerCase() !== "all") {
+    processedPhotos = processedPhotos.filter((p: any) => {
+      const pCat = (p.category || p.album || "").toLowerCase();
+      return pCat === category.toLowerCase();
+    });
+  }
+
+  // 3. Search filter
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    processedPhotos = processedPhotos.filter((p: any) => {
+      return (p.title && p.title.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q));
+    });
+  }
+
+  // 4. Favorites filter
+  if (showFavorites) {
+    processedPhotos = processedPhotos.filter((p: any) => p.isFavorite || p.liked);
+  }
+
+  // 5. Sorting Engine: Most Loved / Most Viewed / Most Downloaded / Highlights
+  if (activeSort === "most_loved") {
+    processedPhotos.sort((a: any, b: any) => (b.likesCount || b.likes || 0) - (a.likesCount || a.likes || 0));
+  } else if (activeSort === "most_viewed") {
+    processedPhotos.sort((a: any, b: any) => (b.viewsCount || b.views || 0) - (a.viewsCount || a.views || 0));
+  } else if (activeSort === "most_downloaded") {
+    processedPhotos.sort((a: any, b: any) => (b.downloadsCount || b.downloads || 0) - (a.downloadsCount || a.downloads || 0));
+  } else if (activeSort === "highlights") {
+    processedPhotos.sort((a: any, b: any) => {
+      const scoreA = (a.likesCount || 0) * 3 + (a.commentsCount || 0) * 2 + (a.downloadsCount || 0) * 2;
+      const scoreB = (b.likesCount || 0) * 3 + (b.commentsCount || 0) * 2 + (b.downloadsCount || 0) * 2;
+      return scoreB - scoreA;
+    });
+  }
+
+  const filteredPhotos = processedPhotos;
     const matchFavorite = !showFavorites || photo.liked;
 
     if (searchText !== "") {
@@ -108,6 +189,50 @@ export default function GalleryGrid({
 
       <SearchBar value={search} onChange={setSearch} />
 
+      {/* Active Album / Sorting Header Banner */}
+      {(activeAlbum || activeSort) && (
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-stone-200/80 bg-stone-50/90 p-3.5 shadow-xs">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">
+              {activeAlbum ? "Album View" : "Filtered Feed"}
+            </span>
+            <h2 className="text-sm font-black text-stone-900">
+              {activeAlbum ? activeAlbum : activeSort.replace("_", " ").toUpperCase()}
+            </h2>
+            <p className="text-[11px] font-medium text-stone-500">
+              {filteredPhotos.length} {filteredPhotos.length === 1 ? "memory" : "memories"} found
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {filteredPhotos.length > 0 && (
+              <button
+                onClick={() => handleDownloadAll(filteredPhotos)}
+                disabled={downloadingAll}
+                className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-stone-800 disabled:opacity-50 cursor-pointer active:scale-95"
+              >
+                <Download size={13} />
+                <span>{downloadingAll ? "Downloading..." : "Download All"}</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                setActiveAlbum("");
+                setActiveSort("");
+                const sp = new URLSearchParams(window.location.search);
+                sp.delete("album");
+                sp.delete("sort");
+                window.history.replaceState({}, "", `${window.location.pathname}?${sp.toString()}`);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-xs hover:bg-stone-100 cursor-pointer"
+              title="Clear Filter"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
       <FilterChips
         active={category}
         onChange={setCategory}
