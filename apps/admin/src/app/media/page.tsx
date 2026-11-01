@@ -211,6 +211,29 @@ export default function MediaStudioPage() {
     loadEventMedia();
   }, [selectedEventId]);
 
+    const handlePushToViewer = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        const payload = {
+          type: "EVENT_MEDIA_SYNC",
+          eventId: selectedEventId,
+          timestamp: Date.now()
+        };
+        // Channel sync
+        if ("BroadcastChannel" in window) {
+          const bc = new BroadcastChannel("event_media_sync");
+          bc.postMessage(payload);
+          setTimeout(() => bc.close(), 1000);
+        }
+        // LocalStorage fallback sync for other tabs
+        localStorage.setItem("eventqr_media_push_trigger", JSON.stringify(payload));
+      }
+      alert("Pushed to Live Viewer successfully!");
+    } catch (e) {
+      console.error("Push error:", e);
+    }
+  };
+
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0 || !selectedTarget) return;
     setIsUploading(true);
@@ -388,7 +411,7 @@ export default function MediaStudioPage() {
               >
                 {availableTargets.map((t, idx) => (
                   <option key={idx} value={t.section + ":" + t.name}>
-                    [" + t.section.toUpperCase() + "] ? " + t.name
+                    [{t.section.toUpperCase()}] ? {t.name}
                   </option>
                 ))}
               </select>
@@ -455,7 +478,7 @@ export default function MediaStudioPage() {
                 <option value="ALL">All Categories &amp; Albums</option>
                 {availableTargets.map((t, idx) => (
                   <option key={idx} value={t.section + ":" + t.name}>
-                    {t.section}: {t.name}
+                    [{t.section.toUpperCase()}] ? {t.name}
                   </option>
                 ))}
               </select>
