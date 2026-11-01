@@ -411,7 +411,7 @@ export default function MediaStudioPage() {
               >
                 {availableTargets.map((t, idx) => (
                   <option key={idx} value={t.section + ":" + t.name}>
-                    [{t.section.toUpperCase()}] ? {t.name}
+                    [{t.section.toUpperCase()}] -> {t.name}
                   </option>
                 ))}
               </select>
@@ -478,7 +478,7 @@ export default function MediaStudioPage() {
                 <option value="ALL">All Categories &amp; Albums</option>
                 {availableTargets.map((t, idx) => (
                   <option key={idx} value={t.section + ":" + t.name}>
-                    [{t.section.toUpperCase()}] ? {t.name}
+                    [{t.section.toUpperCase()}] -> {t.name}
                   </option>
                 ))}
               </select>
