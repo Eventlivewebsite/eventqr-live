@@ -213,19 +213,23 @@ export default function MediaStudioPage() {
 
     const handlePushToViewer = async () => {
     try {
+      if (!selectedEventId) {
+        alert("Please select an active event first.");
+        return;
+      }
+      
+      const payload = {
+        type: "EVENT_MEDIA_SYNC",
+        eventId: selectedEventId,
+        timestamp: Date.now()
+      };
+
       if (typeof window !== "undefined") {
-        const payload = {
-          type: "EVENT_MEDIA_SYNC",
-          eventId: selectedEventId,
-          timestamp: Date.now()
-        };
-        // Channel sync
         if ("BroadcastChannel" in window) {
           const bc = new BroadcastChannel("event_media_sync");
           bc.postMessage(payload);
           setTimeout(() => bc.close(), 1000);
         }
-        // LocalStorage fallback sync for other tabs
         localStorage.setItem("eventqr_media_push_trigger", JSON.stringify(payload));
       }
       alert("Pushed to Live Viewer successfully!");

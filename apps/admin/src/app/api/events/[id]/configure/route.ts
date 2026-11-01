@@ -1,3 +1,37 @@
+
+function safeMergeCustomMap(existingMap: any, incomingMap: any) {
+  const existing = typeof existingMap === "object" && existingMap !== null ? existingMap : {};
+  const incoming = typeof incomingMap === "object" && incomingMap !== null ? incomingMap : {};
+  
+  const categories = (incoming.categories && incoming.categories.length > 0)
+    ? incoming.categories
+    : (existing.categories || []);
+
+  const decorItems = (incoming.decorItems && incoming.decorItems.length > 0)
+    ? incoming.decorItems
+    : (existing.decorItems || []);
+
+  const existingVault = Array.isArray(existing.mediaVault) ? existing.mediaVault : [];
+  const incomingVault = Array.isArray(incoming.mediaVault) ? incoming.mediaVault : [];
+  
+  // Deduplicate mediaVault items by url / id
+  const vaultMap = new Map();
+  for (const m of existingVault) {
+    if (m && (m.url || m.id)) vaultMap.set(m.url || m.id, m);
+  }
+  for (const m of incomingVault) {
+    if (m && (m.url || m.id)) vaultMap.set(m.url || m.id, m);
+  }
+
+  return {
+    ...existing,
+    ...incoming,
+    categories,
+    decorItems,
+    mediaVault: Array.from(vaultMap.values())
+  };
+}
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
