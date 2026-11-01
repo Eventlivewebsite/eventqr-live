@@ -139,7 +139,43 @@ export default function GalleryGrid({
   if (search.trim()) {
     const q = search.toLowerCase();
     processedPhotos = processedPhotos.filter((p: any) => {
-      return (p.title && p.title.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q));
+      
+  // Instant Live Viewer Push Synchronization
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        bc = new BroadcastChannel("event_media_sync");
+        bc.onmessage = (ev) => {
+          if (ev.data && (ev.data.type === "EVENT_MEDIA_SYNC" || ev.data.eventId)) {
+            if (typeof fetchMedia === "function") fetchMedia();
+            else if (typeof loadMedia === "function") loadMedia();
+            else if (typeof refresh === "function") refresh();
+            else window.location.reload();
+          }
+        };
+      }
+    } catch (e) {
+      console.warn("BroadcastChannel sync error:", e);
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "eventqr_media_push_trigger" && e.newValue) {
+        if (typeof fetchMedia === "function") fetchMedia();
+        else if (typeof loadMedia === "function") loadMedia();
+        else if (typeof refresh === "function") refresh();
+        else window.location.reload();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
+  return (p.title && p.title.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q));
     });
   }
 
