@@ -90,6 +90,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Records are never purged even if expired
     const events = await prisma.event.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
@@ -175,37 +176,31 @@ export async function POST(req: NextRequest) {
       if (counter > 5) break;
     }
 
-    // 3. Status determination based on role
-    const eventStatus = auth?.role === "SUPER_ADMIN" ? "ACTIVE" : "PENDING_APPROVAL";
+    // 3. Normalize EventType Enum & Dates
+    const validTypes = ["WEDDING", "RECEPTION", "BIRTHDAY", "CORPORATE", "ENGAGEMENT", "ANNIVERSARY", "OTHER"];
+    let safeType = String(type || "WEDDING").toUpperCase();
+    if (!validTypes.includes(safeType)) {
+      safeType = "WEDDING";
+    }
 
     const parsedEventDate = eventDate ? new Date(eventDate) : new Date();
     const parsedExpiryDate = expiryDate
       ? new Date(expiryDate)
       : new Date(Date.now() + (Number(retentionDays) || 15) * 86400000);
 
-    // 4. Create Event with Default Settings
+    // 4. Create Event cleanly (Record stays preserved permanently)
     const newEvent = await prisma.event.create({
       data: {
         adminId: resolvedAdminId,
         clientId: targetClient.id,
         title: title.trim().slice(0, 150),
         slug: finalSlug,
-        type: type || "WEDDING",
-        status: eventStatus,
+        type: safeType as any,
+        status: "ACTIVE",
         eventDate: parsedEventDate,
         expiryDate: parsedExpiryDate,
         retentionDays: Math.max(1, Number(retentionDays) || 15),
-        settings: {
-          create: {
-            subtitle: "Forever Begins Today",
-            showCountdown: true,
-            showHighlights: true,
-            showTrending: true,
-            showTimeline: true,
-            allowDownloads: true,
-            allowLikes: true,
-          },
-        },
+        isDeleted: false,
       },
     });
 
