@@ -148,7 +148,33 @@ export async function GET(request: Request) {
         displayVenueText: customMap["inviteVenueText"] || customMap["venueName"] || event.location || "",
       };
 
-    const res = NextResponse.json({
+    
+      // Extract media items from customMap mediaVault
+      const parsedVault: any[] = (() => {
+        try {
+          if (customMap["mediaVault"]) {
+            const raw = typeof customMap["mediaVault"] === "string" ? JSON.parse(customMap["mediaVault"]) : customMap["mediaVault"];
+            if (Array.isArray(raw)) {
+              return raw.map((item: any, idx: number) => ({
+                id: item.id || `vault-${idx}`,
+                url: item.url || item.photoUrl || "",
+                photoUrl: item.url || item.photoUrl || "",
+                thumbnailUrl: item.url || item.photoUrl || "",
+                type: item.type || "photo",
+                category: item.category || "",
+                album: item.category || "",
+                section: item.section || "Category",
+                createdAt: item.createdAt || new Date().toISOString(),
+              }));
+            }
+          }
+        } catch (e) {
+          console.error("Vault parse err:", e);
+        }
+        return [];
+      })();
+
+     const res = NextResponse.json({
       success: true,
       event: {
         id: event.id,
@@ -204,6 +230,8 @@ export async function GET(request: Request) {
         familyMembers,
         inviteData,
         customMap,
+          photos: parsedVault,
+          mediaVault: parsedVault,
       },
     });
 

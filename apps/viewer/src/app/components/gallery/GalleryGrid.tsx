@@ -77,7 +77,8 @@ export default function GalleryGrid({
         const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
         const json = res ? await res.json().catch(() => null) : null;
 
-        if (json?.success && Array.isArray(json?.event?.photos) && json.event.photos.length > 0) {
+        const incomingPhotos = (json?.event?.photos && json.event.photos.length > 0) ? json.event.photos : (json?.event?.mediaVault || []);
+        if (json?.success && Array.isArray(incomingPhotos) && incomingPhotos.length > 0) {
           const mapped = json.event.photos.map((item: any, idx: number) => ({
             id: item.id || idx + 1,
             image: item.url || item.thumbnailUrl,
