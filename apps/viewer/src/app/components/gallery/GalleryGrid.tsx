@@ -147,10 +147,10 @@ export default function GalleryGrid({
 
   // 2. Category filter
     if (category && category.trim().toLowerCase() !== "all") {
-      const target = category.trim().toLowerCase().replace(/^decorations+/i, "");
+      const target = category.trim().toLowerCase();
       processedPhotos = processedPhotos.filter((p: any) => {
-        const cat = (p.category || "").trim().toLowerCase().replace(/^decorations+/i, "");
-        const alb = (p.album || "").trim().toLowerCase().replace(/^decorations+/i, "");
+        const cat = (p.category || "").trim().toLowerCase();
+        const alb = (p.album || "").trim().toLowerCase();
         return cat === target || alb === target || cat.includes(target) || target.includes(cat);
       });
     }

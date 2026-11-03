@@ -15,8 +15,8 @@ export default function FilterChips({ active, onChange, counts = {}, categories:
 
   useEffect(() => {
     if (propCategories && propCategories.length > 0) {
-      const unique = Array.from(new Set(["All", ...propCategories])).filter(Boolean);
-      setCategories(unique);
+      const filtered = Array.from(new Set(["All", ...propCategories])).filter(Boolean);
+      setCategories(filtered);
       return;
     }
 
@@ -27,16 +27,13 @@ export default function FilterChips({ active, onChange, counts = {}, categories:
         fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
           .then((r) => r.json())
           .then((d) => {
-            const list = d?.event?.categoriesList || d?.event?.photoCategories || [];
-            const decors = (d?.event?.decorationItems || []).map((x: any) => typeof x === "string" ? x : (x.title || x.name || ""));
-            const vaultCats = (d?.event?.mediaVault || []).map((v: any) => v.category || v.album || "");
-            const formatted = [...list, ...decors, ...vaultCats]
+            const rawCats = d?.event?.categoriesList || d?.event?.photoCategories || [];
+            const formatted = rawCats
               .map((item: any) => (typeof item === "string" ? item : item.name || item.title || ""))
               .map((str: string) => str.trim())
               .filter(Boolean);
 
-            const unique = Array.from(new Set(["All", ...formatted]));
-            setCategories(unique);
+            setCategories(Array.from(new Set(["All", ...formatted])));
           })
           .catch(() => {});
       }
