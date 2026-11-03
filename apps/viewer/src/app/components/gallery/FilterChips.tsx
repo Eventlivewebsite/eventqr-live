@@ -1,18 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   active: string;
   onChange: (value: string) => void;
   counts?: Record<string, number>;
   galleryType?: string;
+  categories?: string[];
 };
 
-export default function FilterChips({ active, onChange, counts = {} }: Props) {
-  const [categories, setCategories] = useState<string[]>(["All", "Ceremony", "Stage", "Celebrations", "Family"]);
+export default function FilterChips({ active, onChange, counts = {}, categories: propCategories }: Props) {
+  const [categories, setCategories] = useState<string[]>(["All"]);
 
   useEffect(() => {
+    if (propCategories && propCategories.length > 0) {
+      const unique = Array.from(new Set(["All", ...propCategories])).filter(Boolean);
+      setCategories(unique);
+      return;
+    }
+
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const s = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
@@ -20,42 +27,46 @@ export default function FilterChips({ active, onChange, counts = {} }: Props) {
         fetch(`/api/event-data?slug=${encodeURIComponent(s)}`)
           .then((r) => r.json())
           .then((d) => {
-            const list = d?.event?.categoriesList || d?.event?.photoCategories;
-            if (list && Array.isArray(list) && list.length > 0) {
-              const formatted = list.map((item: any) => (typeof item === "string" ? item : item.name || item.title || "")).filter(Boolean);
-              if (formatted.length > 0) {
-                setCategories(["All", ...formatted]);
-              }
-            }
+            const list = d?.event?.categoriesList || d?.event?.photoCategories || [];
+            const decors = (d?.event?.decorationItems || []).map((x: any) => typeof x === "string" ? x : (x.title || x.name || ""));
+            const vaultCats = (d?.event?.mediaVault || []).map((v: any) => v.category || v.album || "");
+            const formatted = [...list, ...decors, ...vaultCats]
+              .map((item: any) => (typeof item === "string" ? item : item.name || item.title || ""))
+              .map((str: string) => str.trim())
+              .filter(Boolean);
+
+            const unique = Array.from(new Set(["All", ...formatted]));
+            setCategories(unique);
           })
           .catch(() => {});
       }
     }
-  }, []);
+  }, [propCategories]);
 
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5">
+    <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 py-2">
       {categories.map((cat) => {
-        const isActive = active.toLowerCase() === cat.toLowerCase();
-        const count = counts[cat] ?? counts[cat.toLowerCase()];
+        const isActive = active.trim().toLowerCase() === cat.trim().toLowerCase();
+        const count = counts[cat] !== undefined ? counts[cat] : (counts[cat.toLowerCase()] || 0);
 
         return (
           <button
             key={cat}
             onClick={() => onChange(cat)}
-            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition cursor-pointer active:scale-95 ${
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition active:scale-95 ${
               isActive
                 ? "bg-stone-900 text-white shadow-xs"
-                : "bg-white/80 text-stone-600 border border-stone-200/80 hover:bg-stone-100"
+                : "border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
             }`}
           >
             <span>{cat}</span>
-            {typeof count === "number" && (
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
-                  isActive ? "bg-stone-700 text-stone-200" : "bg-stone-100 text-stone-500"
-                }`}
-              >
+            {cat === "All" && counts["All"] !== undefined && (
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600"}`}>
+                {counts["All"]}
+              </span>
+            )}
+            {cat !== "All" && count > 0 && (
+              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600"}`}>
                 {count}
               </span>
             )}

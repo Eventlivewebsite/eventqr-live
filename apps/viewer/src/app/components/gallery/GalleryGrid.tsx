@@ -88,7 +88,8 @@ export default function GalleryGrid({
             liked: false,
             comments: idx % 4 + 1,
             height: HEIGHTS[idx % HEIGHTS.length],
-            category: item.category || "General",
+            category: (item.category || item.album || "General").replace(/^Decorations+/i, "").trim(),
+              album: (item.album || item.category || "General").replace(/^Decorations+/i, "").trim(),
           }));
           setGalleryPhotos(mapped);
 
@@ -145,16 +146,16 @@ export default function GalleryGrid({
   }
 
   // 2. Category filter
-  if (category && category.toLowerCase() !== "all") {
-    processedPhotos = processedPhotos.filter((p: any) => {
-      const pCat = (p.category || p.album || "").toLowerCase();
-      const targetCat = category.trim().toLowerCase();
-          const altCat = (p.album || "").trim().toLowerCase();
-          return pCat === targetCat || altCat === targetCat || pCat.includes(targetCat) || targetCat.includes(pCat);
-    });
-  }
+    if (category && category.trim().toLowerCase() !== "all") {
+      const target = category.trim().toLowerCase().replace(/^decorations+/i, "");
+      processedPhotos = processedPhotos.filter((p: any) => {
+        const cat = (p.category || "").trim().toLowerCase().replace(/^decorations+/i, "");
+        const alb = (p.album || "").trim().toLowerCase().replace(/^decorations+/i, "");
+        return cat === target || alb === target || cat.includes(target) || target.includes(cat);
+      });
+    }
 
-  // 3. Search filter
+    // 3. Search filter
   if (search.trim()) {
     const q = search.toLowerCase();
     processedPhotos = processedPhotos.filter((p: any) => {
