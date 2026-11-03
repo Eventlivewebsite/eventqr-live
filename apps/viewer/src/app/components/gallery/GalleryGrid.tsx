@@ -132,7 +132,9 @@ export default function GalleryGrid({
   if (category && category.toLowerCase() !== "all") {
     processedPhotos = processedPhotos.filter((p: any) => {
       const pCat = (p.category || p.album || "").toLowerCase();
-      return pCat === category.toLowerCase();
+      const targetCat = category.trim().toLowerCase();
+          const altCat = (p.album || "").trim().toLowerCase();
+          return pCat === targetCat || altCat === targetCat || pCat.includes(targetCat) || targetCat.includes(pCat);
     });
   }
 

@@ -161,8 +161,8 @@ export async function GET(request: Request) {
                 photoUrl: item.url || item.photoUrl || "",
                 thumbnailUrl: item.url || item.photoUrl || "",
                 type: item.type || "photo",
-                category: item.category || "",
-                album: item.category || "",
+                category: (item.category || item.album || "").trim(),
+                album: (item.album || item.category || "").trim(),
                 section: item.section || "Category",
                 createdAt: item.createdAt || new Date().toISOString(),
               }));
