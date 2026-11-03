@@ -108,7 +108,7 @@ export default function ZoomImage({
         if (diff < -60) onPrev();
       }}
     >
-      <img
+      <img decoding="async"
         src={image}
         alt="Preview"
         draggable={false}

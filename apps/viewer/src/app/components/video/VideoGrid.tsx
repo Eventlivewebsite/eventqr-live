@@ -57,10 +57,13 @@ export default function VideoGrid({
         (v.title && v.title.toLowerCase().includes(search.toLowerCase())) ||
         (v.category && v.category.toLowerCase().includes(search.toLowerCase()));
 
+      const cleanCat = (category || "").trim().toLowerCase().replace(/^decoration\s+/i, "");
+      const targetCat = (v.category || v.album || "").trim().toLowerCase().replace(/^decoration\s+/i, "");
       const matchCategory =
-        !category ||
-        category.toLowerCase() === "all" ||
-        (v.category && v.category.toLowerCase() === category.toLowerCase());
+        !cleanCat ||
+        cleanCat === "all" ||
+        targetCat === cleanCat ||
+        targetCat.includes(cleanCat);
 
       const matchType =
         !videoType ||
@@ -107,7 +110,7 @@ export default function VideoGrid({
             <div
               key={video.id || idx}
               onClick={() => videoSrc && setActivePlayUrl(videoSrc)}
-              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-xs transition hover:shadow-md"
+              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-xs transition-transform active:scale-[0.98] duration-150 hover:shadow-md touch-manipulation select-none"
             >
               {/* Media Thumbnail */}
               <div className="relative aspect-[4/5] w-full overflow-hidden bg-stone-900">

@@ -26,7 +26,7 @@ export default function GalleryCard({
   return (
     <div
       onClick={onClick}
-      className="group mb-3 overflow-hidden rounded-2xl border border-stone-200/60 bg-white shadow-sm transition duration-300 hover:shadow-md cursor-pointer"
+      className="group mb-3 overflow-hidden rounded-2xl border border-stone-200/60 bg-white shadow-sm transition-transform active:scale-[0.98] duration-150 hover:shadow-md cursor-pointer touch-manipulation select-none"
     >
       {/* Photo Frame */}
       <div className="relative overflow-hidden bg-stone-100">
@@ -34,7 +34,7 @@ export default function GalleryCard({
           src={image}
           alt="Post"
           className={`${height} w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]`}
-          loading="lazy"
+          decoding="async" loading="eager"
         />
 
         {/* Top-Right Views Badge */}
