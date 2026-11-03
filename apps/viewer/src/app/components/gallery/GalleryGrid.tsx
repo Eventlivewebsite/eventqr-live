@@ -79,7 +79,8 @@ export default function GalleryGrid({
 
         const incomingPhotos = (json?.event?.photos && json.event.photos.length > 0) ? json.event.photos : (json?.event?.mediaVault || []);
         if (json?.success && Array.isArray(incomingPhotos) && incomingPhotos.length > 0) {
-          const mapped = json.event.photos.map((item: any, idx: number) => ({
+          const incomingList = Array.isArray(incomingPhotos) ? incomingPhotos : [];
+            const mapped = incomingList.map((item: any, idx: number) => ({
             id: item.id || idx + 1,
             image: item.url || item.thumbnailUrl,
             views: item.viewsCount ? (item.viewsCount >= 1000 ? `${(item.viewsCount / 1000).toFixed(1)}K` : String(item.viewsCount)) : "1.2K",
@@ -90,6 +91,21 @@ export default function GalleryGrid({
             category: item.category || "General",
           }));
           setGalleryPhotos(mapped);
+
+            // Auto-discover all categories and albums from uploaded photos
+            const extractedCats = Array.from(
+              new Set(
+                incomingList
+                  .map((p: any) => (p.category || p.album || "").trim())
+                  .filter((c: string) => c.length > 0)
+              )
+            );
+            if (extractedCats.length > 0) {
+              setCategories((prev) => {
+                const combined = Array.from(new Set([...prev, ...extractedCats]));
+                return combined.filter(Boolean);
+              });
+            }
         }
       } catch (err) {
         console.error("GalleryGrid load error:", err);
