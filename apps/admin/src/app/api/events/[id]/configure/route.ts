@@ -154,7 +154,7 @@ export async function POST(
         fieldsToSave.decorationItems = JSON.stringify(rawDecorItems);
       }
 
-      if (showDecoration !== undefined) fieldsToSave.showDecoration = String(showDecoration);
+      if (body.showDecoration !== undefined) fieldsToSave.showDecoration = String(body.showDecoration);
       if (showPhotoDecoration !== undefined) fieldsToSave.showPhotoDecoration = String(showPhotoDecoration);
 
       if (timelines !== undefined) fieldsToSave.timelines = JSON.stringify(timelines);
