@@ -122,42 +122,57 @@ export async function POST(
         });
       }
 
-    const fieldsToSave: Record<string, any> = {
-      venueName: venueName || "",
-      ceremonyName: ceremonyName || "",
-      ourStoryUrl: ourStoryUrl || "",
-      inviteBadge: inviteBadge || "",
-      inviteCoupleInitials: inviteCoupleInitials || "",
-      inviteTagline: inviteTagline || "",
-      inviteMessage: inviteMessage || "",
-      inviteDateText: inviteDateText || "",
-      inviteTimeText: inviteTimeText || "",
-      inviteVenueText: inviteVenueText || "",
-      heroTag: heroTag || "LIVE EVENT",
-      highlightVideoUrl: highlightVideoUrl || "",
-      subtitle: subtitle || "",
-      scheduledPublishDate: scheduledPublishDate || "",
-      highlightType: highlightType || "video",
-      highlightPhotos: JSON.stringify(highlightPhotos || []),
-      videoCategories: JSON.stringify(videoCategories || []),
-      videoDecorationCategories: JSON.stringify(videoDecorationCategories || []),
-      showVideoDecoration: String(showVideoDecoration ?? true),
-      photoCategories: JSON.stringify(photoCategories || []),
-      photoDecorationCategories: JSON.stringify(photoDecorationCategories || []),
-      decorationItems: JSON.stringify(rawDecorItems),
-      showDecoration: "true",
-      showPhotoDecoration: String(showPhotoDecoration ?? true),
-      showTimeline: String(showTimeline ?? true),
-      timelines: JSON.stringify(timelines || []),
-      showFoodMenu: String(showFoodMenu ?? true),
-      foodItems: JSON.stringify(foodItems || []),
-      showFamily: String(showFamily ?? true),
-      familyMembers: JSON.stringify(familyMembers || []),
-      showPlaylist: String(showPlaylist ?? true),
-      playlist: JSON.stringify(playlist || []),
-    };
+    const fieldsToSave: Record<string, any> = {};
 
-    for (const [fieldName, fieldValue] of Object.entries(fieldsToSave)) {
+      if (venueName !== undefined) fieldsToSave.venueName = venueName || "";
+      if (ceremonyName !== undefined) fieldsToSave.ceremonyName = ceremonyName || "";
+      if (ourStoryUrl !== undefined) fieldsToSave.ourStoryUrl = ourStoryUrl || "";
+      if (inviteBadge !== undefined) fieldsToSave.inviteBadge = inviteBadge || "";
+      if (inviteCoupleInitials !== undefined) fieldsToSave.inviteCoupleInitials = inviteCoupleInitials || "";
+      if (inviteTagline !== undefined) fieldsToSave.inviteTagline = inviteTagline || "";
+      if (inviteMessage !== undefined) fieldsToSave.inviteMessage = inviteMessage || "";
+      if (inviteDateText !== undefined) fieldsToSave.inviteDateText = inviteDateText || "";
+      if (inviteTimeText !== undefined) fieldsToSave.inviteTimeText = inviteTimeText || "";
+      if (inviteVenueText !== undefined) fieldsToSave.inviteVenueText = inviteVenueText || "";
+      if (heroTag !== undefined) fieldsToSave.heroTag = heroTag || "LIVE EVENT";
+      if (highlightVideoUrl !== undefined) fieldsToSave.highlightVideoUrl = highlightVideoUrl || "";
+      if (subtitle !== undefined) fieldsToSave.subtitle = subtitle || "";
+      if (scheduledPublishDate !== undefined) fieldsToSave.scheduledPublishDate = scheduledPublishDate || "";
+      if (highlightType !== undefined) fieldsToSave.highlightType = highlightType || "video";
+      if (highlightPhotos !== undefined) fieldsToSave.highlightPhotos = JSON.stringify(highlightPhotos);
+
+      // Only update categories and decorations if explicitly provided
+      if (videoCategories !== undefined) fieldsToSave.videoCategories = JSON.stringify(videoCategories);
+      if (videoDecorationCategories !== undefined) fieldsToSave.videoDecorationCategories = JSON.stringify(videoDecorationCategories);
+      if (showVideoDecoration !== undefined) fieldsToSave.showVideoDecoration = String(showVideoDecoration);
+
+      if (photoCategories !== undefined) fieldsToSave.photoCategories = JSON.stringify(photoCategories);
+      if (photoDecorationCategories !== undefined) fieldsToSave.photoDecorationCategories = JSON.stringify(photoDecorationCategories);
+
+      if (rawDecorItems && (body.decorationItems !== undefined || body.decorationAlbums !== undefined)) {
+        fieldsToSave.decorationItems = JSON.stringify(rawDecorItems);
+      }
+
+      if (showDecoration !== undefined) fieldsToSave.showDecoration = String(showDecoration);
+      if (showPhotoDecoration !== undefined) fieldsToSave.showPhotoDecoration = String(showPhotoDecoration);
+
+      if (timelines !== undefined) fieldsToSave.timelines = JSON.stringify(timelines);
+      if (showTimeline !== undefined) fieldsToSave.showTimeline = String(showTimeline);
+
+      if (foodItems !== undefined) fieldsToSave.foodItems = JSON.stringify(foodItems);
+      if (showFoodMenu !== undefined) fieldsToSave.showFoodMenu = String(showFoodMenu);
+
+      if (familyMembers !== undefined) fieldsToSave.familyMembers = JSON.stringify(familyMembers);
+      if (showFamily !== undefined) fieldsToSave.showFamily = String(showFamily);
+
+      if (playlist !== undefined) fieldsToSave.playlist = JSON.stringify(playlist);
+      if (showPlaylist !== undefined) fieldsToSave.showPlaylist = String(showPlaylist);
+
+      if (body.mediaVault !== undefined) {
+        fieldsToSave.mediaVault = JSON.stringify(body.mediaVault);
+      }
+      
+      for (const [fieldName, fieldValue] of Object.entries(fieldsToSave)) {
       await prisma.customField.upsert({
         where: {
           eventId_fieldName: { eventId: id, fieldName },
