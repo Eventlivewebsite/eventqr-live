@@ -250,7 +250,7 @@ export default function FamilyPage() {
               <p className="text-xs text-stone-400 mt-1">Add members from Admin Setup to display here.</p>
             </div>
           ) : (
-            members.map((m, idx) => {
+            members.map((m: any, idx: number) => {
               const cardId = m.id !== undefined ? m.id : idx;
               const igLink = formatSocialUrl(m.instagramUrl || "", "ig");
               const fbLink = formatSocialUrl(m.facebookUrl || "", "fb");
