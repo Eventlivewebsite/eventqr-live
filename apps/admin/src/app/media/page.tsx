@@ -441,7 +441,7 @@ export default function MediaStudioPage() {
                 {isUploading ? "Auto-Compressing & Uploading..." : "Drag & Drop " + (activeTab === "photos" ? "Photos" : "Videos") + " Here"}
               </h4>
               <p className="mt-1 text-xs text-stone-400">
-                Target: <span className="text-amber-400 font-bold">{selectedTarget.replace(":", " ? ")}</span>
+                Target: <span className="text-amber-400 font-bold">{selectedTarget.replace(":", " -> ")}</span>
               </p>
               <span className="mt-4 rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-stone-950 shadow-md group-hover:brightness-105 transition">
                 {isUploading ? "Processing..." : "Browse " + (activeTab === "photos" ? "Images" : "Videos")}

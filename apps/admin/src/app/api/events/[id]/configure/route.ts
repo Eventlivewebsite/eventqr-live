@@ -54,7 +54,8 @@ export async function GET(
     });
 
     if (!event) {
-      return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
+      customMap["mediaVault"] = customMap["mediaVault"] || "[]";
+    return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
     }
 
     const customMap: Record<string, string> = {};
