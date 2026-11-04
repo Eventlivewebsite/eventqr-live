@@ -375,11 +375,11 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
           <div key={photo.id} className="relative mb-4 break-inside-avoid">
             <GalleryCard
               image={photo.image}
-              views={photo.views}
-              likes={photo.likes}
-              comments={photo.comments}
-              liked={photo.liked}
-              height={photo.height}
+              views={String(photo.views || "0")}
+              likes={Number(photo.likes || 0)}
+              comments={Number(photo.comments || 0)}
+              liked={Boolean(photo.liked)}
+              height={photo.height || "h-64"}
               onClick={() => {
                 if (selectionMode) {
                   setSelectedPhotos((prev) =>
@@ -440,11 +440,7 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
             ? filteredPhotos[selectedIndex]?.image
             : undefined
         }
-        liked={
-          selectedIndex !== null
-            ? filteredPhotos[selectedIndex]?.liked
-            : false
-        }
+        liked={Boolean(selectedIndex !== null && filteredPhotos[selectedIndex]?.liked)}
         onLike={() => {
           if (selectedIndex === null) return;
           const currentPhoto = filteredPhotos[selectedIndex];

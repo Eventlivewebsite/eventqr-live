@@ -222,8 +222,6 @@ export async function GET(request: Request) {
         highlightPhotos,
         ceremonyName: customMap["ceremonyName"] || "Main Ceremony",
         ourStoryUrl: customMap["ourStoryUrl"] || "",
-        musicEnabled,
-        musicTracks,
         timelines: customMap["timelines"] || event.timelines || [],
         photoCategories: categoriesList,
         categoriesList,

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import FoodCategory from "./FoodCategory";
@@ -77,28 +77,26 @@ export default function FoodSection() {
   }, {} as Record<string, FoodItem[]>);
 
   const categoryIcons: Record<string, string> = {
-    "Vegetarian Delights": "🌱",
-    "Non-Vegetarian Specialties": "🍗",
-    "Welcome Drinks & Beverages": "🍹",
-    "Welcome Drinks": "🍹",
-    "Starters": "🥟",
-    "Main Course": "🍲",
-    "Indian Bread": "🫓",
-    "Rice": "🍚",
-    "Desserts": "🍨",
-    "Ice Cream": "🍦",
-    "Beverages": "☕",
+    "Vegetarian Delights": "??",
+    "Non-Vegetarian Specialties": "??",
+    "Welcome Drinks & Beverages": "??",
+    "Welcome Drinks": "??",
+    "Starters": "??",
+    "Main Course": "??",
+    "Indian Bread": "??",
+    "Rice": "??",
+    "Desserts": "??",
+    "Ice Cream": "??",
+    "Beverages": "?",
   };
 
   return (
     <div id="food-categories-section" className="space-y-6 px-4 pb-24">
       {Object.entries(groupedFood).map(([category, list]) => (
-        <FoodCategory
-          key={category}
+        <FoodCategory emoji={categoryIcons[category] || "???"} key={category}
           title={category}
-          icon={categoryIcons[category] || "🍽️"}
+          
           foods={list}
-          items={list}
         />
       ))}
     </div>

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -72,14 +72,14 @@ export async function POST(request: Request) {
     }
 
     if (type === "like") {
-      const field = await prisma.eventCustomField.findFirst({
+      const field = await prisma.customField.findFirst({
         where: { eventId: event.id, fieldName: "family_likes_data" }
       });
       let map: Record<string, number> = {};
       try { if (field?.fieldValue) map = JSON.parse(field.fieldValue); } catch {}
       map[memberId] = (map[memberId] || 0) + 1;
 
-      await prisma.eventCustomField.upsert({
+      await prisma.customField.upsert({
         where: { eventId_fieldName: { eventId: event.id, fieldName: "family_likes_data" } },
         update: { fieldValue: JSON.stringify(map) },
         create: { eventId: event.id, fieldName: "family_likes_data", fieldValue: JSON.stringify(map) }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     if (type === "comment") {
-      const field = await prisma.eventCustomField.findFirst({
+      const field = await prisma.customField.findFirst({
         where: { eventId: event.id, fieldName: "family_comments_data" }
       });
       let map: Record<string, any[]> = {};
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       };
       map[memberId].push(newComment);
 
-      await prisma.eventCustomField.upsert({
+      await prisma.customField.upsert({
         where: { eventId_fieldName: { eventId: event.id, fieldName: "family_comments_data" } },
         update: { fieldValue: JSON.stringify(map) },
         create: { eventId: event.id, fieldName: "family_comments_data", fieldValue: JSON.stringify(map) }

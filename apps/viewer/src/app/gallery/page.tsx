@@ -16,9 +16,7 @@ export default function GalleryPage() {
       channel.onmessage = (event) => {
         if (event.data?.type === "MEDIA_UPLOADED") {
           // Instant silent state refresh without full page reload
-          if (typeof fetchPhotos === "function") {
-            fetchPhotos();
-          }
+          if (typeof window !== "undefined") { window.location.reload(); }
         }
       };
       return () => channel.close();
