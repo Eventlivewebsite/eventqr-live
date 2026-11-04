@@ -172,34 +172,26 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
   // 1. Initial Photos Reference
   let processedPhotos = [...galleryPhotos];
 
-  // 2. Category filter (When user clicks on top Filter Chips)
+  // 2. Category filter (Wenn Kategorie-Chips geklickt werden)
   if (!activeAlbum && category && category.trim().toLowerCase() !== "all") {
-    const target = category.trim().toLowerCase();
-    processedPhotos = processedPhotos.filter((p) => {
-      const cat = (p.category || "").trim().toLowerCase();
-      const sec = (p.section || "").trim().toLowerCase();
-      if (sec === "decoration" || cat === "decoration") return false;
-      return cat === target || cat.includes(target) || target.includes(cat);
+    const targetCat = category.trim().toLowerCase();
+    processedPhotos = processedPhotos.filter((p: any) => {
+      const pSec = String(p.section || "").trim().toLowerCase();
+      const pCat = String(p.category || "").trim().toLowerCase();
+      // Dekorationen komplett ausschlie�en, wenn eine Fotokategorie aktiv ist
+      if (pSec === "decoration" || pCat === "decoration") return false;
+      return pCat === targetCat;
     });
   }
 
-  // 3. Album filter (When user clicks on Decoration Drawer items like 'efasref')
+  // 3. Album filter (Wenn ein Dekorationsalbum wie 'efasref' �ber Drawer ge�ffnet wird)
   if (activeAlbum && activeAlbum.trim() !== "") {
     const targetAlb = activeAlbum.trim().toLowerCase();
-    processedPhotos = processedPhotos.filter((p) => {
-      const alb = (p.album || "").trim().toLowerCase();
-      const cat = (p.category || "").trim().toLowerCase();
-      return alb === targetAlb || alb.includes(targetAlb) || targetAlb.includes(alb) || cat === targetAlb;
+    processedPhotos = processedPhotos.filter((p: any) => {
+      const pAlb = String(p.album || "").trim().toLowerCase();
+      const pCat = String(p.category || "").trim().toLowerCase();
+      return pAlb === targetAlb || (pCat === targetAlb && p.section === "Decoration");
     });
-  }
-
-  // 3.5 Search query filter
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    processedPhotos = processedPhotos.filter((p) =>
-      (p.category || "").toLowerCase().includes(q) ||
-      (p.album || "").toLowerCase().includes(q)
-    );
   }
 
   // 4. Favorites filter
