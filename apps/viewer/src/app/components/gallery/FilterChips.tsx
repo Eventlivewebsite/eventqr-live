@@ -15,7 +15,7 @@ export default function FilterChips({ active, onChange, counts = {}, categories:
 
   useEffect(() => {
     if (propCategories && propCategories.length > 0) {
-      const filtered = Array.from(new Set(["All", ...propCategories])).filter(Boolean);
+      const filtered = Array.from(new Set(["All", ...propCategories.filter(Boolean)]));
       setCategories(filtered);
       return;
     }

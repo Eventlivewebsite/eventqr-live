@@ -1,166 +1,138 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import GalleryCard from "./GalleryCard";
-import ViewerModal from "./ViewerModal";
+import { useState, useEffect, useRef } from "react";
 import SearchBar from "./SearchBar";
 import FilterChips from "./FilterChips";
-import { Camera, CheckSquare, Heart, Download, FolderArchive, ArrowLeft, X } from "lucide-react";
+import GalleryCard from "./GalleryCard";
+import ViewerModal from "./ViewerModal";
+import { Heart, CheckSquare, Download, X, Camera } from "lucide-react";
+
+export type GalleryPhotoItem = {
+  id: string;
+  image: string;
+  views?: string | number;
+  likes?: number;
+  comments?: number;
+  liked?: boolean;
+  height?: string;
+  section?: string;
+  category?: string;
+  album?: string;
+  isFavorite?: boolean;
+  viewsCount?: number;
+  downloadsCount?: number;
+  likesCount?: number;
+  commentsCount?: number;
+};
 
 type Props = {
+  photos?: GalleryPhotoItem[];
+  categories?: string[];
   galleryType?: string;
 };
 
-const HEIGHTS = ["h-52", "h-64", "h-72", "h-80", "h-96"];
-
-export default function GalleryGrid({
-  galleryType = "default",
-}: Props) {
-  const [galleryPhotos, setGalleryPhotos] = useState<any[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [showFavorites, setShowFavorites] = useState(false);
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedPhotos, setSelectedPhotos] = useState<number[]>([]);
-  const [musicOn, setMusicOn] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [activeSort, setActiveSort] = useState<string>("");
+export default function GalleryGrid({ photos: initialPhotos = [], categories: propCategories = [], galleryType = "photos" }: Props) {
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhotoItem[]>(initialPhotos);
+  const [category, setCategory] = useState<string>("All");
+  const [categories, setCategories] = useState<string[]>(["All"]);
   const [activeAlbum, setActiveAlbum] = useState<string>("");
-  const [downloadingAll, setDownloadingAll] = useState(false);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  async function handleDownloadAll(itemsToDownload: any[]) {
-    if (downloadingAll || itemsToDownload.length === 0) return;
-    setDownloadingAll(true);
-    try {
-      for (let i = 0; i < itemsToDownload.length; i++) {
-        const item = itemsToDownload[i];
-        const mediaUrl = item.url || item.photoUrl || item.videoUrl;
-        if (mediaUrl) {
-          const res = await fetch(mediaUrl);
-          const blob = await res.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = `${activeAlbum || "event-media"}_${i + 1}.${blob.type.includes("video") ? "mp4" : "jpg"}`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          window.URL.revokeObjectURL(blobUrl);
-          await new Promise((r) => setTimeout(r, 400));
-        }
-      }
-    } catch (e) {
-      console.error("Batch download error:", e);
-    } finally {
-      setDownloadingAll(false);
-    }
-  }
-
+  const [activeSort, setActiveSort] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
+  const [showFavorites, setShowFavorites] = useState<boolean>(false);
+  const [selectionMode, setSelectionMode] = useState<boolean>(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    async function loadGalleryData() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
-        const catParam = urlParams.get("category");
-        if (catParam) {
-          setCategory(catParam.charAt(0).toUpperCase() + catParam.slice(1));
-        }
-        const sortParam = urlParams.get("sort");
-        if (sortParam) setActiveSort(sortParam);
+    if (initialPhotos && initialPhotos.length > 0) {
+      setGalleryPhotos(initialPhotos);
+    }
+  }, [initialPhotos]);
 
-        const albumParam = urlParams.get("album");
-        if (albumParam) setActiveAlbum(albumParam);
+  useEffect(() => {
+    if (propCategories && propCategories.length > 0) {
+      setCategories(Array.from(new Set(["All", ...propCategories.filter(Boolean)])));
+    }
+  }, [propCategories]);
 
-        const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
-        const json = res ? await res.json().catch(() => null) : null;
-
-        const incomingPhotos = (json?.event?.photos && json.event.photos.length > 0) ? json.event.photos : (json?.event?.mediaVault || []);
-        if (json?.success && Array.isArray(incomingPhotos) && incomingPhotos.length > 0) {
-          const incomingList = Array.isArray(incomingPhotos) ? incomingPhotos : [];
-            const mapped = incomingList.map((item: any, idx: number) => ({
-            id: item.id || idx + 1,
-            image: item.url || item.thumbnailUrl,
-            views: item.viewsCount ? (item.viewsCount >= 1000 ? `${(item.viewsCount / 1000).toFixed(1)}K` : String(item.viewsCount)) : "1.2K",
-            likes: item.likesCount || 0,
-            liked: false,
-            comments: idx % 4 + 1,
-            height: HEIGHTS[idx % HEIGHTS.length],
-            category: (item.category || item.album || "General").replace(/^Decorations+/i, "").trim(),
-              album: (item.album || item.category || "General").replace(/^Decorations+/i, "").trim(),
-          }));
-          setGalleryPhotos(mapped);
-
-            // Auto-discover all categories and albums from uploaded photos
-            const extractedCats = Array.from(
-              new Set(
-                incomingList
-                  .map((p: any) => (p.category || p.album || "").trim())
-                  .filter((c: string) => c.length > 0)
-              )
-            );
-            if (extractedCats.length > 0) {
-              setCategories((prev) => {
-                const combined = Array.from(new Set([...prev, ...extractedCats]));
-                return combined.filter(Boolean);
-              });
-            }
-        }
-      } catch (err) {
-        console.error("GalleryGrid load error:", err);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlAlbum = sp.get("album") || "";
+      const urlCat = sp.get("category") || "";
+      const urlSort = sp.get("sort") || "";
+      if (urlAlbum) {
+        setActiveAlbum(urlAlbum);
+        setCategory("All");
+      } else if (urlCat) {
+        setCategory(urlCat);
+        setActiveAlbum("");
+      }
+      if (urlSort) {
+        setActiveSort(urlSort);
       }
     }
-    loadGalleryData();
   }, []);
 
-  useEffect(() => {
-    if (!audioRef.current) return;
-    if (musicOn) {
-      audioRef.current.play().catch((err) => console.log(err));
-    } else {
-      audioRef.current.pause();
-    }
-  }, [musicOn]);
+  const fetchMedia = async () => {
+    if (typeof window === "undefined") return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const slug = sp.get("event") || sp.get("slug") || sessionStorage.getItem("active_event_slug") || "";
+      if (!slug) return;
+      setLoading(true);
+      const res = await fetch(`/api/event-data?slug=${encodeURIComponent(slug)}`);
+      const data = await res.json();
+      const rawVault = data?.event?.mediaVault || [];
+      if (Array.isArray(rawVault) && rawVault.length > 0) {
+        const mappedVaultPhotos: GalleryPhotoItem[] = rawVault
+          .filter((item: any) => !item.type || item.type === "photo" || item.type === "image")
+          .map((item: any, idx: number) => {
+            const rawCat = String(item.category || "").trim();
+            const rawSec = String(item.section || "").trim();
+            const rawAlb = String(item.album || "").trim();
+            const isDecoration = rawSec.toLowerCase() === "decoration" || rawCat.toLowerCase().startsWith("decoration") || Boolean(rawAlb);
+            const cleanDecorName = (rawAlb || rawCat)
+              .replace(/^decoration\s*[:\-]?\s*/i, "")
+              .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
+              .trim();
+            const cleanCategoryName = rawCat
+              .replace(/^decoration\s*[:\-]?\s*/i, "")
+              .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
+              .trim();
 
-  // Dynamic photo counts calculation based on whatever categories exist
-  const photoCounts: Record<string, number> = {
-    All: galleryPhotos.length,
+            return {
+              id: item.id || `vault-photo-${idx}`,
+              image: item.url || item.secure_url || item.image || "",
+              views: item.views || "1.2K",
+              likes: Number(item.likes || 0),
+              comments: Number(item.comments || 0),
+              liked: false,
+              height: item.height || (idx % 3 === 0 ? "h-64" : idx % 2 === 0 ? "h-72" : "h-56"),
+              section: isDecoration ? "Decoration" : "Category",
+              category: isDecoration ? "Decoration" : (cleanCategoryName || "General"),
+              album: isDecoration ? cleanDecorName : "",
+            };
+          });
+        setGalleryPhotos(mappedVaultPhotos);
+      }
+    } catch (err) {
+      console.warn("fetchMedia error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
-  galleryPhotos.forEach((p) => {
-    if (!p.category) return;
-    photoCounts[p.category] = (photoCounts[p.category] || 0) + 1;
-  });
 
-  let processedPhotos = [...galleryPhotos];
-
-  // 1. Album isolation
-  if (activeAlbum) {
-    processedPhotos = processedPhotos.filter((p: any) => {
-      const pAlbum = (p.album || p.category || "").toLowerCase();
-      return pAlbum === activeAlbum.toLowerCase();
-    });
-  }
-
-  // 2. Category filter
-    if (category && category.trim().toLowerCase() !== "all") {
-      const target = category.trim().toLowerCase();
-      processedPhotos = processedPhotos.filter((p: any) => {
-        const cat = (p.category || "").trim().toLowerCase();
-        const alb = (p.album || "").trim().toLowerCase();
-        return cat === target || alb === target || cat.includes(target) || target.includes(cat);
-      });
+  useEffect(() => {
+    if (!initialPhotos || initialPhotos.length === 0) {
+      fetchMedia();
     }
+  }, []);
 
-    // 3. Search filter
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    processedPhotos = processedPhotos.filter((p: any) => {
-      
-  // Instant Live Viewer Push Synchronization
+  // Instant Live Viewer Push Synchronization (Top Level Hook)
   useEffect(() => {
     let bc: BroadcastChannel | null = null;
     try {
@@ -168,10 +140,7 @@ export default function GalleryGrid({
         bc = new BroadcastChannel("event_media_sync");
         bc.onmessage = (ev) => {
           if (ev.data && (ev.data.type === "EVENT_MEDIA_SYNC" || ev.data.eventId)) {
-            if (typeof fetchMedia === "function") fetchMedia();
-            else if (typeof loadMedia === "function") loadMedia();
-            else if (typeof refresh === "function") refresh();
-            else window.location.reload();
+            fetchMedia();
           }
         };
       }
@@ -181,10 +150,7 @@ export default function GalleryGrid({
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "eventqr_media_push_trigger" && e.newValue) {
-        if (typeof fetchMedia === "function") fetchMedia();
-        else if (typeof loadMedia === "function") loadMedia();
-        else if (typeof refresh === "function") refresh();
-        else window.location.reload();
+        fetchMedia();
       }
     };
 
@@ -195,24 +161,61 @@ export default function GalleryGrid({
     };
   }, []);
 
-  return (p.title && p.title.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q));
+  // Category Counts Calculation
+  const photoCounts: Record<string, number> = { All: galleryPhotos.length };
+  categories.forEach((cat) => {
+    if (cat === "All") return;
+    const target = cat.trim().toLowerCase();
+    photoCounts[cat] = galleryPhotos.filter((p) => {
+      const c = (p.category || "").trim().toLowerCase();
+      return c === target || c.includes(target) || target.includes(c);
+    }).length;
+  });
+
+  // 1. Initial Photos Reference
+  let processedPhotos = [...galleryPhotos];
+
+  // 2. Category filter (When user clicks on top Filter Chips)
+  if (category && category.trim().toLowerCase() !== "all") {
+    const target = category.trim().toLowerCase();
+    processedPhotos = processedPhotos.filter((p) => {
+      const cat = (p.category || "").trim().toLowerCase();
+      return cat === target || cat.includes(target) || target.includes(cat);
     });
+  }
+
+  // 3. Album filter (When user clicks on Decoration Drawer items like 'efasref')
+  if (activeAlbum && activeAlbum.trim() !== "") {
+    const targetAlb = activeAlbum.trim().toLowerCase();
+    processedPhotos = processedPhotos.filter((p) => {
+      const alb = (p.album || "").trim().toLowerCase();
+      return alb === targetAlb || alb.includes(targetAlb) || targetAlb.includes(alb);
+    });
+  }
+
+  // 3.5 Search query filter
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    processedPhotos = processedPhotos.filter((p) =>
+      (p.category || "").toLowerCase().includes(q) ||
+      (p.album || "").toLowerCase().includes(q)
+    );
   }
 
   // 4. Favorites filter
   if (showFavorites) {
-    processedPhotos = processedPhotos.filter((p: any) => p.isFavorite || p.liked);
+    processedPhotos = processedPhotos.filter((p) => p.isFavorite || p.liked);
   }
 
   // 5. Sorting Engine: Most Loved / Most Viewed / Most Downloaded / Highlights
   if (activeSort === "most_loved") {
-    processedPhotos.sort((a: any, b: any) => (b.likesCount || b.likes || 0) - (a.likesCount || a.likes || 0));
+    processedPhotos.sort((a, b) => ((b.likesCount ?? b.likes) || 0) - ((a.likesCount ?? a.likes) || 0));
   } else if (activeSort === "most_viewed") {
-    processedPhotos.sort((a: any, b: any) => (b.viewsCount || b.views || 0) - (a.viewsCount || a.views || 0));
+    processedPhotos.sort((a, b) => ((b.viewsCount ?? Number(b.views)) || 0) - ((a.viewsCount ?? Number(a.views)) || 0));
   } else if (activeSort === "most_downloaded") {
-    processedPhotos.sort((a: any, b: any) => (b.downloadsCount || b.downloads || 0) - (a.downloadsCount || a.downloads || 0));
+    processedPhotos.sort((a, b) => (b.downloadsCount || 0) - (a.downloadsCount || 0));
   } else if (activeSort === "highlights") {
-    processedPhotos.sort((a: any, b: any) => {
+    processedPhotos.sort((a, b) => {
       const scoreA = (a.likesCount || 0) * 3 + (a.commentsCount || 0) * 2 + (a.downloadsCount || 0) * 2;
       const scoreB = (b.likesCount || 0) * 3 + (b.commentsCount || 0) * 2 + (b.downloadsCount || 0) * 2;
       return scoreB - scoreA;
@@ -220,6 +223,22 @@ export default function GalleryGrid({
   }
 
   const filteredPhotos = processedPhotos;
+
+  const handleDownloadAll = (photosList: GalleryPhotoItem[]) => {
+    setDownloadingAll(true);
+    photosList.forEach((p, idx) => {
+      setTimeout(() => {
+        const a = document.createElement("a");
+        a.href = p.image;
+        a.download = `photo-${p.id}.jpg`;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (idx === photosList.length - 1) setDownloadingAll(false);
+      }, idx * 300);
+    });
+  };
 
   return (
     <>
@@ -229,7 +248,6 @@ export default function GalleryGrid({
 
       <SearchBar value={search} onChange={setSearch} />
 
-      {/* Active Album / Sorting Header Banner */}
       {(activeAlbum || activeSort) && (
         <div className="mb-4 flex items-center justify-between rounded-2xl border border-stone-200/80 bg-stone-50/90 p-3.5 shadow-xs">
           <div>
@@ -273,6 +291,7 @@ export default function GalleryGrid({
           </div>
         </div>
       )}
+
       <FilterChips
         active={category}
         onChange={setCategory}
@@ -370,7 +389,6 @@ export default function GalleryGrid({
                   );
                   return;
                 }
-
                 if (filteredPhotos[index]) {
                   setSelectedIndex(index);
                 }
@@ -382,7 +400,7 @@ export default function GalleryGrid({
                       ? {
                           ...item,
                           liked: !item.liked,
-                          likes: item.liked ? item.likes - 1 : item.likes + 1,
+                          likes: item.liked ? (item.likes || 1) - 1 : (item.likes || 0) + 1,
                         }
                       : item
                   )
@@ -404,7 +422,7 @@ export default function GalleryGrid({
                     : "bg-white border-gray-300 text-gray-600"
                 }`}
               >
-                {selectedPhotos.includes(photo.id) ? "✓" : ""}
+                {selectedPhotos.includes(photo.id) ? "?" : ""}
               </button>
             )}
           </div>
@@ -438,7 +456,7 @@ export default function GalleryGrid({
                 ? {
                     ...item,
                     liked: !item.liked,
-                    likes: item.liked ? item.likes - 1 : item.likes + 1,
+                    likes: item.liked ? (item.likes || 1) - 1 : (item.likes || 0) + 1,
                   }
                 : item
             )
