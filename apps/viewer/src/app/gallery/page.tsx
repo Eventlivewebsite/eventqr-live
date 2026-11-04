@@ -1,33 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, Suspense } from "react";
 import MobileContainer from "../components/layout/MobileContainer";
 import GalleryHeader from "../components/gallery/GalleryHeader";
 import GalleryGrid from "../components/gallery/GalleryGrid";
 import GalleryDrawer from "../components/gallery/GalleryDrawer";
 
-export default function GalleryPage() {
+function GalleryContent() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    // Zero-reload instant sync across tabs/devices
     if (typeof window !== "undefined") {
       const channel = new BroadcastChannel("event_media_sync");
       channel.onmessage = (event) => {
         if (event.data?.type === "MEDIA_UPLOADED") {
-          // Instant silent state refresh without full page reload
-          if (typeof window !== "undefined") { window.location.reload(); }
+          window.location.reload();
         }
       };
       return () => channel.close();
     }
   }, []);
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
   return (
     <MobileContainer>
-
       <style jsx global>{`
         @keyframes luxuryColorFlow {
           0% { background-position: 0% 50%; }
@@ -42,21 +37,22 @@ export default function GalleryPage() {
           animation: luxuryColorFlow 5s ease-in-out infinite;
         }
       `}</style>
-    
 
-      <GalleryHeader
-        onMenuClick={() => setDrawerOpen(true)}
-      />
+      <GalleryHeader onMenuClick={() => setDrawerOpen(true)} />
 
       <main className="p-5">
         <GalleryGrid />
       </main>
 
-      <GalleryDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-      />
-
+      <GalleryDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </MobileContainer>
+  );
+}
+
+export default function GalleryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-neutral-400">Loading gallery...</div>}>
+      <GalleryContent />
+    </Suspense>
   );
 }
