@@ -195,28 +195,44 @@ export async function GET(request: Request) {
         highlightType: customMap["highlightType"] || "video",
         showDecoration: customMap["showDecoration"] !== undefined ? (customMap["showDecoration"] === "true" || customMap["showDecoration"] === true) : true,
         decorationItems: (() => {
-          const parseSafe = (val: any) => {
-            if (Array.isArray(val)) return val;
-            if (typeof val === "string") {
-              try {
-                const p = JSON.parse(val);
-                if (Array.isArray(p)) return p;
-              } catch {}
-            }
-            return [];
-          };
+            // 1. Check if mediaVault has decoration items
+            const vaultDecs: any[] = [];
+            const albumMap = new Map();
 
-          const fromItems = parseSafe(customMap["decorationItems"]);
-          if (fromItems.length > 0) return fromItems;
+            parsedVault.forEach((item: any) => {
+              const sec = String(item.section || "").trim().toLowerCase();
+              const cat = String(item.category || "").trim().toLowerCase();
+              const alb = String(item.album || "").trim();
 
-          const fromPhoto = parseSafe(customMap["photoDecorationCategories"]);
-          if (fromPhoto.length > 0) return fromPhoto;
+              if (sec === "decoration" || cat === "decoration" || alb) {
+                const albumName = alb || (cat !== "decoration" ? item.category : "General Decoration");
+                if (!albumMap.has(albumName)) {
+                  albumMap.set(albumName, {
+                    id: `dec-album-${albumName}`,
+                    title: albumName,
+                    name: albumName,
+                    coverPhoto: item.url || item.photoUrl,
+                    photos: [],
+                    count: 0
+                  });
+                }
+                const albObj = albumMap.get(albumName);
+                albObj.photos.push(item);
+                albObj.count++;
+              }
+            });
 
-          const fromVideo = parseSafe(customMap["videoDecorationCategories"]);
-          if (fromVideo.length > 0) return fromVideo;
+            // 2. Also check if customMap["decorationItems"] had any legacy items
+            let legacyItems: any[] = [];
+            try {
+              if (customMap["decorationItems"]) {
+                const raw = typeof customMap["decorationItems"] === "string" ? JSON.parse(customMap["decorationItems"]) : customMap["decorationItems"];
+                if (Array.isArray(raw)) legacyItems = raw;
+              }
+            } catch (e) {}
 
-          return [];
-        })(),
+            return [...Array.from(albumMap.values()), ...legacyItems];
+          })(),
         musicEnabled: customMap["musicEnabled"] !== undefined ? (customMap["musicEnabled"] === "true" || customMap["musicEnabled"] === true) : true,
         musicTracks: (() => {
           try {
