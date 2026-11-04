@@ -155,17 +155,26 @@ export async function GET(request: Request) {
           if (customMap["mediaVault"]) {
             const raw = typeof customMap["mediaVault"] === "string" ? JSON.parse(customMap["mediaVault"]) : customMap["mediaVault"];
             if (Array.isArray(raw)) {
-              return raw.map((item: any, idx: number) => ({
-                id: item.id || `vault-${idx}`,
-                url: item.url || item.photoUrl || "",
-                photoUrl: item.url || item.photoUrl || "",
-                thumbnailUrl: item.url || item.photoUrl || "",
-                type: item.type || "photo",
-                category: (item.category || item.album || "").trim(),
-                album: (item.album || item.category || "").trim(),
-                section: item.section || "Category",
-                createdAt: item.createdAt || new Date().toISOString(),
-              }));
+              return raw.map((item: any, idx: number) => {
+                const rawSec = String(item.section || "").trim();
+                const rawCat = String(item.category || "").trim();
+                const rawAlb = String(item.album || "").trim();
+                const isDec = rawSec.toLowerCase() === "decoration" || rawCat.toLowerCase().startsWith("decoration") || Boolean(rawAlb);
+                const cleanCat = rawCat.replace(/^\[(category|decoration)\]\s*->?\s*/i, "").replace(/^decoration\s*[:\-]?\s*/i, "").trim();
+                const cleanAlb = (rawAlb || (isDec ? rawCat : "")).replace(/^\[(category|decoration)\]\s*->?\s*/i, "").replace(/^decoration\s*[:\-]?\s*/i, "").trim();
+
+                return {
+                  id: item.id || `vault-${idx}`,
+                  url: item.url || item.photoUrl || "",
+                  photoUrl: item.url || item.photoUrl || "",
+                  thumbnailUrl: item.url || item.photoUrl || "",
+                  type: item.type || "photo",
+                  category: isDec ? "Decoration" : (cleanCat || "General"),
+                  album: cleanAlb,
+                  section: isDec ? "Decoration" : "Category",
+                  createdAt: item.createdAt || new Date().toISOString(),
+                };
+              });
             }
           }
         } catch (e) {
