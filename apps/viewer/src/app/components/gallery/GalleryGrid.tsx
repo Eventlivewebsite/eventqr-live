@@ -99,10 +99,7 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
               .replace(/^decoration\s*[:\-]?\s*/i, "")
               .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
               .trim();
-            const cleanCategoryName = rawCat
-              .replace(/^decoration\s*[:\-]?\s*/i, "")
-              .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
-              .trim();
+            const cleanCategoryName = (rawCat || "").replace(/^\[(category|decoration)\]\s*->?\s*/i, "").replace(/^decoration\s*[:\-]?\s*/i, "").trim();
 
             return {
               id: item.id || `vault-photo-${idx}`,
@@ -176,10 +173,12 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
   let processedPhotos = [...galleryPhotos];
 
   // 2. Category filter (When user clicks on top Filter Chips)
-  if (category && category.trim().toLowerCase() !== "all") {
+  if (!activeAlbum && category && category.trim().toLowerCase() !== "all") {
     const target = category.trim().toLowerCase();
     processedPhotos = processedPhotos.filter((p) => {
       const cat = (p.category || "").trim().toLowerCase();
+      const sec = (p.section || "").trim().toLowerCase();
+      if (sec === "decoration" || cat === "decoration") return false;
       return cat === target || cat.includes(target) || target.includes(cat);
     });
   }
@@ -189,7 +188,8 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
     const targetAlb = activeAlbum.trim().toLowerCase();
     processedPhotos = processedPhotos.filter((p) => {
       const alb = (p.album || "").trim().toLowerCase();
-      return alb === targetAlb || alb.includes(targetAlb) || targetAlb.includes(alb);
+      const cat = (p.category || "").trim().toLowerCase();
+      return alb === targetAlb || alb.includes(targetAlb) || targetAlb.includes(alb) || cat === targetAlb;
     });
   }
 
