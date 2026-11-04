@@ -170,48 +170,47 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
   });
 
   // 1. Initial Photos Reference
-  let processedPhotos = [...galleryPhotos];
+let processedPhotos: any[] = (galleryPhotos || []).filter((p: any) => {
+    const pSec = String(p.section || "").trim().toLowerCase();
+    const pCat = String(p.category || "").trim().toLowerCase();
+    const pAlb = String(p.album || "").trim().toLowerCase();
 
-  // 2. Category filter (Wenn Kategorie-Chips geklickt werden)
-  if (!activeAlbum && category && category.trim().toLowerCase() !== "all") {
-    const targetCat = category.trim().toLowerCase();
-    processedPhotos = processedPhotos.filter((p: any) => {
-      const pSec = String(p.section || "").trim().toLowerCase();
-      const pCat = String(p.category || "").trim().toLowerCase();
-      // Dekorationen komplett ausschlie�en, wenn eine Fotokategorie aktiv ist
-      if (pSec === "decoration" || pCat === "decoration") return false;
+    // Drawer se Decoration Album khula hai (?album=efasref)
+    if (activeAlbum && activeAlbum.trim() !== "") {
+      const targetAlb = activeAlbum.trim().toLowerCase();
+      return pAlb === targetAlb || (pSec === "decoration" && pCat === targetAlb);
+    }
+
+    // Normal Gallery view: Decoration items drawer me rehte hain, yahan show nahi honge
+    if (pSec === "decoration" || pCat === "decoration") {
+      return false;
+    }
+
+    // Top Category Pills (e.g., dfaefaef)
+    if (category && category.trim().toLowerCase() !== "all") {
+      const targetCat = category.trim().toLowerCase();
       return pCat === targetCat;
-    });
-  }
+    }
 
-  // 3. Album filter (Wenn ein Dekorationsalbum wie 'efasref' �ber Drawer ge�ffnet wird)
-  if (activeAlbum && activeAlbum.trim() !== "") {
-    const targetAlb = activeAlbum.trim().toLowerCase();
-    processedPhotos = processedPhotos.filter((p: any) => {
-      const pAlb = String(p.album || "").trim().toLowerCase();
-      const pCat = String(p.category || "").trim().toLowerCase();
-      return pAlb === targetAlb || (pCat === targetAlb && p.section === "Decoration");
-    });
-  }
+    return true;
+  });
 
-  // 4. Favorites filter
+  // Favorites filter
   if (showFavorites) {
-    processedPhotos = processedPhotos.filter((p) => p.isFavorite || p.liked);
+    processedPhotos = processedPhotos.filter((p: any) => p.isFavorite || p.liked);
   }
 
-  // 5. Sorting Engine: Most Loved / Most Viewed / Most Downloaded / Highlights
-  if (activeSort === "most_loved") {
-    processedPhotos.sort((a, b) => ((b.likesCount ?? b.likes) || 0) - ((a.likesCount ?? a.likes) || 0));
-  } else if (activeSort === "most_viewed") {
-    processedPhotos.sort((a, b) => ((b.viewsCount ?? Number(b.views)) || 0) - ((a.viewsCount ?? Number(a.views)) || 0));
-  } else if (activeSort === "most_downloaded") {
-    processedPhotos.sort((a, b) => (b.downloadsCount || 0) - (a.downloadsCount || 0));
-  } else if (activeSort === "highlights") {
-    processedPhotos.sort((a, b) => {
-      const scoreA = (a.likesCount || 0) * 3 + (a.commentsCount || 0) * 2 + (a.downloadsCount || 0) * 2;
-      const scoreB = (b.likesCount || 0) * 3 + (b.commentsCount || 0) * 2 + (b.downloadsCount || 0) * 2;
-      return scoreB - scoreA;
-    });
+  // Sort logic
+  if (activeSort === "popular") {
+    processedPhotos.sort((a: any, b: any) => ((b.likesCount ?? b.likes) || 0) - ((a.likesCount ?? a.likes) || 0));
+  } else if (activeSort === "views") {
+    processedPhotos.sort((a: any, b: any) => ((b.viewsCount ?? Number(b.views)) || 0) - ((a.viewsCount ?? Number(a.views)) || 0));
+  } else if (activeSort === "downloads") {
+    processedPhotos.sort((a: any, b: any) => (b.downloadsCount || 0) - (a.downloadsCount || 0));
+  } else if (activeSort === "oldest") {
+    processedPhotos.sort((a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  } else {
+    processedPhotos.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
 
   const filteredPhotos = processedPhotos;
@@ -363,7 +362,7 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
       )}
 
       <div className="mt-6 columns-2 gap-4">
-        {filteredPhotos.map((photo, index) => (
+        {filteredPhotos.map((photo: any, index: number) => (
           <div key={photo.id} className="relative mb-4 break-inside-avoid">
             <GalleryCard
               image={photo.image}
