@@ -9,11 +9,9 @@ type Props = {
   onClose: () => void;
 };
 
-const DEFAULT_DECORATIONS: string[] = [];
-
 export default function GalleryDrawer({ open, onClose }: Props) {
   const router = useRouter();
-  const [items, setItems] = useState<string[]>(DEFAULT_DECORATIONS);
+  const [items, setItems] = useState<string[]>([]);
   const [slug, setSlug] = useState("");
 
   useEffect(() => {
@@ -29,9 +27,17 @@ export default function GalleryDrawer({ open, onClose }: Props) {
         fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`)
           .then((r) => r.json())
           .then((d) => {
-            const decorList = d?.event?.decorationItems;
-            if (Array.isArray(decorList) && decorList.length > 0) {
-              setItems(decorList);
+            const decorList = d?.event?.decorationItems || [];
+            if (Array.isArray(decorList)) {
+              // Convert both objects {title: 'xyz'} and strings 'xyz' into clean string array
+              const cleanTitles: string[] = decorList
+                .map((it: any) => {
+                  if (typeof it === "string") return it.trim();
+                  return String(it?.title || it?.name || "").trim();
+                })
+                .filter((t: string) => Boolean(t) && t.toLowerCase() !== "all");
+
+              setItems(Array.from(new Set(cleanTitles)));
             }
           })
           .catch(() => {});
@@ -45,7 +51,7 @@ export default function GalleryDrawer({ open, onClose }: Props) {
     onClose();
     const query = new URLSearchParams();
     if (slug) query.set("event", slug);
-    query.set("category", title.toLowerCase());
+    query.set("album", title.toLowerCase());
     router.push(`/gallery?${query.toString()}`);
   };
 
@@ -89,27 +95,27 @@ export default function GalleryDrawer({ open, onClose }: Props) {
             </div>
           ) : (
             items.map((title, idx) => (
-            <button
-              key={`${title}-${idx}`}
-              onClick={() => handleSelectAlbum(title)}
-              className="group flex w-full items-center justify-between rounded-2xl border border-stone-200/70 bg-white p-3.5 shadow-xs transition hover:border-amber-400 hover:bg-amber-50/30"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-stone-900 to-stone-700 text-amber-300 shadow-xs">
-                  <ImageIcon size={18} />
+              <button
+                key={`${title}-${idx}`}
+                onClick={() => handleSelectAlbum(title)}
+                className="group flex w-full items-center justify-between rounded-2xl border border-stone-200/70 bg-white p-3.5 shadow-xs transition hover:border-amber-400 hover:bg-amber-50/30"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-stone-900 to-stone-700 text-amber-300 shadow-xs">
+                    <ImageIcon size={18} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-bold text-stone-800">
+                      {title}
+                    </h3>
+                    <p className="text-[11px] font-medium text-stone-400">View Collection</p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="text-sm font-bold text-stone-800">
-                    {title}
-                  </h3>
-                  <p className="text-[11px] font-medium text-stone-400">View Collection</p>
-                </div>
-              </div>
-              <ChevronRight
-                size={16}
-                className="text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-800"
-              />
-            </button>
+                <ChevronRight
+                  size={16}
+                  className="text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-800"
+                />
+              </button>
             ))
           )}
         </div>
