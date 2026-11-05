@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 
 import MobileContainer from "../components/layout/MobileContainer";
 import VideoHeader from "../components/video/VideoHeader";
@@ -9,7 +9,7 @@ import VideoSearch from "../components/video/VideoSearch";
 import VideoFilter from "../components/video/VideoFilter";
 import VideoGrid from "../components/video/VideoGrid";
 
-export default function VideosPage() {
+function VideosContent() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [selectedType, setSelectedType] = useState("All Videos");
@@ -142,5 +142,13 @@ export default function VideosPage() {
 
       </main>
     </MobileContainer>
+  );
+}
+
+export default function VideosPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-neutral-400">Loading videos...</div>}>
+      <VideosContent />
+    </Suspense>
   );
 }

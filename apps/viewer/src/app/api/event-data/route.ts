@@ -255,6 +255,29 @@ export async function GET(request: Request) {
         customMap,
           photos: parsedVault,
           mediaVault: parsedVault,
+          // Extract videos from parsedVault
+          videosList: (() => {
+            return parsedVault
+              .filter((item: any) => {
+                const t = String(item.type || "").toLowerCase();
+                const u = String(item.url || item.videoUrl || item.secure_url || "").toLowerCase();
+                return t === "video" || u.endsWith(".mp4") || u.endsWith(".mov") || u.endsWith(".webm") || u.includes("/video/upload/");
+              })
+              .map((item: any, idx: number) => ({
+                id: item.id || `video-${idx}`,
+                title: item.title || item.name || item.album || "Event Highlight",
+                url: item.url || item.videoUrl || item.secure_url || "",
+                videoUrl: item.url || item.videoUrl || item.secure_url || "",
+                thumbnail: item.thumbnail || item.coverPhoto || item.url || "",
+                category: item.category || "General",
+                album: item.album || "",
+                section: item.section || "Category",
+                duration: item.duration || "0:30",
+                views: item.views || "1.2K",
+                likes: Number(item.likes || 0),
+                createdAt: item.createdAt || new Date().toISOString()
+              }));
+          })(),
       },
     });
 

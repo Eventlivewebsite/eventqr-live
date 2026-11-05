@@ -254,13 +254,14 @@ export default function MediaStudioPage() {
         const base64Uri = await autoCompressFile(file);
 
         newItems.push({
-          id: Date.now() + "-" + Math.random().toString(36).substring(2, 8),
-          url: base64Uri,
-          type: isVid ? "video" : "photo",
-          section: sec,
-          category: name,
-          createdAt: new Date().toISOString(),
-        });
+            id: Date.now() + "-" + Math.random().toString(36).substring(2, 8),
+            url: base64Uri,
+            type: isVid ? "video" : "photo",
+            section: sec,
+            category: sec === "Decoration" ? "Decoration" : name,
+            album: sec === "Decoration" ? name : "",
+            createdAt: new Date().toISOString(),
+          });
       }
 
       const updatedVault = [...newItems, ...mediaVault];
