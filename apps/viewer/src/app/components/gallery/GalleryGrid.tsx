@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import SearchBar from "./SearchBar";
 import FilterChips from "./FilterChips";
@@ -46,36 +47,29 @@ export default function GalleryGrid({ photos: initialPhotos = [], categories: pr
   const [loading, setLoading] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    if (initialPhotos && initialPhotos.length > 0) {
-      setGalleryPhotos(initialPhotos);
-    }
-  }, [initialPhotos]);
+    const searchParams = useSearchParams();
 
+  // Instant reactive sync whenever URL changes (query params like ?album= or ?category=)
   useEffect(() => {
-    if (propCategories && propCategories.length > 0) {
-      setCategories(Array.from(new Set(["All", ...propCategories.filter(Boolean)])));
-    }
-  }, [propCategories]);
+    const urlAlbum = searchParams?.get("album") || "";
+    const urlCat = searchParams?.get("category") || "";
+    const urlSort = searchParams?.get("sort") || "";
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      const urlAlbum = sp.get("album") || "";
-      const urlCat = sp.get("category") || "";
-      const urlSort = sp.get("sort") || "";
-      if (urlAlbum) {
-        setActiveAlbum(urlAlbum);
-        setCategory("All");
-      } else if (urlCat) {
-        setCategory(urlCat);
-        setActiveAlbum("");
-      }
-      if (urlSort) {
-        setActiveSort(urlSort);
-      }
+    if (urlAlbum) {
+      setActiveAlbum(urlAlbum);
+      setCategory(urlAlbum);
+    } else if (urlCat) {
+      setCategory(urlCat);
+      setActiveAlbum("");
+    } else {
+      setActiveAlbum("");
+      setCategory("All");
     }
-  }, []);
+
+    if (urlSort) {
+      setActiveSort(urlSort);
+    }
+  }, [searchParams]);
 
   const fetchMedia = async () => {
     if (typeof window === "undefined") return;
