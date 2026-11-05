@@ -14,6 +14,8 @@ interface MediaItem {
   section: "Category" | "Decoration";
   category: string;
   createdAt: string;
+
+  album?: string;
 }
 
 // Client-side auto canvas compression
@@ -302,12 +304,28 @@ export default function MediaStudioPage() {
     }
   };
 
-  const filteredVault = mediaVault.filter((item) => {
-    const matchesType = activeTab === "photos" ? item.type === "photo" : item.type === "video";
-    const matchesTarget = filterTarget === "ALL" || (item.section + ":" + item.category) === filterTarget;
-    return matchesType && matchesTarget;
+const filteredVault = mediaVault.filter((item: any) => {
+    const rawType = String(item.type || "").trim().toLowerCase();
+    const rawUrl = String(item.url || item.videoUrl || item.secure_url || "").toLowerCase();
+    const isVid = rawType === "video" || rawType.startsWith("video/") || rawUrl.endsWith(".mp4") || rawUrl.endsWith(".mov") || rawUrl.endsWith(".webm") || rawUrl.includes("/video/upload/");
+    
+    const matchesType = activeTab === "photos" ? !isVid : isVid;
+
+    if (!matchesType) return false;
+
+    if (!filterTarget || filterTarget.toUpperCase() === "ALL") return true;
+
+    const itemSec = String(item.section || (item.album ? "Decoration" : "Category")).trim().toLowerCase();
+    const itemCat = String(item.category || item.album || "").trim().toLowerCase();
+    const [targetSec, targetName] = filterTarget.toLowerCase().split(":");
+
+    if (targetSec && targetName) {
+      return itemSec === targetSec && itemCat === targetName;
+    }
+    return true;
   });
 
+  
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
   return (
@@ -416,7 +434,7 @@ export default function MediaStudioPage() {
               >
                 {availableTargets.map((t, idx) => (
                   <option key={idx} value={t.section + ":" + t.name}>
-                    [{t.section.toUpperCase()}] -> {t.name}
+                    [{t.section.toUpperCase()}] &rarr; {t.name}
                   </option>
                 ))}
               </select>
@@ -483,7 +501,7 @@ export default function MediaStudioPage() {
                 <option value="ALL">All Categories &amp; Albums</option>
                 {availableTargets.map((t, idx) => (
                   <option key={idx} value={t.section + ":" + t.name}>
-                    [{t.section.toUpperCase()}] -> {t.name}
+                    [{t.section.toUpperCase()}] &rarr; {t.name}
                   </option>
                 ))}
               </select>

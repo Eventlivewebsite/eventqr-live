@@ -25,6 +25,7 @@ interface EventItem {
 type ThemeMode = "dark" | "blue" | "light";
 
 export default function MyEventsPage() {
+  const [extendingId, setExtendingId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);

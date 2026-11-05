@@ -54,11 +54,12 @@ export async function GET(
     });
 
     if (!event) {
-      customMap["mediaVault"] = customMap["mediaVault"] || "[]";
+      
     return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
     }
 
     const customMap: Record<string, string> = {};
+      customMap["mediaVault"] = customMap["mediaVault"] || "[]";
     if (Array.isArray(event.customFields)) {
       event.customFields.forEach((cf: any) => {
         customMap[cf.fieldName] = cf.fieldValue;
