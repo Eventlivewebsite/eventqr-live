@@ -18,36 +18,104 @@ export default function VideoGrid({
   const [loading, setLoading] = useState(true);
   const [activePlayUrl, setActivePlayUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadVideos() {
-      try {
-        setLoading(true);
-        const urlParams = new URLSearchParams(window.location.search);
-        let activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
-        if (!activeSlug && typeof window !== "undefined") {
-          activeSlug = sessionStorage.getItem("active_event_slug") || "";
-        }
-
-        if (activeSlug) {
-          sessionStorage.setItem("active_event_slug", activeSlug);
-          const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
-          const json = res ? await res.json().catch(() => null) : null;
-          
-          if (json?.success && Array.isArray(json?.event?.videosList)) {
-            setVideoList(json.event.videosList);
-          } else {
-            setVideoList([]);
-          }
-        } else {
-          setVideoList([]);
-        }
-      } catch {
-        setVideoList([]);
-      } finally {
-        setLoading(false);
+  const loadVideos = async () => {
+    try {
+      setLoading(true);
+      const urlParams = new URLSearchParams(window.location.search);
+      let activeSlug = urlParams.get("event") || urlParams.get("slug") || "";
+      if (!activeSlug && typeof window !== "undefined") {
+        activeSlug = sessionStorage.getItem("active_event_slug") || "";
       }
+
+      if (!activeSlug) {
+        setVideoList([]);
+        return;
+      }
+
+      sessionStorage.setItem("active_event_slug", activeSlug);
+      const res = await fetch(`/api/event-data?slug=${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+      const json = res ? await res.json().catch(() => null) : null;
+
+      const rawVault = json?.event?.videosList || json?.event?.mediaVault || json?.videos || [];
+
+      if (Array.isArray(rawVault) && rawVault.length > 0) {
+        const parsedVideos = rawVault
+          .filter((item: any) => {
+            const rawType = String(item.type || "").toLowerCase();
+            const rawUrl = String(item.url || item.videoUrl || item.secure_url || "").toLowerCase();
+            return (
+              rawType === "video" ||
+              rawType.startsWith("video/") ||
+              rawUrl.endsWith(".mp4") ||
+              rawUrl.endsWith(".mov") ||
+              rawUrl.endsWith(".webm") ||
+              rawUrl.includes("/video/upload/")
+            );
+          })
+          .map((item: any, idx: number) => {
+            const cleanCat = String(item.category || "")
+              .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
+              .replace(/^decoration\s*[:\-]?\s*/i, "")
+              .trim();
+            const cleanAlb = String(item.album || "")
+              .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
+              .replace(/^decoration\s*[:\-]?\s*/i, "")
+              .trim();
+
+            return {
+              id: item.id || `video-${idx}`,
+              title: item.title || item.name || cleanAlb || cleanCat || `Video #${idx + 1}`,
+              url: item.url || item.videoUrl || item.secure_url || "",
+              videoUrl: item.url || item.videoUrl || item.secure_url || "",
+              thumbnail: item.thumbnail || item.thumbnailUrl || item.coverPhoto || item.url || "",
+              category: cleanCat || "General",
+              album: cleanAlb,
+              section: item.section || "Category",
+              duration: item.duration || "0:30",
+              views: item.views || "1.2K",
+              likes: Number(item.likes || 0),
+              createdAt: item.createdAt || new Date().toISOString(),
+            };
+          });
+
+        setVideoList(parsedVideos);
+      } else {
+        setVideoList([]);
+      }
+    } catch (e) {
+      console.warn("Failed to load videos:", e);
+      setVideoList([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadVideos();
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        bc = new BroadcastChannel("event_media_sync");
+        bc.onmessage = (ev) => {
+          if (ev.data && (ev.data.type === "EVENT_MEDIA_SYNC" || ev.data.eventId)) {
+            loadVideos();
+          }
+        };
+      }
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "eventqr_media_push_trigger" && e.newValue) {
+        loadVideos();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const filteredVideos = useMemo(() => {
@@ -57,19 +125,28 @@ export default function VideoGrid({
         (v.title && v.title.toLowerCase().includes(search.toLowerCase())) ||
         (v.category && v.category.toLowerCase().includes(search.toLowerCase()));
 
-      const cleanCat = (category || "").trim().toLowerCase().replace(/^decoration\s+/i, "");
-      const targetCat = (v.category || v.album || "").trim().toLowerCase().replace(/^decoration\s+/i, "");
-      const matchCategory =
-        !cleanCat ||
-        cleanCat === "all" ||
-        targetCat === cleanCat ||
-        targetCat.includes(cleanCat);
+      const cleanActiveCat = (category || "")
+        .trim()
+        .toLowerCase()
+        .replace(/^\[(category|decoration)\]\s*->?\s*/i, "")
+        .replace(/^decoration\s*[:\-]?\s*/i, "");
 
+      const vCat = (v.category || "").toLowerCase();
+      const vAlb = (v.album || "").toLowerCase();
+
+      const matchCategory =
+        !cleanActiveCat ||
+        cleanActiveCat === "all" ||
+        vCat === cleanActiveCat ||
+        vAlb === cleanActiveCat ||
+        vCat.includes(cleanActiveCat);
+
+      const cleanType = (videoType || "").trim().toLowerCase();
       const matchType =
-        !videoType ||
-        videoType.toLowerCase() === "all videos" ||
-        (v.album && v.album.toLowerCase() === videoType.toLowerCase()) ||
-        (v.category && v.category.toLowerCase() === videoType.toLowerCase());
+        !cleanType ||
+        cleanType === "all videos" ||
+        vAlb === cleanType ||
+        vCat === cleanType;
 
       return matchSearch && matchCategory && matchType;
     });
@@ -102,7 +179,7 @@ export default function VideoGrid({
       <div className="grid grid-cols-2 gap-3.5">
         {filteredVideos.map((video: any, idx: number) => {
           const videoSrc = video.videoUrl || video.url || "";
-          const thumbnail = video.thumbnailUrl || video.thumb || video.previewUrl || "";
+          const thumbnail = video.thumbnail || video.thumbnailUrl || "";
           const videoTitle = video.title || `Video #${idx + 1}`;
           const categoryTag = video.category || video.album || "Moments";
 
@@ -112,9 +189,8 @@ export default function VideoGrid({
               onClick={() => videoSrc && setActivePlayUrl(videoSrc)}
               className="group relative cursor-pointer overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-xs transition-transform active:scale-[0.98] duration-150 hover:shadow-md touch-manipulation select-none"
             >
-              {/* Media Thumbnail */}
               <div className="relative aspect-[4/5] w-full overflow-hidden bg-stone-900">
-                {thumbnail ? (
+                {thumbnail && !thumbnail.startsWith("data:video") ? (
                   <img
                     src={thumbnail}
                     alt={videoTitle}
@@ -126,12 +202,10 @@ export default function VideoGrid({
                   </div>
                 )}
 
-                {/* Tag Badge */}
                 <span className="absolute top-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
                   {categoryTag}
                 </span>
 
-                {/* Play Button Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/35">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur-xs transition group-hover:scale-110">
                     <Play size={16} className="fill-stone-900 ml-0.5" />
@@ -145,7 +219,6 @@ export default function VideoGrid({
                 )}
               </div>
 
-              {/* Title Card */}
               <div className="p-2.5">
                 <h4 className="truncate text-xs font-bold text-stone-800">
                   {videoTitle}
@@ -156,7 +229,6 @@ export default function VideoGrid({
         })}
       </div>
 
-      {/* Video Lightbox Player */}
       {activePlayUrl && (
         <div
           onClick={() => setActivePlayUrl(null)}
@@ -168,7 +240,7 @@ export default function VideoGrid({
           >
             <button
               onClick={() => setActivePlayUrl(null)}
-              className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
+              className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black font-bold"
             >
               ?
             </button>
