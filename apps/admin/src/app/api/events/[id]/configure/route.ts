@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 function safeMergeCustomMap(existingMap: any, incomingMap: any) {
   const existing = typeof existingMap === "object" && existingMap !== null ? existingMap : {};
@@ -35,7 +37,7 @@ function safeMergeCustomMap(existingMap: any, incomingMap: any) {
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+
 
 export async function GET(
   req: NextRequest,
