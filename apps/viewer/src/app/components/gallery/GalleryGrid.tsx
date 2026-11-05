@@ -175,18 +175,18 @@ let processedPhotos: any[] = (galleryPhotos || []).filter((p: any) => {
     const pCat = String(p.category || "").trim().toLowerCase();
     const pAlb = String(p.album || "").trim().toLowerCase();
 
-    // Drawer se Decoration Album khula hai (?album=efasref)
+    // Jab Drawer se koi Album select ho (e.g. "efasref" ya "aaa")
     if (activeAlbum && activeAlbum.trim() !== "") {
       const targetAlb = activeAlbum.trim().toLowerCase();
       return pAlb === targetAlb || (pSec === "decoration" && pCat === targetAlb);
     }
 
-    // Normal Gallery view: Decoration items drawer me rehte hain, yahan show nahi honge
+    // Normal Gallery View: Decoration photos hide rahengi jab tak koi album select na ho
     if (pSec === "decoration" || pCat === "decoration") {
       return false;
     }
 
-    // Top Category Pills (e.g., dfaefaef)
+    // Normal Category Pills (e.g., dfaefaef, MMMM)
     if (category && category.trim().toLowerCase() !== "all") {
       const targetCat = category.trim().toLowerCase();
       return pCat === targetCat;
