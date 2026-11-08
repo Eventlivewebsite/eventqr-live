@@ -10,6 +10,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       onBeforeGenerateToken: async (pathname) => {
         return {
           allowedContentTypes: [
@@ -27,7 +28,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             "audio/ogg",
             "audio/m4a"
           ],
-          maximumSizeInBytes: 500 * 1024 * 1024, // 500 MB limit
+          maximumSizeInBytes: 500 * 1024 * 1024,
           tokenPayload: JSON.stringify({}),
         };
       },
