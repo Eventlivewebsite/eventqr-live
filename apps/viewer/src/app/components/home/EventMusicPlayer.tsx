@@ -91,6 +91,32 @@ export default function EventMusicPlayer() {
 
   const currentTrack = tracks[currentTrackIdx] || tracks[0] || { title: "Event Celebration Music", url: "https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3" };
 
+  useEffect(() => {
+    if (audioRef.current && currentTrack?.url) {
+      audioRef.current.load();
+      if (isPlaying) {
+        audioRef.current.play().catch(() => setIsPlaying(false));
+      }
+    }
+  }, [currentTrack?.url]);
+
+  useEffect(() => {
+    const onFirstGesture = () => {
+      if (audioRef.current && !isPlaying && enabled) {
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+      window.removeEventListener("click", onFirstGesture);
+      window.removeEventListener("touchstart", onFirstGesture);
+    };
+    window.addEventListener("click", onFirstGesture, { once: true });
+    window.addEventListener("touchstart", onFirstGesture, { once: true });
+    return () => {
+      window.removeEventListener("click", onFirstGesture);
+      window.removeEventListener("touchstart", onFirstGesture);
+    };
+  }, [enabled, isPlaying]);
+
+
   return (
     <>
       <audio
