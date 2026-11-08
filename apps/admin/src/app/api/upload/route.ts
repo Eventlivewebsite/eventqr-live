@@ -2,6 +2,7 @@
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,18 +14,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = file.type || "image/jpeg";
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const filename = `${category}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+    
+    const blob = await put(filename, file, {
+      access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
 
     return NextResponse.json({
       success: true,
-      url: dataUrl,
+      url: blob.url,
       fileName: file.name,
       category,
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message || "Failed" }, { status: 500 });
+    console.error("Upload error:", error);
+    return NextResponse.json({ success: false, error: error.message || "Upload failed" }, { status: 500 });
   }
 }
