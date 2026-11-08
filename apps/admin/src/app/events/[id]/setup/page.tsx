@@ -1,3 +1,4 @@
+import { upload } from "@vercel/blob/client";
 "use client";
 
 import React, { useState, useEffect, use } from "react";
@@ -233,29 +234,20 @@ export default function EventSetupPage({
   const handleProcessMedia = async (rawFile: File, cb: (mediaUrl: string) => void) => {
     try {
       setUploading(true);
-      if (rawFile.type.startsWith("video/")) {
-        const formData = new FormData();
-        formData.append("file", rawFile);
-        formData.append("category", "highlight_video");
-
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
+      if (rawFile.type.startsWith("video/") || rawFile.type.startsWith("audio/") || rawFile.size > 2 * 1024 * 1024) {
+        const cleanName = rawFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const blob = await upload(`events/${Date.now()}-${cleanName}`, rawFile, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
         });
-
-        const data = await res.json().catch(() => null);
-        if (data && data.url) {
-          cb(data.url);
-        } else {
-          alert("Video upload size exceeds limit. Please provide a direct stream link.");
-        }
+        cb(blob.url);
         return;
       }
 
       const dataUri = await compressAndConvertToBase64(rawFile);
       cb(dataUri);
     } catch (e: any) {
-      alert("Media error: " + e.message);
+      alert("Media upload error: " + (e.message || "Failed to upload file."));
     } finally {
       setUploading(false);
     }
@@ -472,14 +464,15 @@ export default function EventSetupPage({
                         if (!file) return;
                         try {
                           setUploading(true);
-                          const fd = new FormData();
-                          fd.append("file", file);
-                          const res = await fetch("/api/upload", { method: "POST", body: fd });
-                          const data = await res.json();
-                          if (data.url) {
-                            setOurStoryUrl(data.url);
+                          const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+                          const blob = await upload(`our-story/${Date.now()}-${cleanName}`, file, {
+                            access: "public",
+                            handleUploadUrl: "/api/upload",
+                          });
+                          if (blob && blob.url) {
+                            setOurStoryUrl(blob.url);
                           } else {
-                            alert("Upload failed, please check file size.");
+                            alert("Upload failed, please try again.");
                           }
                         } catch (err) {
                           alert("Video upload failed.");
