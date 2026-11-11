@@ -154,9 +154,7 @@ export default function EventSetupPage({
 
   // 7. Background Music & DJ Controls
   const [musicEnabled, setMusicEnabled] = useState(true);
-  const [musicTracks, setMusicTracks] = useState<any[]>([
-    { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" }
-  ]);
+  const [musicTracks, setMusicTracks] = useState<any[]>([]);
   const [newTrackTitle, setNewTrackTitle] = useState("");
   const [newTrackUrl, setNewTrackUrl] = useState("");
 
@@ -925,7 +923,7 @@ export default function EventSetupPage({
                   type="button"
                   onClick={() => {
                     if (newTrackTitle.trim() && newTrackUrl.trim()) {
-                      setMusicTracks([...musicTracks, { id: Date.now(), title: newTrackTitle.trim(), artist: "Live Event", url: newTrackUrl.trim() }]);
+                      const filtered = musicTracks.filter(t => !t.url.includes("actions.google.com") && !t.url.includes("freesound")); setMusicTracks([{ id: Date.now(), title: newTrackTitle.trim(), artist: "Live Event", url: newTrackUrl.trim() }, ...filtered]);
                       setNewTrackTitle("");
                       setNewTrackUrl("");
                     }

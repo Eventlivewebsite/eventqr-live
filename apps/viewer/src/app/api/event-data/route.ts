@@ -131,6 +131,7 @@ export async function GET(request: Request) {
 
     // Default sample tracks if music enabled but list empty
     const musicEnabled = customMap["musicEnabled"] === true || customMap["musicEnabled"] === "true" || customMap["showMusic"] === true || customMap["showMusic"] === "true";
+    musicTracks = musicTracks.filter(t => t && t.url && (!t.url.includes("actions.google.com") || musicTracks.length === 1));
     if (musicTracks.length === 0 && musicEnabled) {
       musicTracks = [
         { id: 1, title: "Royal Wedding Shehnai", artist: "Classical Celebration", url: "https://actions.google.com/sounds/v1/ambiences/daytime_forest_bonfire.ogg" },
