@@ -12,5 +12,5 @@ jobs:
     steps:
       - name: Trigger EventQR Lifecycle Engine
         run: |
-          curl -X GET "https://eventqr-live-admin.vercel.app/api/events/lifecycle" \
+          curl -X GET "https://eventqr-admin.wasimkhan300399.workers.dev/api/events/lifecycle" \
             -H "User-Agent: EventQR-Cron-Worker"

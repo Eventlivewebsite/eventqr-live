@@ -17,7 +17,7 @@ import {
 
 const MAIN_LOGIN_GATEWAY_URL =
   process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL ||
-  "https://eventqr-live-admin.vercel.app/login";
+  "https://eventqr-admin.wasimkhan300399.workers.dev/login";
 
 export default function Sidebar() {
   const pathname = usePathname();

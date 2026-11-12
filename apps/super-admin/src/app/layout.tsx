@@ -20,7 +20,7 @@ import "./globals.css";
 
 const MAIN_LOGIN_GATEWAY_URL =
   process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL ||
-  "https://eventqr-live-admin.vercel.app/login";
+  "https://eventqr-admin.wasimkhan300399.workers.dev/login";
 
 // FIXED: Sahi verified routes configure kiye gaye hain
 const NAVIGATION_ITEMS = [

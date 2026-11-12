@@ -371,7 +371,7 @@ const filteredVault = mediaVault.filter((item: any) => {
 
           {selectedEvent && (
             <a
-              href={"https://eventqr-live-viewer.vercel.app/?slug=" + selectedEvent.slug}
+              href={"https://eventqr-live.wasimkhan300399.workers.dev/?slug=" + selectedEvent.slug}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 rounded-2xl border border-stone-700 bg-stone-800/80 px-3.5 py-2.5 text-xs font-bold text-stone-300 hover:text-white hover:bg-stone-700 transition"

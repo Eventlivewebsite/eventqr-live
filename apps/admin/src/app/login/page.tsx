@@ -19,7 +19,7 @@ const LIVE_SUPER_ADMIN_URL =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
   (typeof window !== "undefined" && window.location.hostname === "localhost"
     ? "http://localhost:3001"
-    : "https://eventqr-live-super-admin.vercel.app");
+    : "https://eventqr-super-admin.wasimkhan300399.workers.dev");
 
 const SPRITE_URL =
   "https://raw.githubusercontent.com/nilbuild/page-mascot/main/characters/glasses/directions.png";

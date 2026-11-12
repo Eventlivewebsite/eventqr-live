@@ -91,8 +91,8 @@ export default function SuperAdminDashboard() {
 
   const studioPortalBaseUrl =
     process.env.NEXT_PUBLIC_ADMIN_URL ||
-    (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
-      ? "https://eventqr-live-admin.vercel.app"
+    (typeof window !== "undefined" && window.location.hostname.includes("workers.dev")
+      ? "https://eventqr-admin.wasimkhan300399.workers.dev"
       : "http://localhost:3002");
 
   return (

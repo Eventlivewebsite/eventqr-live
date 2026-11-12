@@ -19,7 +19,7 @@ export default function FoodSection() {
         let data = res ? await res.json().catch(() => null) : null;
 
         if (!data || !data.success) {
-          res = await fetch(`https://eventqr-live-admin.vercel.app/api/public/event/${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+          res = await fetch(`https://eventqr-admin.wasimkhan300399.workers.dev/api/public/event/${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
           data = res ? await res.json().catch(() => null) : null;
         }
 

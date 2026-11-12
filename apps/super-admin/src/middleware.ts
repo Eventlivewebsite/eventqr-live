@@ -8,7 +8,7 @@ const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 
 const STUDIO_LOGIN_URL =
   process.env.NEXT_PUBLIC_STUDIO_ADMIN_URL ||
-  "https://eventqr-live-admin.vercel.app/login";
+  "https://eventqr-admin.wasimkhan300399.workers.dev/login";
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;

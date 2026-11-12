@@ -239,8 +239,8 @@ export default function ApprovalRequestsPage() {
 
   const guestBaseUrl =
     process.env.NEXT_PUBLIC_CLIENT_URL ||
-    (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
-      ? "https://eventqr-live-admin.vercel.app"
+    (typeof window !== "undefined" && window.location.hostname.includes("workers.dev")
+      ? "https://eventqr-admin.wasimkhan300399.workers.dev"
       : "http://localhost:3002");
 
   return (

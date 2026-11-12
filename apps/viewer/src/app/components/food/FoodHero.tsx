@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChefHat, Sparkles } from "lucide-react";
@@ -31,7 +31,7 @@ export default function FoodHero({ onBack }: Props) {
         let data = res ? await res.json().catch(() => null) : null;
 
         if (!data || !data.success) {
-          res = await fetch(`https://eventqr-live-admin.vercel.app/api/public/event/${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
+          res = await fetch(`https://eventqr-admin.wasimkhan300399.workers.dev/api/public/event/${encodeURIComponent(activeSlug)}`, { cache: "no-store" }).catch(() => null);
           data = res ? await res.json().catch(() => null) : null;
         }
 
@@ -130,7 +130,7 @@ export default function FoodHero({ onBack }: Props) {
             </div>
 
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 text-center">
-              <div className="mx-auto flex h-4 w-4 items-center justify-center text-xs">🌱</div>
+              <div className="mx-auto flex h-4 w-4 items-center justify-center text-xs">??</div>
               <p className="mt-1 text-sm font-black text-gray-900 truncate">{eventData.primaryType}</p>
               <p className="text-[11px] font-medium text-gray-500">Premium</p>
             </div>
@@ -144,7 +144,7 @@ export default function FoodHero({ onBack }: Props) {
             }}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 py-4 font-bold text-white shadow-[0_12px_30px_rgba(245,158,11,0.35)] transition-all hover:opacity-95"
           >
-            🍽 Explore {eventData.title}
+            ?? Explore {eventData.title}
           </button>
         </div>
       </div>
